@@ -1,0 +1,13 @@
+# Local Python venv used by the schema validation harness.
+# Recreate locally with:
+#   python3 -m venv .schema-venv
+#   .schema-venv/bin/pip install jsonschema pyyaml
+.schema-venv/
+
+# Python byte-code that might end up under schemas/.validation/ during dev.
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS clutter.
+.DS_Store
