@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spack-composer.example/schemas/release-manifest-v1.json",
+  "$id": "https://stack-composer.example/schemas/release-manifest-v1.json",
   "title": "Spack stack release manifest (v1)",
   "description": "The single file tying a release to its source inputs, build context, and buildcache destinations. Exists in two phases: draft (after render, build-context fields null/absent) and final (after publish-manifest, all fields present). Mirrors docs/spack_stack_generation_design_v6.md § Release Manifest Schema.",
   "type": "object",
@@ -115,7 +115,7 @@
           "type": "object",
           "description": "Which render step produced this workspace.",
           "properties": {
-            "name": { "type": "string", "minLength": 1, "description": "e.g., 'spack-composer render' or 'manual'." },
+            "name": { "type": "string", "minLength": 1, "description": "e.g., 'stack-composer render' or 'manual'." },
             "version": {
               "oneOf": [
                 { "type": "null" },
@@ -348,9 +348,11 @@
               "name": { "type": "string", "minLength": 1 },
               "namespace": { "type": "string", "minLength": 1 },
               "path": { "type": "string", "minLength": 1 },
+              "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+              "priority": { "type": "string", "enum": ["before_builtin", "after_builtin"] },
               "commit": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" }
             },
-            "required": ["name", "namespace", "path", "commit"],
+            "required": ["name", "namespace", "path", "digest", "priority", "commit"],
             "additionalProperties": false
           }
         }

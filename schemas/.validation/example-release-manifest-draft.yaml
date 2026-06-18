@@ -1,4 +1,4 @@
-# Canonical example: draft release manifest right after `spack-composer render`.
+# Canonical example: draft release manifest right after `stack-composer render`.
 # Build-context fields are null (will be filled by publish-manifest after build + verify).
 
 schema_version: 1
@@ -11,8 +11,8 @@ release:
   promoted_by: null
 
 stack:
-  name: cse
-  source_repo: "git@gitlab:stacks/spack-composer"
+  name: science-stack
+  source_repo: "git@example:stacks/science-stack"
   source_commit: "0375b16fdeadbeef0123456789abcdef01234567"
   source_dirty: false
 
@@ -22,7 +22,7 @@ profile:
   system_name: "example-cray"
 
 stack_file:
-  path: "stacks/cse/stack.yaml"
+  path: "stacks/science-stack/stack.yaml"
   digest: "sha256:f421a70000000000000000000000000000000000000000000000000000000000"
 
 package_sets:
@@ -39,7 +39,7 @@ templates:
   defaults_digest: "sha256:6f1b9c0000000000000000000000000000000000000000000000000000000000"
   contract_digest: "sha256:58c1a30000000000000000000000000000000000000000000000000000000000"
   render_tool:
-    name: "spack-composer render"
+    name: "stack-composer render"
     version: "0.4.2"
   applied_narrowing:
     system: example-cray
@@ -47,9 +47,9 @@ templates:
       gpu:
         dropped_lanes: ["gcc-gpu-craympich-gfx942"]
         narrowed_by:
-          gpu_arch:
-            kept: ["gfx90a"]
-            dropped: ["gfx942"]
+          gpu_selectors:
+            kept: ["mi250x"]
+            dropped: ["mi300a"]
 
 spack: null
 build_host: null
@@ -63,8 +63,8 @@ lanes:
     target: x86_64_v3
     runtime_node_type: cpu_compute
     spec_source: "package_set:core-foundation"
-    view_root: "/shared/stack/releases/2026.06/example-cray/cse/views/gcc/core"
-    package_module_root: "/shared/stack/releases/2026.06/example-cray/cse/modules/gcc/core"
+    view_root: "/shared/stack/releases/2026.06/example-cray/science-stack/views/gcc/core"
+    package_module_root: "/shared/stack/releases/2026.06/example-cray/science-stack/modules/gcc/core"
     lockfile: null
     lockfile_digest: null
     install_root: null
@@ -79,8 +79,8 @@ lanes:
     target: zen3
     runtime_node_type: cpu_compute
     spec_source: "package_set:science-full"
-    view_root: "/shared/stack/releases/2026.06/example-cray/cse/views/cce/mpi-craympich"
-    package_module_root: "/shared/stack/releases/2026.06/example-cray/cse/modules/cce/mpi-craympich"
+    view_root: "/shared/stack/releases/2026.06/example-cray/science-stack/views/cce/mpi-craympich"
+    package_module_root: "/shared/stack/releases/2026.06/example-cray/science-stack/modules/cce/mpi-craympich"
     lockfile: null
     lockfile_digest: null
     install_root: null

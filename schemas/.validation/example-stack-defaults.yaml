@@ -13,8 +13,8 @@ modules:
   format: tcl
   additional_formats: []
   exposure: front_door
-  init_module: cse-init
-  module_root: CSE
+  init_module: science-stack-init
+  module_root: ScienceStack
   hierarchy_style: collapsed
   expose_provenance: true
   platform_module_policy: prereq

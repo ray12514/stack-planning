@@ -30,7 +30,7 @@ passes.
 | Aspect | Decision |
 |---|---|
 | JSON Schema draft | **2020-12**. `$schema: "https://json-schema.org/draft/2020-12/schema"`. |
-| `$id` | Placeholder URL: `https://spack-composer.example/schemas/<name>.json`. Not served; serves as a stable identifier and rewrites cleanly when the project picks a real domain. |
+| `$id` | Placeholder URL: `https://stack-composer.example/schemas/<name>.json`. Not served; serves as a stable identifier and rewrites cleanly when the project picks a real domain. |
 | Strictness | **Strict**. Every object that lists explicit properties sets `additionalProperties: false`. The schema is a contract: unknown keys are bugs, not extensions. |
 | Required | Every key the design doc marks `# R` appears in the parent's `required` array. |
 | Optional with default | Keys marked `# O - default <x>` carry `default: <x>` and stay absent from `required`. |
@@ -45,10 +45,10 @@ passes.
 
 A tool that needs to validate a profile loads `profile-v1.json` and runs
 a 2020-12 validator (e.g., Python `jsonschema.Draft202012Validator`,
-Go `santhosh-tekuri/jsonschema`). Tools must **not** embed copies of
-the schema — they load from this directory (during development) or
-from the equivalent path their package ships (after install). Embedded
-copies are how schema drift starts.
+Go `santhosh-tekuri/jsonschema`). Tools must **not** maintain divergent
+hand-copied schemas. During development they load from this directory; after
+install they load the immutable packaged copy generated from this repo at the
+tool release. Divergent embedded copies are how schema drift starts.
 
 For Python tools, `pydantic` models can be derived from these schemas
 mechanically. The recommended pattern is `datamodel-code-generator
@@ -63,10 +63,12 @@ casual `ls`) holds the round-trip validator used to develop and
 sanity-check the schemas. It is **not** a runtime contract — it is
 developer-only infrastructure.
 
-- `example-cray.yaml`, `example-linux.yaml` — canonical positive
-  examples mirroring the design-doc walkthroughs.
-- `validate.py` — runs Draft 2020-12 self-validity, validates both
-  positive examples, and runs a series of deliberately broken
+- `example-cray.yaml`, `example-linux.yaml`, `example-stack-science.yaml`,
+  `example-template-contract-v6.yaml`, `example-stack-defaults.yaml`,
+  `example-package-set.yaml`, and the draft/final release-manifest examples —
+  canonical positive examples mirroring the design-doc walkthroughs.
+- `validate.py` — runs Draft 2020-12 self-validity, validates all positive
+  examples, and runs a series of deliberately broken
   mutations expected to fail with specific error locations.
 
 Run from the repo root with the development venv:

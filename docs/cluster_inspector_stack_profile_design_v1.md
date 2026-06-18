@@ -49,7 +49,7 @@ but the durable contract is the v6 stack `profile.yaml` shape.
   views, lockfiles, or release manifests.
 - No template or contract generation: it does not write `templates/<set>/`,
   `contract.yaml`, or `stack-defaults.yaml`. Profile corpora may feed
-  `spack-composer assess-profiles` and `spack-composer scaffold-templates`, but
+  `stack-composer assess-profiles` and `stack-composer scaffold-templates`, but
   those advisory maintainer tools live on the stack side.
 - No deploy: it does not copy files to a release tree, change permissions, submit
   production builds, or swap `current` symlinks.
@@ -65,9 +65,8 @@ but the durable contract is the v6 stack `profile.yaml` shape.
 ## Self-Contained Runtime Requirement
 
 Once built, `cluster-inspector` must be self-contained from the tool-distribution
-perspective. Running it on a target system must not require the source checkout,
-the `cse-stack` repository, Spack, Ansible, network access, or a language runtime
-managed by the target site.
+perspective. Running it on a target system must not require any source checkout,
+Spack, Ansible, network access, or a language runtime managed by the target site.
 
 Allowed runtime inputs are explicit operator inputs:
 
@@ -144,7 +143,7 @@ intent from system facts. For example, it may report that Cray MPICH exists, but
 it does not decide whether a stack should prefer platform MPI. It may report ROCm
 component externals, but it does not decide which GPU packages the stack builds.
 It also does not scaffold template sets or write template contracts; its profiles
-are inputs that `spack-composer` can analyze when maintainers curate stack-side
+are inputs that `stack-composer` can analyze when maintainers curate stack-side
 templates.
 
 ## Output Contract
@@ -355,7 +354,7 @@ choices for the stack (`gcc-data/9.3`, `gcc-toolset/12`, intermediate
    `profile.yaml`. Diagnostics name the rejected candidates and the
    ambiguous ones.
 2. **Review.** Read the draft profile and the diagnostics. Decisions to
-   make: which compiler modules are real CSE compilers; which MPI
+   make: which compiler modules are real ScienceStack compilers; which MPI
    versions the stack supports; which GPU toolkit module is the one the
    stack should use; which fabric userspace modules matter.
 3. **Author hints.** Write `systems/<name>/inspector-hints.yaml` with

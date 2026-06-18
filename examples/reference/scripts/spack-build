@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: spack-build --workspace DIR [--spack-root DIR] [--lanes GLOB] [--reports DIR] [--jobs N] [--skip-push] [--fail-fast]
+
+Reference local single-machine build script for a rendered stack workspace.
+It is intentionally plain bash so deployments can copy and adapt it.
+
+This reference script is a skeleton: it documents the manifest-driven flow and
+fails before running Spack until the reference fixture provides concrete lane
+metadata and report schemas.
+USAGE
+}
+
+workspace=""
+spack_root=""
+lanes="*/*"
+reports=""
+jobs=""
+skip_push=0
+fail_fast=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --workspace) workspace="${2:?}"; shift 2 ;;
+    --spack-root) spack_root="${2:?}"; shift 2 ;;
+    --lanes) lanes="${2:?}"; shift 2 ;;
+    --reports) reports="${2:?}"; shift 2 ;;
+    --jobs) jobs="${2:?}"; shift 2 ;;
+    --skip-push) skip_push=1; shift ;;
+    --fail-fast) fail_fast=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) printf 'unknown argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+if [[ -z "$workspace" ]]; then
+  printf 'missing required --workspace\n' >&2
+  usage >&2
+  exit 2
+fi
+
+if [[ ! -f "$workspace/release-manifest.yaml" ]]; then
+  printf 'workspace does not contain release-manifest.yaml: %s\n' "$workspace" >&2
+  exit 2
+fi
+
+if [[ -n "$spack_root" ]]; then
+  # shellcheck disable=SC1090
+  source "$spack_root/share/spack/setup-env.sh"
+fi
+
+if ! command -v spack >/dev/null 2>&1; then
+  printf 'spack is not on PATH; pass --spack-root or load a site Spack module\n' >&2
+  exit 2
+fi
+
+reports="${reports:-$workspace/reports}"
+jobs="${jobs:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '1')}"
+
+cat <<EOF
+spack-build reference script
+workspace: $workspace
+reports:   $reports
+lanes:     $lanes
+jobs:      $jobs
+skip_push: $skip_push
+fail_fast: $fail_fast
+spack:     $(command -v spack) ($(spack --version))
+
+TODO: implement lane iteration from release-manifest.yaml, then run:
+  spack -e <env> concretize --force
+  spack -e <env> fetch -D
+  spack -e <env> install -j <jobs>
+  spack -e <env> env view regenerate
+  spack -e <env> module tcl refresh -y
+  spack -e <env> verify manifest -a
+  spack -e <env> verify libraries   # drift baseline only
+  spack -e <env> buildcache push ... # unless --skip-push
+EOF
+
+exit 1

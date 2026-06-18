@@ -6,7 +6,7 @@ name: science-full
 tier: canonical
 description: |
   Full curated science library set: HDF5/NetCDF/PnetCDF (multi-version),
-  TAU, and performance-portability roots used by CSE payload lanes.
+  TAU, and performance-portability roots used by science-stack payload lanes.
 
 kinds: [serial, mpi, gpu]
 

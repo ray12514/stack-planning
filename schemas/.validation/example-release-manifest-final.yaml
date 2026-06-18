@@ -1,4 +1,4 @@
-# Canonical example: final release manifest after `spack-composer publish-manifest`
+# Canonical example: final release manifest after `stack-composer publish-manifest`
 # has added build-context, lockfile digests, install provenance, verify results, and
 # buildcache push destinations.
 
@@ -12,8 +12,8 @@ release:
   promoted_by: "rventers"
 
 stack:
-  name: cse
-  source_repo: "git@gitlab:stacks/spack-composer"
+  name: science-stack
+  source_repo: "git@example:stacks/science-stack"
   source_commit: "0375b16fdeadbeef0123456789abcdef01234567"
   source_dirty: false
 
@@ -23,7 +23,7 @@ profile:
   system_name: "example-cray"
 
 stack_file:
-  path: "stacks/cse/stack.yaml"
+  path: "stacks/science-stack/stack.yaml"
   digest: "sha256:f421a70000000000000000000000000000000000000000000000000000000000"
 
 package_sets:
@@ -40,7 +40,7 @@ templates:
   defaults_digest: "sha256:6f1b9c0000000000000000000000000000000000000000000000000000000000"
   contract_digest: "sha256:58c1a30000000000000000000000000000000000000000000000000000000000"
   render_tool:
-    name: "spack-composer render"
+    name: "stack-composer render"
     version: "0.4.2"
   applied_narrowing: null
 
@@ -48,9 +48,11 @@ spack:
   version: "1.1.1"
   commit: "ba9d6a0100000000000000000000000000000000"
   package_repos:
-    - name: cse
-      namespace: cse
-      path: "package-repos/cse"
+    - name: science
+      namespace: science
+      path: "package-repos/science"
+      digest: "sha256:abd1230000000000000000000000000000000000000000000000000000000000"
+      priority: before_builtin
       commit: "0375b16fdeadbeef0123456789abcdef01234567"
 
 build_host:
@@ -69,8 +71,8 @@ lanes:
     target: x86_64_v3
     runtime_node_type: cpu_compute
     spec_source: "package_set:core-foundation"
-    view_root: "/shared/stack/releases/2026.06/example-cray/cse/views/gcc/core"
-    package_module_root: "/shared/stack/releases/2026.06/example-cray/cse/modules/gcc/core"
+    view_root: "/shared/stack/releases/2026.06/example-cray/science-stack/views/gcc/core"
+    package_module_root: "/shared/stack/releases/2026.06/example-cray/science-stack/modules/gcc/core"
     lockfile: "gcc/core/spack.lock"
     lockfile_digest: "sha256:09abee0000000000000000000000000000000000000000000000000000000000"
     install_root: "/shared/stack/spack/opt/linux-rhel8-x86_64_v3/gcc-13.3.0"
@@ -89,8 +91,8 @@ lanes:
     target: zen3
     runtime_node_type: cpu_compute
     spec_source: "package_set:science-full"
-    view_root: "/shared/stack/releases/2026.06/example-cray/cse/views/cce/mpi-craympich"
-    package_module_root: "/shared/stack/releases/2026.06/example-cray/cse/modules/cce/mpi-craympich"
+    view_root: "/shared/stack/releases/2026.06/example-cray/science-stack/views/cce/mpi-craympich"
+    package_module_root: "/shared/stack/releases/2026.06/example-cray/science-stack/modules/cce/mpi-craympich"
     lockfile: "cce/mpi-craympich/spack.lock"
     lockfile_digest: "sha256:71f4c50000000000000000000000000000000000000000000000000000000000"
     install_root: "/shared/stack/spack/opt/linux-rhel8-zen3/cce-17.0.1"

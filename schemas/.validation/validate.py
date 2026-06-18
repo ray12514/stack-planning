@@ -240,7 +240,7 @@ def stack_negatives(base: dict) -> list[tuple[str, dict, str]]:
                 {
                     "name": "broken",
                     "class": "core",
-                    "toolchain": "cse-core",
+                    "toolchain": "science-core",
                     "nodes": "cpu",
                     "expand": "one",
                 },
@@ -290,10 +290,10 @@ def template_contract_negatives(base: dict) -> list[tuple[str, dict, str]]:
             "toolchain missing compiler",
             with_mutation(
                 base,
-                ["toolchains", "cse-core"],
+                ["toolchains", "science-core"],
                 {"mpi": "none", "gpu_toolkit": "none"},
             ),
-            "toolchains/cse-core",
+            "toolchains/science-core",
         ),
         (
             "gpu_selector with wrong vendor enum",
@@ -364,7 +364,7 @@ def release_manifest_negatives(base_final: dict) -> list[tuple[str, dict, str]]:
                         "gpu": {
                             "dropped_lanes": ["x"],
                             "narrowed_by": {
-                                "gpu_arch": {"kept": ["a"], "dropped": ["b"]}
+                                "gpu_selectors": {"kept": ["a"], "dropped": ["b"]}
                             },
                         }
                     }
@@ -401,7 +401,7 @@ SCHEMAS: list[tuple[str, list[str], str, NegFactory]] = [
     ("profile-v1.json",          ["example-cray.yaml", "example-linux.yaml"],          "example-cray.yaml",                     profile_negatives),
     ("package-set-v1.json",      ["example-package-set.yaml"],                          "example-package-set.yaml",              package_set_negatives),
     ("stack-defaults-v1.json",   ["example-stack-defaults.yaml"],                       "example-stack-defaults.yaml",           stack_defaults_negatives),
-    ("stack-v1.json",            ["example-stack-cse.yaml"],                            "example-stack-cse.yaml",                stack_negatives),
+    ("stack-v1.json",            ["example-stack-science.yaml"],                        "example-stack-science.yaml",            stack_negatives),
     ("template-contract-v1.json",["example-template-contract-v6.yaml"],                 "example-template-contract-v6.yaml",     template_contract_negatives),
     ("release-manifest-v1.json", ["example-release-manifest-draft.yaml", "example-release-manifest-final.yaml"],
                                                                                         "example-release-manifest-final.yaml",   release_manifest_negatives),
