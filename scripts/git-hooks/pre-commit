@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Pre-commit hook for stack-planning.
+#
+# Runs the schema validation harness against the staged tree. Blocks the
+# commit if any schema is invalid or any positive/negative example fails.
+#
+# Permissive when the dev venv at .schema-venv/ is absent: prints a
+# one-line note and exits 0 (no validation, but the commit proceeds).
+#
+# To enable once per clone:
+#   ./scripts/install-hooks.sh
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+venv_python="$repo_root/.schema-venv/bin/python"
+validator="$repo_root/schemas/.validation/validate.py"
+
+# Quick filter: only run when staged changes touch schemas/.
+if ! git diff --cached --name-only | grep -q '^schemas/'; then
+    exit 0
+fi
+
+if [[ ! -x "$venv_python" ]]; then
+    echo "pre-commit: .schema-venv/ not found — skipping schema validation."
+    echo "             To enable: python3 -m venv .schema-venv && .schema-venv/bin/pip install jsonschema pyyaml"
+    exit 0
+fi
+
+if [[ ! -f "$validator" ]]; then
+    echo "pre-commit: validator missing at $validator — skipping."
+    exit 0
+fi
+
+echo "pre-commit: running schema validation harness…"
+if ! "$venv_python" "$validator" >/dev/null; then
+    echo ""
+    echo "pre-commit: schema validation FAILED. Re-run for details:"
+    echo "    $venv_python $validator"
+    echo ""
+    echo "Commit blocked. Fix the schema, example, or harness, then re-stage."
+    exit 1
+fi
+
+echo "pre-commit: schema validation passed."
