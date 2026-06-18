@@ -661,6 +661,23 @@ function publish_manifest(workspace, build_host, lockfiles_dir,
   build host are observed at finalize time), but the rest of the manifest
   is.
 
+**Lockfile shape sanity check (first action in `derive_provenance`).**
+The `spack.lock` format is the highest-risk Spack surface this tool
+touches — it has changed across major Spack versions before. To turn
+silent miscompute into a loud, locatable failure, the first thing the
+lockfile reader does is validate the lock's top-level shape against a
+small declared expectation: presence of the keys this version of
+`publish-manifest` knows how to consume (e.g., `_meta.lockfile-version`,
+`concrete_specs`, `roots`), and a check that `_meta.lockfile-version`
+falls inside a supported range pinned in code. On mismatch, fail with
+a message of the form: `unsupported spack.lock shape: got
+lockfile-version=<v>, supported=<range>; bump stack-composer or use an
+older Spack`. Do not attempt to derive provenance from an unrecognized
+lock. The supported range bumps in tandem with `stack-composer`'s own
+release cadence; sites pin Spack via `stack-defaults.yaml.spack.floor`
+and `stack.yaml.spack.version`, so the range mismatch is the right
+place for a clean upgrade-required signal.
+
 **Example.**
 
 ```bash
