@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spack-composer.example/schemas/stack-defaults-v1.json",
+  "$id": "https://stack-composer.example/schemas/stack-defaults-v1.json",
   "title": "Spack stack defaults (v1)",
   "description": "Template-set defaults merged underneath the user's stack.yaml. Same shape as stack.yaml except: `name` is forbidden, `templates.set` is forbidden, `builds` is omitted in normal use, and `spack.floor` is required. Mirrors docs/spack_stack_generation_design_v6.md § Stack Defaults Merge Rules.",
   "type": "object",
@@ -86,7 +86,7 @@
     },
     "helper_recommendations": {
       "type": "object",
-      "description": "Free-form hints displayed by spack-composer explain.",
+      "description": "Free-form hints displayed by stack-composer explain.",
       "additionalProperties": true
     },
     "package_repositories": {
@@ -205,7 +205,7 @@
                   "minItems": 1,
                   "uniqueItems": true
                 },
-                "gpu_arch": {
+                "gpu_selectors": {
                   "type": "array",
                   "items": { "type": "string", "minLength": 1 },
                   "minItems": 1,

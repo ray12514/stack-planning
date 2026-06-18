@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spack-composer.example/schemas/stack-v1.json",
+  "$id": "https://stack-composer.example/schemas/stack-v1.json",
   "title": "Spack stack intent (v1)",
   "description": "Stack intent file. Platform-portable — names build classes, toolchains, and node selectors that the selected template contract resolves against the profile. Mirrors docs/spack_stack_generation_design_v6.md § stack.yaml.",
   "type": "object",
@@ -142,7 +142,7 @@
         "module_root": {
           "type": "string",
           "minLength": 1,
-          "description": "User-facing module namespace (e.g., CSE in CSE/GCC/mpi-openmpi)."
+          "description": "User-facing module namespace (e.g., ScienceStack in ScienceStack/GCC/mpi-openmpi)."
         },
         "publish_root": {
           "oneOf": [
@@ -287,9 +287,9 @@
                   "minItems": 1,
                   "uniqueItems": true
                 },
-                "gpu_arch": {
+                "gpu_selectors": {
                   "type": "array",
-                  "description": "Subset of GPU architecture labels from profile.node_types[*].gpu.arch_target.",
+                  "description": "Subset of friendly GPU selector names from the selected template contract, such as a100 or mi250x.",
                   "items": { "type": "string", "minLength": 1 },
                   "minItems": 1,
                   "uniqueItems": true
@@ -445,7 +445,7 @@
         "path": {
           "type": "string",
           "minLength": 1,
-          "description": "Repository path relative to the stack source root, e.g., package-repos/cse."
+          "description": "Repository path relative to the stack source root, e.g., package-repos/science."
         },
         "priority": {
           "type": "string",

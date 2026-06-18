@@ -1,8 +1,8 @@
-# Canonical CSE multi-build stack, derived from
+# Canonical science-stack multi-build stack, derived from
 # docs/spack_stack_generation_design_v6.md § stack.yaml reference schema (lines ~872-980).
 
 schema_version: 1
-name: cse
+name: science-stack
 
 profile_contract:
   schema_version: 1
@@ -17,8 +17,8 @@ modules:
   format: tcl
   additional_formats: []
   exposure: front_door
-  init_module: cse-init
-  module_root: CSE
+  init_module: science-stack-init
+  module_root: ScienceStack
   publish_root: null
   hierarchy_style: collapsed
   expose_provenance: true
@@ -29,7 +29,7 @@ builds:
     class: core
     package_set: core-foundation
     specs: null
-    toolchain: cse-core
+    toolchain: science-core
     nodes: cpu
     expand: one
     publish: true
@@ -39,7 +39,7 @@ builds:
     class: serial
     package_set: science-full
     specs: null
-    toolchain: cse-serial-default
+    toolchain: science-serial-default
     nodes: cpu
     expand: one
     publish: true
@@ -48,7 +48,7 @@ builds:
     class: mpi
     package_set: science-full
     specs: null
-    toolchain: cse-mpi-default
+    toolchain: science-mpi-default
     nodes: cpu
     expand: one
     publish: true
@@ -57,7 +57,7 @@ builds:
     class: gpu
     package_set: science-full
     specs: null
-    toolchain: cse-gpu-default
+    toolchain: science-gpu-default
     nodes: gpu
     expand: per_gpu_arch
     publish: true
@@ -71,7 +71,7 @@ per_system:
       gpu:
         compilers: [gcc]
         mpi: [cray-mpich]
-        gpu_arch: [gfx90a]
+        gpu_selectors: [mi250x]
 
 externals:
   compilers: prefer_platform
@@ -105,7 +105,7 @@ helpers:
   ansible: available
 
 package_repositories:
-  - name: cse
-    namespace: cse
-    path: package-repos/cse
+  - name: science
+    namespace: science
+    path: package-repos/science
     priority: before_builtin

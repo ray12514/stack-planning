@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spack-composer.example/schemas/template-contract-v1.json",
+  "$id": "https://stack-composer.example/schemas/template-contract-v1.json",
   "title": "Spack stack template contract (v1)",
   "description": "Vocabulary and resolver semantics for a template set. Names accepted in stack.yaml.builds[*].class, .toolchain, and .nodes are defined here. Resolver-policy names (compiler/mpi/gpu_toolkit/target/match values) are open template-set vocabulary; the renderer must know how to resolve every name referenced. Mirrors docs/spack_stack_generation_design_v6.md § Template Contract Files.",
   "type": "object",

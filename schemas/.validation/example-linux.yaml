@@ -86,13 +86,3 @@ node_types:
         writable: true
         free_gb: 500
         throughput_class: fast
-
-capabilities:
-  lanes_capable:
-    - { compiler: aocc, lane: core,        runtime_node_types: [login, cpu_compute] }
-    - { compiler: aocc, lane: serial,      runtime_node_types: [cpu_compute] }
-    - { compiler: aocc, lane: mpi-site,    runtime_node_types: [cpu_compute] }
-    - { compiler: gcc,  lane: core,        runtime_node_types: [login, cpu_compute] }
-    - { compiler: gcc,  lane: serial,      runtime_node_types: [cpu_compute] }
-  gpu_lane_supported: false
-  fabric_class: open

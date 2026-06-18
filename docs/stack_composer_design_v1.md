@@ -1,27 +1,27 @@
-# Spack-Composer Design v1
+# Stack-Composer Design v1
 
 ## Purpose
 
-`spack-composer` is the central stack-side tool described in the v6 design
-notes (`docs/spack_stack_generation_design_v6.md`). It is the *replacement* for
-the ad-hoc tooling layer that grew up inside `cse-stack`. The stack content
-(profiles, stacks, templates, package sets, package repos) remains
-human-authored YAML and Jinja; `spack-composer` operates on that content
-and produces Spack-consumable workspaces, validation reports, scaffolded
-template stubs, and finalized release manifests.
+`stack-composer` is the central stack-side tool described in the v6 design
+notes (`docs/spack_stack_generation_design_v6.md`). Stack content (profiles,
+stacks, templates, package sets, package repos) remains human-authored YAML and
+Jinja; `stack-composer` operates on that content and produces Spack-consumable
+workspaces, validation reports, scaffolded template stubs, local-build reference
+scripts, and finalized release manifests.
 
 It is the **non-helper** of the v6 model: unlike `cluster-inspector` or
-Ansible, the typical end-to-end flow goes through `spack-composer`. The
+Ansible, the typical end-to-end flow goes through `stack-composer`. The
 "manual workflow" remains executable (a human can write `spack.yaml` and run
-`spack install` by hand), but the supported path is `spack-composer
-render` → Spack → `spack-composer publish-manifest`.
+`spack install` by hand), but the supported path is `stack-composer
+render` → Spack commands or the reference `spack-build` script →
+`stack-composer publish-manifest`.
 
 ## Document Set
 
 | Document | Purpose |
 |---|---|
 | `spack_stack_generation_design_v6.md` § Render Step — Specification | The render seam contract: inputs, outputs, invariants, and the render pseudo-code. Authoritative for what a rendered workspace must look like. |
-| `spack_composer_design_v1.md` (this document) | Product boundary, language and repo decisions, command catalog with per-command algorithm sketches, repository shape, packaging plan, and implementation phases. |
+| `stack_composer_design_v1.md` (this document) | Product boundary, language and repo decisions, command catalog with per-command algorithm sketches, repository shape, packaging plan, and implementation phases. |
 
 When the two disagree, the v6 render seam wins for the *render* command's
 contract (`render` is a seam that every implementer reads). This document
@@ -30,7 +30,7 @@ language, the packaging plan, the phases.
 
 ## Product Boundary
 
-`spack-composer` is a content-to-Spack-workspace pipeline plus a set of
+`stack-composer` is a content-to-Spack-workspace pipeline plus a set of
 maintainer-facing analysis commands. Its CLI is the supported entry point
 for stack operations.
 
@@ -38,36 +38,40 @@ for stack operations.
 |---|---|
 | Primary artifact | A rendered Spack workspace at `<output-root>/<system>/<stack>/<release>/`. |
 | Primary consumer | Spack itself, on a build host; downstream Ansible playbooks for distribution. |
-| Primary command | `spack-composer render`. |
+| Primary command | `stack-composer render`. |
 | Durable inputs | `systems/<system>/profile.yaml`, `stacks/<stack>/stack.yaml`, `templates/<set>/...`, optional `package-sets/<name>.yaml`, optional `package-repos/<name>/`. |
 | Durable outputs | Rendered workspace tree + `release-manifest.yaml`. The manifest is rewritten in place by `publish-manifest` to add build-context fields. |
 | Diagnostics | Coverage reports, validate reports, explain menus, scaffold proposals. Written only when commanded; never co-mingled with the rendered workspace. |
-| Source of truth | The stack repository. `spack-composer` does not invent stack content. |
+| Source of truth | The stack repository. `stack-composer` does not invent stack content. |
 
-## Relationship To `cse-stack`
+## Reference Fixture Relationship
 
-`cse-stack` is being replaced by the generic, content-driven model where
-`spack-composer` provides the tooling and `cse-stack` becomes one
-*content corpus* among others. The relationship is:
+`stack-planning` owns the canonical self-contained reference fixture under
+`examples/reference/science-stack/`. That fixture is the first acceptance target
+for `stack-composer` because it exercises the schema and render contracts without
+depending on any deployment-specific repository.
 
-- `cse-stack` is a downstream consumer / test fixture.
-- Patterns proven in `cse-stack` are evaluated for promotion into the
-  generic model (`templates/`, contract resolver rules, manifest fields).
-- Patterns that do not promote stay in `cse-stack` until they either prove
-  themselves or are discarded.
-- `spack-composer` must not encode `cse-stack`-specific assumptions.
-  Whatever it learns about packaging, lane composition, or manifest
-  shape must be expressible through the generic stack inputs.
+- `examples/reference/science-stack/stacks/science-stack/stack.yaml` is the
+  canonical large-stack input example.
+- `examples/reference/science-stack/templates/v6/` is the canonical starter
+  template-set fixture.
+- `examples/reference/science-stack/systems/` contains canonical example
+  profiles.
+- `examples/reference/scripts/spack-build` is the reference local
+  single-machine build script. It is not part of `stack-composer`; it is a bash
+  implementation of the manifest-driven build contract.
+- `stack-composer` must not encode fixture-specific assumptions. Whatever it
+  learns about packaging, lane composition, or manifest shape must be expressible
+  through generic stack inputs.
 
-This means `cse-stack` is also the most useful early test surface for
-`spack-composer`. The phase plan below (§Implementation Plan) treats
-`cse-stack` fixtures as Phase 4 acceptance evidence, not Phase 1.
+The phase plan below (§Implementation Plan) treats the reference fixture as the
+first end-to-end acceptance surface.
 
 ## Non-Goals
 
-These are *not* `spack-composer`'s job:
+These are *not* `stack-composer`'s job:
 
-- **No host probing.** `spack-composer` does not call `module avail`,
+- **No host probing.** `stack-composer` does not call `module avail`,
   read `/etc/os-release`, or otherwise inspect the host. System facts come
   from `profile.yaml`. The producer of that file is `cluster-inspector` or
   a human; see the inspector design docs.
@@ -77,36 +81,38 @@ These are *not* `spack-composer`'s job:
   (`validate-template-set` is the one command that *may* invoke Spack as
   an optional Phase 2 acceptance check; the render contract itself
   remains Spack-free.)
-- **No deploy.** `spack-composer` does not `rsync`, `scp`, or otherwise
+- **No deploy.** `stack-composer` does not `rsync`, `scp`, or otherwise
   distribute a rendered workspace to a build host. Distribution is
   Ansible's job (or a human's `rsync`).
-- **No promotion.** `spack-composer` does not swap a `current` symlink,
+- **No promotion.** `stack-composer` does not swap a `current` symlink,
   push to a release tree, or sign off on a release. The `publish-manifest`
   command rewrites the manifest in place; promotion gating lives in
   Ansible or human review.
-- **No build orchestration.** `spack-composer` does not loop over lanes,
-  submit `srun` jobs, or push to buildcaches. Those operations live in
-  Ansible (or a human running `spack install`).
+- **No Spack execution.** `stack-composer` does not loop over lanes, submit
+  `srun` jobs, run `spack install`, refresh modules, or push to buildcaches.
+  Those operations live in Ansible, direct operator commands, or the reference
+  `examples/reference/scripts/spack-build` bash script for local single-machine
+  installs.
 - **No template policy.** `scaffold-templates` proposes; the maintainer
-  decides what becomes a committed template set. `spack-composer` will
+  decides what becomes a committed template set. `stack-composer` will
   never overwrite an existing template scope or contract without the
   operator explicitly redirecting `--output` at that path.
 - **No package decisions.** Which packages get built is `stack.yaml` intent.
-  `spack-composer` resolves intent against the contract and profile; it
+  `stack-composer` resolves intent against the contract and profile; it
   does not pick package roots.
 
 ## Runtime Distribution
 
-`spack-composer` is built on a Python-capable host (developer laptop or
-the existing CSE environment on the HPC) and shipped as a single
-self-contained artifact. Both spack-composer and cluster-inspector end
+`stack-composer` is built on a Python-capable host (developer laptop, CI runner,
+or a Python-capable HPC login environment) and shipped as a single
+self-contained artifact. Both `stack-composer` and `cluster-inspector` end
 up as one-file deployments — they get there by different mechanisms,
 but the operational property at the target is the same.
 
-| Concern | spack-composer | cluster-inspector |
+| Concern | stack-composer | cluster-inspector |
 |---|---|---|
-| Build host | Developer laptop or the CSE env on the HPC. Either works; both have Python and package access. | Developer laptop with Go toolchain. |
-| Runtime artifact | A single shiv-built `.pyz` (`spack-composer.pyz`) plus the `spack-build` companion script, shipped together in a release tarball. | A single Go binary. |
+| Build host | Developer laptop, CI runner, or Python-capable HPC login environment. | Developer laptop with Go toolchain. |
+| Runtime artifact | A single shiv-built `.pyz` (`stack-composer.pyz`). The reference `spack-build` script is owned by `stack-planning`, not shipped as part of the composer tool. | A single Go binary. |
 | Distribution to target | `scp` the release tarball, `tar xzf`, run the `.pyz` directly. No `pip install` on the target. | `scp` the binary; run it. |
 | Self-contained | Runtime deps (PyYAML, Jinja2, MarkupSafe, fastjsonschema, click, and any others on the committed surface) are bundled inside the `.pyz`. The target needs only Python 3.9. | Resource files embedded in the Go binary via `embed`. The target needs nothing. |
 | Network | None required at runtime. None required at install time on the target. | None required at runtime. |
@@ -135,7 +141,7 @@ Rationale:
   canonical JSON Schemas in `schemas/`; typed access is via plain
   `dataclasses` or `pydantic` (decision deferred to Phase 1, see Open
   Questions — the choice affects the `.pyz` platform matrix).
-- `spack-composer` is built on a Python-capable host and shipped to the
+- `stack-composer` is built on a Python-capable host and shipped to the
   target as a self-contained `.pyz` produced by `shiv`. The
   one-file-on-target property that decided Go for the inspector is
   preserved for the composer through a different mechanism: shiv bundles
@@ -145,7 +151,7 @@ Rationale:
   a `package.py` recipe than a Go tool would be.
 
 Stack maintainers do not need to know Go to maintain templates, but they
-will routinely read and occasionally extend `spack-composer`. Choosing
+will routinely read and occasionally extend `stack-composer`. Choosing
 Python keeps that path open. The self-containment constraint is met at
 release time (via shiv), not at language choice — both tools satisfy the
 same "one file lands on the target" property by different means.
@@ -164,7 +170,7 @@ The stack design separates concerns sharply:
 | `package-sets/<name>.yaml` | Stack owner | Optional reusable root spec lists. |
 | `package-repos/<name>/` | Stack owner | Internal Spack package recipes. |
 
-`spack-composer` works *only* on these files plus release variables passed
+`stack-composer` works *only* on these files plus release variables passed
 on the command line. It does not infer stack intent from system facts (that
 would re-introduce the inspector/composer coupling v6 is designed to
 prevent), and it does not write into any of the above paths during normal
@@ -178,13 +184,13 @@ Seven first-class commands, grouped by audience:
 
 | Command | Audience | Writes to | Calls Spack? |
 |---|---|---|---|
-| `spack-composer assess-profiles` | maintainer | `--output` report file | No |
-| `spack-composer scaffold-templates` | maintainer | `--output` proposed-template directory | No |
-| `spack-composer validate-template-set` | maintainer / CI | `--output` report directory | Optional |
-| `spack-composer explain` | package manager | stdout | No |
-| `spack-composer render` | package manager / CI | `--output-root/<sys>/<stack>/<release>/` | No |
-| `spack-composer validate` | package manager / CI | stdout (or `--report`) | No |
-| `spack-composer publish-manifest` | CI / package manager | rewrites `release-manifest.yaml` in place | No |
+| `stack-composer assess-profiles` | maintainer | `--output` report file | No |
+| `stack-composer scaffold-templates` | maintainer | `--output` proposed-template directory | No |
+| `stack-composer validate-template-set` | maintainer / CI | `--output` report directory | Optional |
+| `stack-composer explain` | package manager | stdout | No |
+| `stack-composer render` | package manager / CI | `--output-root/<sys>/<stack>/<release>/` | No |
+| `stack-composer validate` | package manager / CI | stdout (or `--report`) | No |
+| `stack-composer publish-manifest` | CI / package manager | rewrites `release-manifest.yaml` in place | No |
 
 The render seam is the only command whose contract lives in v6. Every
 other command's contract lives in this document (the per-command
@@ -195,7 +201,7 @@ specifications below).
 Each subsection covers: purpose, audience, inputs, outputs, algorithm
 sketch, invariants, and an example invocation.
 
-### `spack-composer assess-profiles`
+### `stack-composer assess-profiles`
 
 **Purpose.** Read a corpus of profiles and report which template sets cover
 which systems. Identify coverage gaps before changing templates.
@@ -253,13 +259,13 @@ profile, *without* expanding any Jinja templates or writing a workspace.
 **Example.**
 
 ```bash
-spack-composer assess-profiles \
+stack-composer assess-profiles \
   --profiles 'systems/*/profile.yaml' \
   --templates templates \
   --output reports/coverage-2026.06.yaml
 ```
 
-### `spack-composer scaffold-templates`
+### `stack-composer scaffold-templates`
 
 **Purpose.** Propose template/contract stubs that would extend coverage to
 a profile not yet supported by any existing template set.
@@ -333,14 +339,14 @@ function scaffold_templates(profile_path, seed_dir, output_dir, stack_kind):
 **Example.**
 
 ```bash
-spack-composer scaffold-templates \
+stack-composer scaffold-templates \
   --profile systems/new-site/profile.yaml \
   --seed templates/v6 \
   --output proposed-templates/new-site \
   --stack-kind library
 ```
 
-### `spack-composer validate-template-set`
+### `stack-composer validate-template-set`
 
 **Purpose.** Render smoke stacks across a profile corpus to prove a
 template set covers known systems. Catches breakage in CI before a
@@ -401,7 +407,7 @@ function validate_template_set(templates_dir, profiles_glob, smoke_stack,
 **Example.**
 
 ```bash
-spack-composer validate-template-set \
+stack-composer validate-template-set \
   --templates templates/v6 \
   --profiles 'systems/*/profile.yaml' \
   --smoke-stack stacks/_smoke/stack.yaml \
@@ -409,7 +415,7 @@ spack-composer validate-template-set \
   --output reports/template-validation/v6
 ```
 
-### `spack-composer explain`
+### `stack-composer explain`
 
 **Purpose.** Print valid `class`, `toolchain`, `nodes`, GPU arch, and
 `per_system` narrowing values for one (stack, template-set, profile)
@@ -463,12 +469,12 @@ function explain(profile_path, stack_path, template_set_dir, format):
 **Example.**
 
 ```bash
-spack-composer explain \
+stack-composer explain \
   --profile systems/example-cray/profile.yaml \
-  --stack stacks/cse/stack.yaml
+  --stack stacks/science-stack/stack.yaml
 ```
 
-### `spack-composer render`
+### `stack-composer render`
 
 **Purpose.** Produce a runnable Spack workspace from a profile, stack,
 template set, optional package sets, and optional package repos.
@@ -492,7 +498,7 @@ it.
   network. The template context is the frozen `ctx` dict from the
   pseudo-code; templates may read its keys but cannot extend it.
 - Schema validation runs against the JSON Schemas under
-  `spack_composer/schemas/` via `fastjsonschema`. Typed access is via a
+  `stack_composer/schemas/` via `fastjsonschema`. Typed access is via a
   per-input model class (profile, stack, package set, contract,
   defaults, manifest); whether those are `dataclasses` or pydantic
   models is a Phase 1 decision (see Open Questions).
@@ -501,7 +507,7 @@ it.
   rendering never calls `time.time()` or `random`. Release timestamps are
   release-variable inputs, never wall-clock reads.
 
-### `spack-composer validate`
+### `stack-composer validate`
 
 **Purpose.** Run the render-step's pre-render checks without writing a
 workspace. Used in CI on every stack-source PR and by package managers
@@ -565,14 +571,14 @@ workspace. `validate` is the renderer with the writes removed.
 **Example.**
 
 ```bash
-spack-composer validate \
+stack-composer validate \
   --profile systems/example-cray/profile.yaml \
-  --stack stacks/cse/stack.yaml \
+  --stack stacks/science-stack/stack.yaml \
   --templates templates \
-  --report reports/validate-cse-cray.yaml
+  --report reports/validate-science-stack-cray.yaml
 ```
 
-### `spack-composer publish-manifest`
+### `stack-composer publish-manifest`
 
 **Purpose.** Rewrite a draft `release-manifest.yaml` to `phase: final`
 after build, verification, and buildcache push. Captures build-context
@@ -613,27 +619,22 @@ function publish_manifest(workspace, build_host, lockfiles_dir,
     require(manifest.phase == "draft" or force,
             "expected phase: draft, got " + manifest.phase)
 
-    manifest.build_context = {
-        "build_host":   build_host,
-        "built_at":     now_from_release_var_or_caller(),
-        "spack_version": detect_spack_version(),
-        "renderer":     manifest.templates.render_tool,
-    }
+    manifest.build_host = load_build_host_summary(build_host)
+    manifest.spack = load_spack_summary(workspace)
 
     for lane_entry in manifest.lanes:
         lock_path = lockfiles_dir / lane_entry.compiler / lane_entry.lane / "spack.lock"
         lockfile  = load_yaml(lock_path)
-        lane_entry.lockfile = {
-            "digest":   sha256_of_file(lock_path),
-            "spec_count": len(lockfile.concretized_specs),
-        }
-        lane_entry.installs = summarize_installs(lockfile)
+        lane_entry.lockfile = relative_to_workspace(lock_path)
+        lane_entry.lockfile_digest = sha256_of_file(lock_path)
+        lane_entry.install_root = installed_root_for_lane(lane_entry, lockfile)
         lane_entry.provenance_summary = derive_provenance(lockfile,
                                                           manifest.profile,
                                                           manifest.contract)
 
-    manifest.platform_module_prereqs = load_yaml(platform_module_prereqs_path)
-    manifest.buildcache.actual_destinations = load_yaml(buildcache_destinations_path)
+    attach_platform_module_prereqs(manifest.lanes,
+                                   load_yaml(platform_module_prereqs_path))
+    manifest.buildcache.push_destinations = load_yaml(buildcache_destinations_path)
     manifest.verification = load_yaml(verify_results_path)
 
     manifest.phase = "final"
@@ -654,7 +655,7 @@ function publish_manifest(workspace, build_host, lockfiles_dir,
   plus contract; the renderer must not pre-label provenance.
 - Atomic write: the manifest is fully written to a side path and renamed.
 - The `built_at` timestamp comes from a release variable (the caller's
-  intent) or the caller's clock; never from `spack-composer`'s own clock
+  intent) or the caller's clock; never from `stack-composer`'s own clock
   without the caller asking for it. Reruns of `publish-manifest` with
   the same inputs are not expected to be byte-identical (timestamps and
   build host are observed at finalize time), but the rest of the manifest
@@ -663,22 +664,23 @@ function publish_manifest(workspace, build_host, lockfiles_dir,
 **Example.**
 
 ```bash
-spack-composer publish-manifest \
-  --workspace /shared/stack/work/example-cray/cse/2026.06 \
+stack-composer publish-manifest \
+  --workspace /shared/stack/work/example-cray/science-stack/2026.06 \
   --build-host cray01 \
-  --lockfiles /shared/stack/work/example-cray/cse/2026.06/environments \
+  --lockfiles /shared/stack/work/example-cray/science-stack/2026.06/environments \
   --platform-module-prereqs reports/prereqs.yaml \
   --buildcache-destinations reports/buildcache-push.yaml \
   --verify-results reports/verify.yaml
 ```
 
-## Companion Script: `spack-build`
+## Reference Script: `spack-build`
 
-`spack-build` is a standalone shell script shipped in the `spack-composer`
-package and installed onto `$PATH` by the wheel. It is the supported way to
-drive Spack from a rendered workspace for sites that do not run Ansible,
-for laptop-side testing, and for CI smoke runs. Ansible may either call
-`spack-build` per host or replicate its logic; either is fine.
+`spack-build` is a standalone reference shell script owned by
+`stack-planning` at `examples/reference/scripts/spack-build`. It demonstrates the
+manifest-driven local single-machine build flow for users who do not want to set
+up Ansible. It is not part of `stack-composer`, and Ansible does not need to call
+it; Ansible can run the same Spack commands directly from the rendered workspace
+and manifest.
 
 ### Why a shell script, not a Python subcommand
 
@@ -686,16 +688,16 @@ The build half is a sequence of `spack` invocations plus a few `ldd` and
 `spack verify` calls. Re-implementing that in Python adds layers without
 value, and sites *will* customize parallelism, partition selection, and
 retries on flaky fabric. A short bash script is easier to fork than a Python
-subcommand, and it keeps `spack-composer`'s Python tool focused on YAML
+subcommand, and it keeps `stack-composer`'s Python tool focused on YAML
 transforms (render, validate, publish-manifest). The split mirrors the
-render/build separation: `spack-composer` knows nothing about Spack
+render/build separation: `stack-composer` knows nothing about Spack
 invocation; `spack-build` knows nothing about template rendering.
 
 ### Inputs
 
 | Argument | Purpose |
 |---|---|
-| `--workspace <dir>` | Required. The rendered workspace produced by `spack-composer render`. |
+| `--workspace <dir>` | Required. The rendered workspace produced by `stack-composer render`. |
 | `--spack-root <dir>` | Optional. Path to a Spack checkout. The script sources `<dir>/share/spack/setup-env.sh` before any work. If omitted, `spack` must already be on `$PATH` (typical when a site module provides it). |
 | `--lanes <glob>` | Optional. Lane filter, e.g. `gcc/*` or `gcc/mpi-craympich`. Defaults to all lanes in the workspace. |
 | `--reports <dir>` | Optional. Where to write per-lane reports and the manifest-feed YAML files. Defaults to `<workspace>/reports/`. |
@@ -711,15 +713,16 @@ Before any lane runs, the script:
    given; otherwise relies on `$PATH`.
 2. Reads `templates/<set>/stack-defaults.yaml.spack.floor` from the
    rendered workspace (the floor is mandatory in the template defaults).
-3. Reads `stack.yaml.spack.version` from the rendered workspace (the pin
-   is optional and may tighten but never widen the floor).
+3. Reads the effective stack's `spack.version` constraint when the rendered
+   workspace includes one (the pin is optional and may tighten but never widen
+   the floor).
 4. Runs `spack --version` and compares against floor + pin.
 5. On mismatch, exits non-zero with a clear message naming the floor, the
    pin (if any), the discovered version, and the install path. No lane
    work begins.
 
 The Spack version actually used is captured into `verify-results.yaml` so
-`publish-manifest` can write it into `release-manifest.yaml.build_context.spack_version`.
+`publish-manifest` can write it into `release-manifest.yaml.spack.version`.
 
 See v6 §Spack Version Floor for the three-layer version model
 (floor / pin / root) and the recommended multi-version on-disk layout.
@@ -735,15 +738,16 @@ For each lane the script does, in order:
    patterns (build host has internet, login-node prefetch, fully
    air-gapped via `spack mirror create`).
 3. `spack -e <env> install -j <n>` → installs every spec in the lock.
-4. Smoke test: for each entry in `stack.yaml.smoke[*]` (when present in
-   the rendered workspace's effective stack), `spack -e <env> load <spec>
-   && <smoke_command>`.
-5. `ldd` walk over installed binaries — drift detector, not a deploy gate.
-6. `spack -e <env> verify --files` — cross-check installed files against
-   the manifest.
-7. `spack -e <env> buildcache push <mirror>` per buildcache mirror declared
-   in the workspace's `configs/common/mirrors.yaml` (skipped under
-   `--skip-push`).
+4. `spack -e <env> env view regenerate` and package-module refresh for the lane.
+5. Smoke test: for each entry in `stack.yaml.smoke[*]` (when present in
+    the rendered workspace's effective stack), `spack -e <env> load <spec>
+    && <smoke_command>`.
+6. `ldd` walk over installed binaries — drift detector, not a deploy gate.
+7. `spack -e <env> verify manifest -a` — cross-check installed files against
+    the manifest.
+8. `spack -e <env> buildcache push <mirror>` per buildcache mirror declared
+    in the workspace's `configs/common/mirrors.yaml` (skipped under
+    `--skip-push`).
 
 Each step's stdout/stderr is captured to `<reports>/<lane>/<step>.log`. A
 per-lane `result.yaml` records pass/fail and timings.
@@ -751,7 +755,7 @@ per-lane `result.yaml` records pass/fail and timings.
 ### Output artifacts
 
 The script writes three roll-up files under `<reports>/` whose shapes
-match what `spack-composer publish-manifest` consumes:
+match what `stack-composer publish-manifest` consumes:
 
 | File | Format | Used by |
 |---|---|---|
@@ -760,7 +764,7 @@ match what `spack-composer publish-manifest` consumes:
 | `platform-module-prereqs.yaml` | per-lane platform-module list, copied verbatim from each lane's `spack.yaml` `include::` resolution | `publish-manifest --platform-module-prereqs` |
 
 The intent is that a caller can run `spack-build --workspace <ws>` and
-then `spack-composer publish-manifest --workspace <ws> --build-host
+then `stack-composer publish-manifest --workspace <ws> --build-host
 $(hostname) --lockfiles <ws>/environments --verify-results
 <ws>/reports/verify-results.yaml ...` without staging files by hand.
 
@@ -785,15 +789,12 @@ workspace re-uses Spack's installed prefixes and skips work.
 
 ### Distribution
 
-- Lives in the `spack-composer/` repo at `scripts/spack-build`.
-- Ships alongside the `.pyz` inside the release tarball
-  (`spack-composer-X.Y.Z.tar.gz`). On the target, the tarball extracts
-  to a directory containing both `spack-composer.pyz` and `spack-build`;
-  operators add that directory to `$PATH` once.
+- Lives in this planning repo at `examples/reference/scripts/spack-build`.
+- Serves as a copy/adapt reference for local single-machine installs and CI
+  smoke runs. It is not a stable `stack-composer` CLI artifact.
 - The script's only runtime dependencies are `bash`, `spack`, and standard
   POSIX utilities (`awk`, `sed`, `find`, `ldd`). No Python is required to
-  execute it — the script does not invoke `spack-composer.pyz`; it is
-  the `.pyz`'s sibling, not a wrapper.
+  execute it — the script does not invoke `stack-composer.pyz`.
 - The script is read-only on the rendered workspace except for
   `<workspace>/spack.lock` per lane (created by concretize),
   `<workspace>/.spack-env/` per lane (created by Spack), and the
@@ -802,22 +803,23 @@ workspace re-uses Spack's installed prefixes and skips work.
 ### What `spack-build` does NOT do
 
 - It does not render. The workspace is an input.
-- It does not finalize the manifest. `spack-composer publish-manifest` is
+- It does not finalize the manifest. `stack-composer publish-manifest` is
   the next step.
 - It does not promote the release (swap `current` symlink, copy to a
   release tree). That is Ansible's job, or a human's `rsync` + `ln -sfn`.
-- It does not orchestrate across hosts. One invocation runs on one
-  build host. Ansible (or a human) loops across hosts.
+- It does not orchestrate across hosts or submit scheduler jobs in v1. One
+  invocation runs on one build host. Ansible (or a human) loops across hosts
+  when that is needed.
 
 ## Repository Shape
 
-Recommended layout for the new `spack-composer/` repo:
+Recommended layout for the new `stack-composer/` repo:
 
 ```text
-spack-composer/
+stack-composer/
   pyproject.toml
   README.md
-  LICENSE                             # spack-composer's own license (Apache-2.0 recommended)
+  LICENSE                             # stack-composer's own license (Apache-2.0 recommended)
   THIRD_PARTY.toml                    # manifest of bundled runtime deps + licenses
   THIRD_PARTY_LICENSES/               # full license text per bundled dep
     PyYAML.txt
@@ -827,11 +829,10 @@ spack-composer/
     click.txt
     # one .txt per runtime dep on the committed surface
   scripts/
-    build-pyz.sh                      # release build: produces dist/spack-composer-X.Y.Z.tar.gz
+    build-pyz.sh                      # release build: produces dist/stack-composer-X.Y.Z.tar.gz
     generate-third-party.py           # regenerates THIRD_PARTY.toml + license texts from resolved wheels
-    spack-build                       # companion shell script; ships alongside the .pyz in the release tarball
   src/
-    spack_composer/
+    stack_composer/
       __init__.py
       __main__.py
       cli.py                          # argument parser, dispatch
@@ -843,7 +844,7 @@ spack-composer/
         render.py
         validate.py
         publish_manifest.py
-        licenses.py                   # `spack-composer --licenses` implementation
+        licenses.py                   # `stack-composer --licenses` implementation
       model/
         profile.py                    # typed models for profile.v1 (dataclasses or pydantic; Phase 1 decides)
         stack.py                      # stack.v1, stack_defaults.v1
@@ -897,20 +898,20 @@ spack-composer/
         v6/
         app-direct-v1/
       stacks/
-        cse/
+        science-stack/
         fun3d/
   docs/
     cli.md
     development.md
 ```
 
-The Python package is `spack_composer`, the CLI entry point is
-`spack-composer`. Resource files (schemas, starters, the third-party
+The Python package is `stack_composer`, the CLI entry point is
+`stack-composer`. Resource files (schemas, starters, the third-party
 manifest) are loaded with `importlib.resources`, so the installed `.pyz`
 does not need to locate files relative to a source checkout. The
 `THIRD_PARTY.toml` and `THIRD_PARTY_LICENSES/` at the repo root are the
 source of truth; `scripts/build-pyz.sh` copies them into
-`src/spack_composer/resources/` immediately before the shiv step so the
+`src/stack_composer/resources/` immediately before the shiv step so the
 runtime `.pyz` carries them.
 
 ## Packaging Plan
@@ -925,19 +926,18 @@ extras (pytest, ruff, shiv, build). Requires internet at dev time.
 A single script produces the release tarball:
 
 ```bash
-cd spack-composer/
+cd stack-composer/
 scripts/build-pyz.sh
-# → dist/spack-composer-X.Y.Z.tar.gz containing:
-#     spack-composer.pyz        (shiv-built single-file Python artifact)
-#     spack-build               (companion shell script)
+# → dist/stack-composer-X.Y.Z.tar.gz containing:
+#     stack-composer.pyz        (shiv-built single-file Python artifact)
 #     README                    (3-line install / run instructions)
-#     LICENSE                   (spack-composer's own license)
+#     LICENSE                   (stack-composer's own license)
 #     THIRD_PARTY.toml          (bundled-deps manifest)
 #     THIRD_PARTY_LICENSES/     (full license text per bundled dep)
 ```
 
-The build host may be a developer laptop or the CSE env on the HPC —
-both work, because both have Python and package access. The script:
+The build host may be a developer laptop, CI runner, or Python-capable HPC login
+environment. The script:
 
 1. Resolves the runtime dep set against `pyproject.toml`.
 2. Runs `scripts/generate-third-party.py` to refresh `THIRD_PARTY.toml`
@@ -945,21 +945,21 @@ both work, because both have Python and package access. The script:
    manifest or carries a license outside the allowlist (see §License
    Compliance).
 3. Copies `THIRD_PARTY.toml` and `THIRD_PARTY_LICENSES/` into
-   `src/spack_composer/resources/` so they ship inside the `.pyz`.
+   `src/stack_composer/resources/` so they ship inside the `.pyz`.
 4. Builds the wheel (`python -m build --wheel`).
-5. Builds the `.pyz` with `shiv -e spack_composer.cli:main -c
-   spack-composer -p '/usr/bin/env python3' -o
-   dist/spack-composer.pyz dist/spack_composer-*.whl`.
-6. Packs `.pyz`, `spack-build`, `README`, `LICENSE`, `THIRD_PARTY.toml`,
-   and `THIRD_PARTY_LICENSES/` into the release tarball.
+5. Builds the `.pyz` with `shiv -e stack_composer.cli:main -c
+   stack-composer -p '/usr/bin/env python3' -o
+   dist/stack-composer.pyz dist/stack_composer-*.whl`.
+6. Packs `.pyz`, `README`, `LICENSE`, `THIRD_PARTY.toml`, and
+   `THIRD_PARTY_LICENSES/` into the release tarball.
 
 ### Target install
 
 ```bash
-scp dist/spack-composer-X.Y.Z.tar.gz user@target:/shared/stack/
-ssh user@target 'cd /shared/stack && tar xzf spack-composer-X.Y.Z.tar.gz'
-ssh user@target 'chmod +x /shared/stack/spack-composer-X.Y.Z/spack-composer.pyz'
-ssh user@target '/shared/stack/spack-composer-X.Y.Z/spack-composer.pyz --help'
+scp dist/stack-composer-X.Y.Z.tar.gz user@target:/shared/stack/
+ssh user@target 'cd /shared/stack && tar xzf stack-composer-X.Y.Z.tar.gz'
+ssh user@target 'chmod +x /shared/stack/stack-composer-X.Y.Z/stack-composer.pyz'
+ssh user@target '/shared/stack/stack-composer-X.Y.Z/stack-composer.pyz --help'
 ```
 
 No `pip install` on the target. No internet on the target. No
@@ -975,14 +975,14 @@ stdlib.
   Questions).
 - `[project.optional-dependencies] dev = ["pytest", "ruff", "shiv",
   "build", ...]`.
-- `[project.scripts] spack-composer = "spack_composer.cli:main"`.
+- `[project.scripts] stack-composer = "stack_composer.cli:main"`.
 - License: `Apache-2.0` (recommendation; final confirmation in Phase 1).
 - Build backend: `setuptools` (widely available; matches the
   clusterinspector precedent).
 
 ### Spack dependency
 
-None. `spack-composer` neither imports Spack nor depends on a Spack
+None. `stack-composer` neither imports Spack nor depends on a Spack
 install. The optional `validate-template-set --concretize` shells out
 to `spack` if found on `$PATH`; otherwise it skips the concretization
 step.
@@ -1086,20 +1086,20 @@ CI runs the same script on every PR and fails the build when
 
 The runtime artifact contains:
 
-- spack-composer source.
+- stack-composer source.
 - All bundled runtime dep wheels (resolved by shiv at build time).
-- `LICENSE` (spack-composer's own).
+- `LICENSE` (stack-composer's own).
 - `THIRD_PARTY.toml`.
 - `THIRD_PARTY_LICENSES/` directory.
 
-### `spack-composer --licenses`
+### `stack-composer --licenses`
 
 A top-level CLI flag prints the bundled `THIRD_PARTY.toml` content.
 Operators can audit what they're running without unpacking the `.pyz`:
 
 ```bash
-$ spack-composer --licenses
-spack-composer X.Y.Z
+$ stack-composer --licenses
+stack-composer X.Y.Z
 Apache-2.0
 
 Bundled runtime dependencies:
@@ -1110,7 +1110,7 @@ Bundled runtime dependencies:
   click         8.1.7   BSD-3-Clause (CLI dispatch)
 
 Full license texts ship inside the .pyz at
-  spack_composer/resources/THIRD_PARTY_LICENSES/
+  stack_composer/resources/THIRD_PARTY_LICENSES/
 ```
 
 This makes compliance review possible without filesystem
@@ -1120,13 +1120,13 @@ archaeology.
 
 ### Phase 1 — Skeleton + Render Seam + Release Build
 
-- Create the `spack-composer/` repo with the layout above.
+- Create the `stack-composer/` repo with the layout above.
 - Author the initial `THIRD_PARTY.toml` and `THIRD_PARTY_LICENSES/`
   for the committed runtime dep surface.
 - Author `scripts/generate-third-party.py` and `scripts/build-pyz.sh`.
 - Decide pydantic-v2 vs. dataclasses + fastjsonschema (see Open
   Questions). The decision affects the .pyz platform matrix.
-- Confirm `spack-composer`'s own license (Apache-2.0 is the
+- Confirm `stack-composer`'s own license (Apache-2.0 is the
   recommendation).
 - Implement `cli.py` with all seven subcommand stubs returning "not yet
   implemented" except `render`, plus the `--licenses` top-level flag.
@@ -1138,16 +1138,16 @@ archaeology.
 
 Acceptance:
 
-- `spack-composer render` produces a byte-identical workspace for a fixed
+- `stack-composer render` produces a byte-identical workspace for a fixed
   fixture set on two successive runs.
-- `spack-composer validate` produces a report for the same inputs and
+- `stack-composer validate` produces a report for the same inputs and
   catches every render-time validation failure listed in v6's render
   invariant table.
-- `scripts/build-pyz.sh` produces `dist/spack-composer-X.Y.Z.tar.gz`
+- `scripts/build-pyz.sh` produces `dist/stack-composer-X.Y.Z.tar.gz`
   from a clean checkout in one command.
-- The shipped `.pyz` runs `spack-composer --help` on a vanilla Linux
+- The shipped `.pyz` runs `stack-composer --help` on a vanilla Linux
   Python 3.9 host with no other tooling installed.
-- `spack-composer --licenses` prints the bundled `THIRD_PARTY.toml`
+- `stack-composer --licenses` prints the bundled `THIRD_PARTY.toml`
   content.
 - The build pipeline refuses to produce a release when
   `THIRD_PARTY.toml` is out of sync with `pyproject.toml` or when any
@@ -1197,30 +1197,28 @@ Acceptance:
   and those three files satisfy `publish-manifest`'s schema without
   hand editing.
 
-### Phase 4 — `cse-stack` Acceptance
+### Phase 4 — Reference Fixture Acceptance
 
-- Point `spack-composer` at the real `cse-stack` content. Render every
+- Point `stack-composer` at `examples/reference/science-stack`. Render every
   documented stack against every documented profile.
-- Use the resulting fixtures to drive `validate-template-set` in CI.
-- Identify patterns in `cse-stack` that did not fit cleanly into the
-  generic model and decide per-pattern: promote to templates, keep in
-  `cse-stack`, or discard.
+- Use the resulting rendered-workspace fixtures to drive `validate-template-set`
+  in CI.
+- Identify patterns in the reference fixture that do not fit cleanly into the
+  generic model and decide per-pattern: promote to schemas/templates, simplify
+  the fixture, or document the pattern as intentionally out of scope.
 
 Acceptance:
 
-- `cse-stack`'s end-to-end Cray flow (v6 § Example Cray Flow) reproduces
-  through `spack-composer` without out-of-tree patches.
-- `cse-stack`'s end-to-end Generic Linux HPC flow (v6 § Example Generic
-  Linux HPC Flow) reproduces through `spack-composer` without
-  out-of-tree patches.
-- At least one `cse-stack` pattern is identified for promotion and at
-  least one is identified for discard, with the decisions captured in
-  follow-on commits to `templates/v6/` or to this design doc's Open
-  Questions.
+- The reference Cray flow (v6 § Example Cray Flow) reproduces through
+  `stack-composer` without out-of-tree patches.
+- The reference Generic Linux HPC flow (v6 § Example Generic Linux HPC Flow)
+  reproduces through `stack-composer` without out-of-tree patches.
+- The reference fixture includes at least one local single-machine path that uses
+  `examples/reference/scripts/spack-build` rather than Ansible.
 
 ## Acceptance Criteria For v1
 
-- All seven `spack-composer` commands implemented end-to-end, plus the
+- All seven `stack-composer` commands implemented end-to-end, plus the
   `spack-build` companion script.
 - `render` byte-deterministic for fixed inputs.
 - `validate` agrees with `render`'s pre-flight check set: anything
@@ -1235,17 +1233,17 @@ Acceptance:
 - `validate-template-set` runs in CI on the fixture corpus on every PR.
 - The release tarball is produced from a clean checkout in one command
   (`scripts/build-pyz.sh`).
-- The shipped `.pyz` runs `spack-composer --help` on a vanilla Linux
+- The shipped `.pyz` runs `stack-composer --help` on a vanilla Linux
   Python 3.9 host with no other tooling installed (no `pip install`,
   no internet).
-- `spack-composer --licenses` prints the bundled `THIRD_PARTY.toml`
+- `stack-composer --licenses` prints the bundled `THIRD_PARTY.toml`
   manifest of runtime deps and their licenses.
 - The build pipeline refuses to produce a release when
   `THIRD_PARTY.toml` is out of sync with `pyproject.toml` or when any
   bundled dep license is outside the allowlist without a documented
   exemption.
-- `cse-stack`'s Cray and Generic Linux HPC end-to-end flows reproduce
-  through `spack-composer`.
+- The reference Cray and Generic Linux HPC end-to-end flows reproduce through
+  `stack-composer`.
 
 ## Open Questions
 
@@ -1264,7 +1262,7 @@ Acceptance:
   pipeline produces one `.pyz` per platform OR runtime deps are
   constrained to pure-Python only. Phase 1 records the actual target
   list and picks.
-- **spack-composer's own license.** Apache-2.0 is the recommended
+- **stack-composer's own license.** Apache-2.0 is the recommended
   default (permissive, attribution-friendly, common in HPC tooling).
   Phase 1 confirms; the choice is set in `pyproject.toml` and `LICENSE`.
 - **Provenance derivation details.** `publish-manifest` derives the
@@ -1278,10 +1276,10 @@ Acceptance:
   Spack upgrades? Likely yes; add `--spack-version` (advisory: refuses
   to run if `spack --version` does not match) in a Phase 2 follow-up.
 - **Starter template sets.** The bundled `library` and `application`
-  starters need to be designed. Phase 3 should resolve whether they are
-  copies of `cse-stack`'s `templates/v6` and `templates/app-direct-v1`
-  or simpler skeletons.
+  starters need to be designed. Phase 3 should resolve how much of the
+  `examples/reference/science-stack/templates/v6` fixture is reusable as a
+  smaller starter skeleton.
 - **CI integration shape.** What does the recommended CI configuration
-  look like for a stack repo that uses `spack-composer`? Out of scope
+  look like for a stack repo that uses `stack-composer`? Out of scope
   for v1; document in a follow-on after the maintainer commands are
   real.

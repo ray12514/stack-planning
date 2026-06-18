@@ -19,7 +19,7 @@ slices, but their main purpose is to keep the extraction logic understandable.
 - Treat operator input as explicit evidence, not as hidden policy.
 - Keep package intent out of the profile.
 - Do not emit `packages.yaml`, template contracts, stack defaults, or template
-  trees. Profile corpora feed `spack-composer` analysis/scaffolding on the stack
+  trees. Profile corpora feed `stack-composer` analysis/scaffolding on the stack
   side, not `cluster-inspector` output.
 - Never call Spack to discover facts.
 - Do not depend on the source checkout after the tool is built.
@@ -199,8 +199,6 @@ node_types:
       alternates: []
     gpu: null
     build_stage: []
-capabilities:
-  lanes_capable: []
 ```
 
 That skeleton is not yet sufficient for a production render, but it exercises the
@@ -384,46 +382,40 @@ Section 5 acceptance:
 - ROCm emits component externals; `rocm/<version>` alone is never considered
   sufficient for a renderable AMD GPU profile.
 
-## Section 6: Derived Capabilities
+## Section 6: Composer-Derived Capabilities
 
-Capabilities are derived from merged facts. They are not directly probed and
-must not encode package roots or release policy.
+`cluster-inspector` does not emit lane capabilities. Lane capability is a
+template-aware composition of observed facts, selected contract vocabulary, and
+stack intent, so it belongs to `stack-composer validate` and
+`stack-composer explain`.
 
-| Profile field | Derivation | Notes |
-|---|---|---|
-| `capabilities.gpu_lane_supported` | true if any `node_types[*].gpu` is non-null. | Optional convenience flag. |
-| `capabilities.fabric_class` | `vendor_tuned` for Cray/Slingshot or vendor MPI/fabric; `open` for generic IB/RoCE with UCX/libfabric; `ethernet_only` otherwise. | Derived from `fabric` and MPI facts. |
-| `capabilities.lanes_capable[*].compiler` | Available compiler IDs from `vendor_cray` plus generic `compilers_external`. | This says possible platform/compiler surfaces, not stack intent. |
-| `capabilities.lanes_capable[*].lane` | Derived lane labels such as `core`, `serial`, `mpi-craympich`, `mpi-site`, `gpu-craympich-gfx90a`. | Names must match template contract expectations. |
-| `capabilities.lanes_capable[*].runtime_node_types` | Runtime or both node types compatible with the lane. GPU lanes bind only to matching GPU arch node types. | Login-only node types should not host payload runtime lanes. |
+Composer derivation rules:
 
-Default derivation rules:
-
-- Core lanes are possible for every compiler that can be used by the stack and at
-  least one build host node type exists.
-- Serial payload lanes are possible for every compiler and every CPU-compatible
-  runtime node type.
+- Core lanes are possible for every contract-supported compiler when at least one
+  build host node type exists.
+- Serial payload lanes are possible for contract-supported compilers and
+  CPU-compatible runtime node types.
 - Cray MPI lanes are possible only when `vendor_cray.cray_mpich.flavors` contains
   the matching compiler flavor.
 - Site MPI lanes are possible only when an `mpi[*]` entry exists and its compiler
   can be matched to a compiler external.
-- GPU lanes are possible only for runtime node types with a GPU block and a
-  compatible toolkit module.
-- Default Cray GPU lanes use GNU host plus the standalone GPU toolkit module;
-  vendor-host GPU lanes are exception capabilities only when the relevant vendor
-  compiler and toolkit facts exist.
-- Spack-built MPI capability should be conservative. The inspector may report
-  that the system has the compilers/fabric needed to build MPI, but the decision
-  to render a `mpi-openmpi` lane belongs to `stack.yaml` and the template
-  contract.
+- GPU lanes are possible only for runtime node types with a GPU block, a matching
+  contract `gpu_selectors` entry, and a compatible toolkit module.
+- Default Cray GPU lanes use a general-purpose host compiler plus the standalone
+  GPU toolkit module; vendor-host GPU lanes are exception capabilities only when
+  the relevant vendor compiler and toolkit facts exist.
+- Spack-built MPI capability is a stack/template decision. The inspector reports
+  compilers and fabric facts; the decision to render a `mpi-openmpi` lane belongs
+  to `stack.yaml` and the template contract.
 
 Section 6 acceptance:
 
-- The Cray example derives CCE/GCC core, serial, MPI-CrayMPICH, and GNU-host GPU
-  capabilities by GPU arch.
-- A generic Linux site-MPI example derives site MPI capabilities without claiming
-  package roots or build policy.
-- Capability derivation is deterministic and explainable from profile facts.
+- Inspector output contains no `capabilities.lanes_capable` field.
+- `stack-composer explain` can derive CCE/GCC core, serial, MPI-CrayMPICH, and
+  GPU capabilities for the Cray example from profile facts plus the template
+  contract.
+- Capability derivation is deterministic and explainable from profile facts,
+  stack intent, and the selected contract.
 
 ## Section 7: Verification And Diagnostics
 
@@ -436,10 +428,9 @@ by the tool or written by hand.
 | Enum values | `system.family`, node roles, fabric type, GPU vendor | Error for invalid values. |
 | Version strings | OS/glibc, compiler, MPI, GPU toolkit | Warning for unknown optional versions; error when render requires exact version. |
 | Path shape | prefixes, filesystem candidates, build-stage paths | Warning if path is relative where absolute is required. |
-| Cray MPICH flavors | `vendor_cray.cray_mpich.flavors` | Error if Cray MPI lane capability exists without a matching flavor prefix. |
+| Cray MPICH flavors | `vendor_cray.cray_mpich.flavors` | Error if a flavor entry is incomplete or internally inconsistent. |
 | ROCm components | `gpu_toolkit_modules.rocm.spack_components` | Error if AMD GPU toolkit exists without coherent components. |
 | Node role consistency | `node_types` | Error if no build host exists or no runtime node exists. |
-| Capability references | `capabilities.lanes_capable` | Error if a listed runtime node type is absent. |
 
 Diagnostics should answer "why did the inspector believe this?" without bloating
 the durable profile. A separate evidence report can contain full command output,

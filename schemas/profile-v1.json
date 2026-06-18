@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spack-composer.example/schemas/profile-v1.json",
+  "$id": "https://stack-composer.example/schemas/profile-v1.json",
   "title": "Spack stack system profile (v1)",
-  "description": "Observed system facts consumed by the spack-composer renderer. Produced by cluster-inspector or written by hand. Cross-repo contract between whoever produces system facts and the stack repository that consumes them. Mirrors docs/spack_stack_generation_design_v6.md § profile.yaml.",
+  "description": "Observed system facts consumed by the stack-composer renderer. Produced by cluster-inspector or written by hand. Cross-repo contract between whoever produces system facts and the stack repository that consumes them. Mirrors docs/spack_stack_generation_design_v6.md § profile.yaml.",
   "type": "object",
   "properties": {
     "schema_version": {
@@ -197,48 +197,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "capabilities": {
-      "type": "object",
-      "description": "Derived flags the stack consults. Computed by the inspector or written by hand.",
-      "properties": {
-        "lanes_capable": {
-          "type": "array",
-          "description": "Which (compiler, lane, runtime_node_types) tuples are valid for this profile.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "compiler": {
-                "type": "string",
-                "description": "Compiler id (gcc, cce, aocc, rocmcc, nvhpc, intel, etc.)."
-              },
-              "lane": {
-                "type": "string",
-                "description": "Lane label matching template contract vocabulary (core, serial, mpi-craympich, gpu-craympich-<arch>, mpi-openmpi, etc.)."
-              },
-              "runtime_node_types": {
-                "type": "array",
-                "description": "Node-type names where this lane can run. Must reference keys present in node_types.",
-                "items": { "type": "string" },
-                "minItems": 1
-              }
-            },
-            "required": ["compiler", "lane", "runtime_node_types"],
-            "additionalProperties": false
-          }
-        },
-        "gpu_lane_supported": {
-          "type": "boolean",
-          "description": "True if any node_type carries a gpu block."
-        },
-        "fabric_class": {
-          "type": "string",
-          "enum": ["vendor_tuned", "open", "ethernet_only"],
-          "description": "Derived fabric posture."
-        }
-      },
-      "required": ["lanes_capable"],
-      "additionalProperties": false
     }
   },
   "required": [
@@ -248,8 +206,7 @@
     "fabric",
     "modules_system",
     "filesystem",
-    "node_types",
-    "capabilities"
+    "node_types"
   ],
   "additionalProperties": false,
   "$defs": {
