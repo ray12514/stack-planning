@@ -335,8 +335,10 @@ Generic compiler externals exclude Cray PE compiler entries that belong under
 | `vendor_cray.cce.prefix` | module verification | `$CRAY_PE_CCE_PREFIX`, `command -v craycc`, module show, `/opt/cray/pe/cce/<version>`. | absolute path | `probed` | hint required if module hides prefix |
 | `vendor_cray.cce.modules` | hints + verification | Modules loaded to expose CCE. | list such as `[PrgEnv-cray, cce/17.0.1]` | `probed` | hint required |
 | `vendor_cray.gcc.*` | module verification | Load `PrgEnv-gnu` and GCC module; read `$GCC_PATH`, GCC version. | version, prefix, modules | `probed` | omit if absent |
+| `vendor_cray.aocc.*` | module verification | Load `PrgEnv-aocc` and AOCC module; read `$AOCC_HOME`, `$AOCC_ROOT`, or AOCC compiler paths. | version, prefix, modules | `probed` | omit if absent |
+| `vendor_cray.intel.*` | module verification | Load `PrgEnv-intel` and Intel compiler module; read `$INTEL_PATH`, `$INTEL_HOME`, `$ONEAPI_ROOT`, or `$CMPLR_ROOT`. | version, prefix, modules | `probed` | omit if absent |
 | `vendor_cray.rocmcc.*` | module verification | Load `PrgEnv-amd` or ROCm compiler module; read `$ROCM_PATH`, `amdclang --version`. | version, prefix, modules | `probed` | omit if absent |
-| `vendor_cray.nvhpc.*` | module verification | Load NVIDIA/PrgEnv-nvidia when present; read `$NVHPC_ROOT`, compiler versions. | version, prefix, modules | `probed` | omit if absent |
+| `vendor_cray.nvhpc.*` | module verification | Load current CPE NVIDIA modules (`PrgEnv-nvidia` plus `nvidia/<version>`); read `$NVHPC_ROOT`, compiler versions. The profile key remains `nvhpc` because Spack/compiler identity is NVHPC. | version, prefix, modules | `probed` | omit if absent; legacy `PrgEnv-nvhpc` is out of v1 scope unless a target site requires it |
 | `vendor_cray.cray_mpich.version` | module verification | Load `cray-mpich`; read `$CRAY_MPICH_VERSION`, module version, or `mpichversion`. | version string | `probed` | hint required if wrappers hide version |
 | `vendor_cray.cray_mpich.flavors.<compiler>.prefix` | module verification | For each PrgEnv/compiler flavor, load matching modules and read `$MPICH_DIR` or wrapper paths. | absolute prefix | `probed` | omit unavailable flavor |
 | `vendor_cray.cray_mpich.flavors.<compiler>.modules` | module verification | Module list needed at runtime for that flavor. | list, usually `[cray-mpich/<v>]` | `probed` | hint required |
@@ -366,11 +368,11 @@ Cray MPICH is expressed under `vendor_cray.cray_mpich`, not as a generic
 | `gpu_toolkit_modules.rocm.prefix` | module verification | `$ROCM_PATH`, `command -v hipcc`, module show. | absolute path | `probed` | hint required |
 | `gpu_toolkit_modules.rocm.spack_components[*].package` | resource table | Bundled ROCm component list keyed by ROCm major/minor version. | Spack package names | `inferred` from resource table | validation failure if no component template exists |
 | `gpu_toolkit_modules.rocm.spack_components[*].prefix` | module verification + resource table | Prefix from component-specific subdirs under ROCm prefix; verify path exists when possible. | absolute path | `probed` if path exists, otherwise `inferred` | validation failure for required components |
-| `gpu_toolkit_modules.cudatoolkit.version` | module verification | Load CUDA toolkit module; `nvcc --version`, module version, `$CUDA_HOME`. | version string | `probed` | module version string |
-| `gpu_toolkit_modules.cudatoolkit.module` | hints + verification | CUDA toolkit module. | module name | `probed` | hint required |
+| `gpu_toolkit_modules.cudatoolkit.version` | module verification | Load CUDA toolkit module (`cuda/<version>` on current CPE); `nvcc --version`, module version, `$CUDA_HOME`. | version string | `probed` | module version string |
+| `gpu_toolkit_modules.cudatoolkit.module` | hints + verification | CUDA toolkit module, using current CPE `cuda/<version>` naming. | module name | `probed` | hint required |
 | `gpu_toolkit_modules.cudatoolkit.prefix` | module verification | `$CUDA_HOME`, `command -v nvcc`, module show. | absolute path | `probed` | hint required |
-| `gpu_toolkit_modules.nvhpc.version` | module verification | `$NVHPC_ROOT`, `nvc --version`, module version. | version string | `probed` | module version string |
-| `gpu_toolkit_modules.nvhpc.module` | hints + verification | NVHPC module used as toolkit. | module name | `probed` | omit if absent |
+| `gpu_toolkit_modules.nvhpc.version` | module verification | `$NVHPC_ROOT`, `nvc --version`, module version from current CPE `nvidia/<version>` or a non-Cray NVHPC module. | version string | `probed` | module version string |
+| `gpu_toolkit_modules.nvhpc.module` | hints + verification | NVIDIA/NVHPC compiler-SDK module used as a toolkit, current CPE name `nvidia/<version>`. | module name | `probed` | omit if absent |
 | `gpu_toolkit_modules.nvhpc.prefix` | module verification | `$NVHPC_ROOT`, compiler path, module show. | absolute path | `probed` | omit if absent |
 
 Section 5 acceptance:

@@ -346,7 +346,7 @@ Bringing up a new system follows a short discover-narrow-verify loop. The
 first run almost never produces a final profile — module-name heuristics
 will pick up entries that look like compilers or MPIs but are not real
 choices for the stack (`gcc-data/9.3`, `gcc-toolset/12`, intermediate
-`cudatoolkit/11.x` versions). The hints file converges quickly:
+`cuda/11.x` toolkit versions on current CPE). The hints file converges quickly:
 
 1. **First run, no hints.** Run `cluster-inspector profile --system <name>
    --node-type ...` without `--hints`. The inspector auto-discovers
