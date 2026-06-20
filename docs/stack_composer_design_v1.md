@@ -1233,6 +1233,36 @@ Acceptance:
 - The reference fixture includes at least one local single-machine path that uses
   `examples/reference/scripts/spack-build` rather than Ansible.
 
+### Phase 5 — Render Seam Conformance With v6 Template-Set Spec
+
+- Replace fixture-shaped scope discovery with v6 scope selection:
+  `required_scopes(profile, rendered_lanes)` and
+  `scopes_for_lane(lane, stack, profile)`.
+- Expand the v6 fixture template set and scaffold starters so rendered scopes
+  contain profile-derived Spack externals rather than placeholder common-only
+  `packages.yaml` files.
+- Keep platform and accelerator axes independent: Cray vs generic Linux,
+  MPI provider, AMD ROCm vs NVIDIA CUDA, general host compiler vs GPU-aware
+  compiler exception lanes.
+- For Cray NVIDIA, target current CPE naming only: `PrgEnv-nvidia`,
+  `nvidia/<version>`, and `cuda/<version>`. The Spack compiler identity may be
+  `nvhpc`, but legacy `PrgEnv-nvhpc` module naming is out of v1 scope unless a
+  target site requires a future compatibility extension.
+
+Acceptance:
+
+- Cray AMD and Cray NVIDIA GPU lanes compose the same way: default lanes use a
+  contract-approved general-purpose host compiler (`PrgEnv-gnu`, `PrgEnv-cray`,
+  `PrgEnv-aocc`, or another site-verified general host) plus the standalone GPU toolkit module;
+  ROCmCC/NVHPC lanes are explicit narrow exception lanes.
+- Generic Linux AMD and NVIDIA GPU lanes reuse the same GPU toolkit scopes
+  without depending on Cray-specific scope names.
+- Rendered environments include only the scopes they consume, in v6 lane order:
+  common, os, target, vendor, mpi, gpu.
+- Cray PE externals (`cce`, `gcc`, optional `rocmcc`/`nvhpc`, Cray MPICH
+  flavors) and GPU toolkit externals (`amd-rocm`, `nvidia-cuda`) render as
+  `buildable: false` Spack externals from `profile.yaml` facts.
+
 ## Acceptance Criteria For v1
 
 - All seven `stack-composer` commands implemented end-to-end, plus the
@@ -1261,6 +1291,9 @@ Acceptance:
   exemption.
 - The reference Cray and Generic Linux HPC end-to-end flows reproduce through
   `stack-composer`.
+- The rendered v6 fixture template set emits profile-derived external scopes for
+  Cray, generic Linux, AMD ROCm, and NVIDIA CUDA without cross-vendor scope
+  leakage.
 
 ## Open Questions
 

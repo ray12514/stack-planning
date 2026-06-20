@@ -310,7 +310,7 @@
     },
     "vendor_cray_block": {
       "type": "object",
-      "description": "Cray PE facts. Each optional compiler sub-block (cce, gcc, rocmcc, nvhpc) is present only when that compiler is exposed on the system.",
+      "description": "Cray PE facts. Each optional compiler sub-block (cce, gcc, aocc, intel, rocmcc, nvhpc) is present only when that compiler is exposed on the system.",
       "properties": {
         "pe_version": {
           "type": "string",
@@ -319,6 +319,8 @@
         },
         "cce": { "$ref": "#/$defs/cray_compiler_block" },
         "gcc": { "$ref": "#/$defs/cray_compiler_block" },
+        "aocc": { "$ref": "#/$defs/cray_compiler_block" },
+        "intel": { "$ref": "#/$defs/cray_compiler_block" },
         "rocmcc": { "$ref": "#/$defs/cray_compiler_block" },
         "nvhpc": { "$ref": "#/$defs/cray_compiler_block" },
         "cray_mpich": { "$ref": "#/$defs/cray_mpich_block" },
@@ -329,7 +331,7 @@
     },
     "cray_compiler_block": {
       "type": "object",
-      "description": "A Cray-exposed compiler (CCE, Cray-native GCC, ROCmCC, NVHPC).",
+      "description": "A Cray-exposed compiler (CCE, Cray-native GCC, AOCC, Intel, ROCmCC, NVHPC).",
       "properties": {
         "version": {
           "type": "string",
@@ -362,7 +364,7 @@
         },
         "flavors": {
           "type": "object",
-          "description": "Compiler-flavored builds at distinct prefixes. Keys are compiler names (cce, gcc, rocmcc, nvhpc).",
+          "description": "Compiler-flavored builds at distinct prefixes. Keys are compiler names (cce, gcc, aocc, intel, rocmcc, nvhpc).",
           "minProperties": 1,
           "patternProperties": {
             "^[a-z][a-z0-9_]*$": {
@@ -464,7 +466,7 @@
         "module": {
           "type": "string",
           "minLength": 1,
-          "description": "Module name (e.g., cudatoolkit/12.4)."
+          "description": "Module name (e.g., cuda/12.5 on current CPE)."
         },
         "prefix": {
           "type": "string",
@@ -477,7 +479,7 @@
     },
     "nvhpc_toolkit_module": {
       "type": "object",
-      "description": "NVHPC as a standalone toolkit module (no PrgEnv switch).",
+      "description": "NVIDIA/NVHPC compiler-SDK as a standalone toolkit module (current CPE module name: nvidia/<version>).",
       "properties": {
         "version": {
           "type": "string",
@@ -487,7 +489,7 @@
         "module": {
           "type": "string",
           "minLength": 1,
-          "description": "Module name (e.g., nvhpc/24.5)."
+          "description": "Module name (e.g., nvidia/24.7 on current CPE)."
         },
         "prefix": {
           "type": "string",

@@ -545,11 +545,13 @@ mpi:                                            # O - generic MPI implementation
 
 gpu_toolkit_modules:                            # O - standalone GPU toolkit modules (Cray PE Option B path)
   # Populated when the system exposes GPU toolkits as standalone modules
-  # separable from a vendor PrgEnv (e.g., `rocm/<v>`, `cudatoolkit/<v>`).
-  # The committed default Cray-PE GPU lane (Option B) requires the GNU
-  # PrgEnv plus the standalone toolkit module from this list. Public entry
-  # modules check/prereq those modules by default. For ROCm, this module is
-  # also the source for the Spack component externals below.
+  # separable from a vendor PrgEnv (e.g., `rocm/<v>`, `cuda/<v>` on current CPE).
+  # The committed default Cray-PE GPU lane family (Option B) uses a
+  # general-purpose PrgEnv plus the standalone toolkit module from this list.
+  # GNU is the representative example, but CCE, AOCC, or another site-verified,
+  # contract-approved general host compiler can use the same toolkit scope.
+  # Public entry modules check/prereq those modules by default. For ROCm,
+  # this module is also the source for the Spack component externals below.
   rocm:
     version: "6.0.0"
     module: rocm/6.0.0
@@ -565,12 +567,12 @@ gpu_toolkit_modules:                            # O - standalone GPU toolkit mod
       - { package: llvm-amdgpu,  prefix: /opt/rocm-6.0.0 }
   cudatoolkit:                                  # NVIDIA equivalent on NVIDIA systems
     version: "12.4"
-    module: cudatoolkit/12.4
+    module: cuda/12.4                           # current CPE module name
     prefix: /opt/cray/pe/cudatoolkit/12.4
-  nvhpc:                                        # NVHPC as a standalone toolkit (no PrgEnv switch); rare
-    version: "24.5"
-    module: nvhpc/24.5
-    prefix: /opt/nvidia/hpc_sdk/24.5
+  nvhpc:                                        # NVIDIA/NVHPC SDK as a standalone toolkit; rare
+    version: "24.7"
+    module: nvidia/24.7                         # current CPE module name
+    prefix: /opt/nvidia/hpc_sdk/24.7
 
 filesystem:                                     # R - install-tree and shared-storage candidates
   install_tree_candidates:                      # R - shared filesystems suitable for the install tree
@@ -2031,11 +2033,13 @@ spack:
 ### Cray GPU Lane
 
 GPU lanes include GPU runtime scopes and carry GPU-sensitive packages. The
-committed default is the Option B assembly (GCC host + standalone ROCm toolkit
-module + ROCm component externals in Spack + GCC-flavor cray-mpich); the lane
-shows that. One lane per GPU class — `gfx90a` here, with a parallel `gfx942`
-lane added when a second GPU class is present. Toolchain decoration is
-`%gcc_craympich`, not `%rocmcc_craympich`, because the host compiler is GCC.
+committed default is the Option B assembly family: a general-purpose host
+compiler plus a standalone GPU toolkit module, GPU toolkit externals in Spack,
+and the matching Cray MPICH flavor. The lane below is the GCC-host example
+(`PrgEnv-gnu` + ROCm component externals + GCC-flavor cray-mpich). One lane per
+GPU class — `gfx90a` here, with a parallel `gfx942` lane added when a second GPU
+class is present. Toolchain decoration is `%gcc_craympich`, not
+`%rocmcc_craympich`, because this example's host compiler is GCC.
 
 ```yaml
 # environments/gcc/gpu-craympich-gfx90a/spack.yaml
@@ -2067,11 +2071,14 @@ spack:
       link_type: symlink
 ```
 
-The lane's front-door module checks/prereqs `PrgEnv-gnu` + `gcc-native/13` +
-`rocm/<v>` + `cray-mpich/<v>` at runtime (Option B), not `PrgEnv-amd`, unless
-the site explicitly chooses `modules.platform_module_policy: autoload`. The
-Spack GPU scope still declares the ROCm component packages individually; the
-runtime module is not a stand-in for a single `rocm` Spack external.
+In this GCC-host Option B example, the lane's front-door module checks/prereqs
+`PrgEnv-gnu` + `gcc-native/13` + `rocm/<v>` + `cray-mpich/<v>` at runtime, not
+`PrgEnv-amd`, unless the site explicitly chooses
+`modules.platform_module_policy: autoload`. A CCE-, AOCC-, or Intel-hosted
+Option B lane would substitute that host compiler's PrgEnv/modules and matching
+Cray MPICH flavor while keeping the same GPU toolkit scope. The Spack GPU scope
+still declares the ROCm component packages individually; the runtime module is
+not a stand-in for a single `rocm` Spack external.
 A second GPU class (MI300A) gets its own parallel lane:
 `environments/gcc/gpu-craympich-gfx942/spack.yaml` with the same shape and
 `amdgpu_target=gfx942`, targeting `runtime_node_type: gpu_compute_mi300a`.
@@ -2088,15 +2095,16 @@ Kokkos and RAJA do not belong in Core. Their GPU backend and architecture are
 build-time choices, and their C++ template interfaces are compiler-sensitive.
 
 **The GPU lane composes with its own compiler's Core, not with a separate
-"gpu-core" view.** Under the committed Option B default, the GPU lane is
-`gcc/gpu-craympich-<arch>` and it composes with `gcc/core`. The Option A
-exception lane uses the vendor host compiler, so a `rocmcc/gpu-...` lane
-would compose with `rocmcc/core`; a `nvhpc/gpu-...` lane would compose with
-`nvhpc/core`. The lane's front-door module prepends both the compiler's
-Core MODULEPATH and the GPU lane's MODULEPATH, the same way the serial and
-MPI lanes work. There is no separate Core layer for GPU lanes because
-there is no need for one — the host compiler is the compiler, and the
-Core built for that compiler is the Core the GPU lane reuses.
+"gpu-core" view.** Under the GCC-host Option B example, the GPU lane is
+`gcc/gpu-craympich-<arch>` and it composes with `gcc/core`. A CCE-, AOCC-, or
+Intel-hosted Option B lane composes with that compiler's Core the same way. The
+Option A exception lane uses the vendor GPU-aware host compiler, so a
+`rocmcc/gpu-...` lane would compose with `rocmcc/core`; a `nvhpc/gpu-...` lane
+would compose with `nvhpc/core`. The lane's front-door module prepends both the
+compiler's Core MODULEPATH and the GPU lane's MODULEPATH, the same way the
+serial and MPI lanes work. There is no separate Core layer for GPU lanes because
+there is no need for one — the host compiler is the compiler, and the Core built
+for that compiler is the Core the GPU lane reuses.
 
 For a ScienceStack-like multi-lane stack, this composition rule means a system with a GPU
 lane has, for that compiler, a core environment plus a `gpu-<provider>` lane
@@ -3445,7 +3453,7 @@ GPU layer to add. The lanes conflict; the user picks one.
 1. **Runtime targeting differs.** A plain MPI lane runs on a CPU compute
    partition; a GPU lane runs on a specific GPU partition. Their
    `runtime_node_type` values differ, their `platform_module_prereqs` differ
-   (the GPU lane requires `rocm/<v>` or `cudatoolkit/<v>` at runtime; the MPI
+   (the GPU lane requires `rocm/<v>` or `cuda/<v>` at runtime; the MPI
    lane does not), and Ansible places each lane's install job on the matching
    node class. Folding them into one lane breaks this targeting.
 
@@ -4028,9 +4036,11 @@ invoked only where a package asks for GPU support.
 | **NVHPC** | OpenACC code, CUDA Fortran, `-stdpar` GPU offload, codes written against the NVIDIA HPC SDK | Drops general-stack specs that do not build under NVHPC. |
 | **ROCmCC / amdclang** | HIP single-source compilation, AMD-vendor codes that need amdclang/amdflang features, OpenMP target offload to AMD | Restricted to languages and packages ROCmCC can honestly provide for that ROCm release. |
 
-AOCC is a kind-1 question, not kind-3: it has no GPU relationship, so its
-inclusion is governed by whether measured CPU performance versus GCC justifies a
-parallel CPU lane on Zen.
+AOCC is a general-purpose host-compiler question, not kind-3: it has no bundled
+GPU-toolkit relationship, so its inclusion is governed by whether measured CPU
+performance, ABI policy, or site support justifies a parallel lane. When the
+contract allows it, AOCC can be the host compiler for a kind-2 GPU lane using a
+separate ROCm or CUDA toolkit scope.
 
 **Compiler-family lane purity rule.** When a lane's compiler cannot build a spec
 because a language is unsupported, the recipe gates a provider, or the upstream
@@ -4053,10 +4063,10 @@ versions may coexist.
 
 ### Cray PE + GPU: How To Express The Lane
 
-On a Cray PE system with GPUs, there are three valid ways to assemble the
-compiler + GPU toolkit + cray-mpich environment. Each is a real choice in
-the PE, not a quirk of this design. State them once so the lane definition
-is unambiguous about which one is in use.
+On a Cray PE system with GPUs, there are two assembly families for the compiler
++ GPU toolkit + cray-mpich environment. Each is a real choice in the PE, not a
+quirk of this design. State them once so the lane definition is unambiguous
+about which one is in use.
 
 **Option A: PrgEnv-`<gpu-vendor>` all-in-one.**
 
@@ -4066,53 +4076,49 @@ module load PrgEnv-amd          # AMD GPU
 # - GPU toolkit:    ROCm (HIP, ROCBLAS, ...)
 # - cray-mpich:     ofi/amd flavor (compiler-matched)
 
-module load PrgEnv-nvidia       # NVIDIA GPU (or PrgEnv-nvhpc on some PE releases)
+module load PrgEnv-nvidia       # NVIDIA GPU
 # - host compiler: nvc / nvfortran (NVHPC)
 # - GPU toolkit:    CUDA + NVHPC SDK
 # - cray-mpich:     ofi/nvidia flavor
 ```
+
+`PrgEnv-nvidia` is the only Cray NVIDIA programming-environment module in v1
+scope. Older or site-specific `PrgEnv-nvhpc` naming is intentionally not modeled
+unless a target deployment requires a future compatibility extension. The Spack
+compiler identity can still be `nvhpc`; the CPE module name is `nvidia/<version>`.
 
 One module load gives the whole vendor-blessed environment. The trade-off
 is that the host compiler is forced to the vendor's compiler (ROCmCC or
 NVHPC), which the design's host-compiler policy explicitly *does not*
 default to.
 
-**Option B: PrgEnv-gnu + GPU toolkit module (the committed default).**
+**Option B: general-purpose PrgEnv + GPU toolkit module (the committed default
+family).**
 
 ```bash
-module load PrgEnv-gnu          # GNU host (gcc/g++/gfortran) + cray-mpich ofi/gnu flavor
+module load PrgEnv-gnu          # representative: GNU host + cray-mpich ofi/gnu flavor
 module load rocm/6.0.0          # GPU toolkit only, no host-compiler override
-# (or `cudatoolkit/12.4`, `nvhpc/24.5`, etc. for NVIDIA — depends on the PE release)
+# (or `cuda/12.4` for NVIDIA on current CPE)
 ```
 
-Two module loads give: GNU host compiler, the GPU toolkit's headers and
-libraries, and the GNU-matched cray-mpich flavor. The host compiler is GCC
-(matching the host-compiler policy); the GPU toolkit module provides the runtime
-environment. For CUDA, the Spack scope can usually point at one `cuda` external.
-For ROCm, the Spack scope must additionally declare the ROCm component externals
-that packages depend on. This is the **recommended way** to assemble Cray PE +
-GPU lanes.
+Two module loads give: a general-purpose host compiler, the GPU toolkit's
+headers and libraries, and the host-matched cray-mpich flavor. The GPU toolkit
+module provides the runtime environment. For CUDA, the Spack scope can usually
+point at one `cuda` external. For ROCm, the Spack scope must additionally
+declare the ROCm component externals that packages depend on. This is the
+**recommended way** to assemble Cray PE + GPU lanes. `PrgEnv-gnu` is the common
+example, but `PrgEnv-cray`, `PrgEnv-aocc`, or another site-verified,
+contract-approved general host compiler can use the same Option B shape when the
+profile exposes the compiler, a compatible toolkit environment, and the matching
+Cray MPICH flavor.
 
-**Option C: PrgEnv-cray + GPU toolkit module.**
-
-```bash
-module load PrgEnv-cray         # CCE host + cray-mpich ofi/cray flavor
-module load rocm/6.0.0          # or cudatoolkit/...
-```
-
-Valid; rare in practice. Use only when a specific code requires CCE on
-the host side (Cray-specific OpenMP offload work, Fortran codes that
-depend on CCE-specific features) and the GPU build still needs the
-toolkit module separately.
-
-**The committed choice: Option B.** GPU lanes on Cray use GNU + GPU
-toolkit module. This follows from the host-compiler policy: GNU is the
-default host for GPU work, and on Cray the GNU host comes from
-`PrgEnv-gnu`. Option A appears only as the **NVHPC exception lane** (when
-a code needs NVHPC's compiler and SDK as a whole), and Option C appears
-only as the **CCE-host GPU lane** (when CCE-specific host features are
-required). Both exceptions are narrow lanes with a documented user need;
-neither is a default.
+**The committed choice: Option B.** GPU lanes on Cray use a general-purpose host
+compiler + GPU toolkit module by default. This follows from the host-compiler
+policy: keep the wide science stack on compilers with broad package coverage,
+and use the GPU toolkit only for specs that ask for GPU support. Option A
+appears only as the **NVHPC or ROCmCC exception lane** when a code needs the
+GPU-aware compiler and SDK as a whole. Exception lanes are narrow lanes with a
+documented user need; they are not defaults.
 
 **How this shows up in the profile and the rendered lane.**
 
@@ -4160,15 +4166,16 @@ gpu_toolkit_modules:                           # standalone toolkit modules (Opt
       - { package: rocprim,      prefix: /opt/rocm-6.0.0/rocprim }
   cudatoolkit:                                 # on NVIDIA systems
     version: "12.4"
-    module: cudatoolkit/12.4
+    module: cuda/12.4
     prefix: /opt/cray/pe/cudatoolkit/12.4
-  nvhpc:                                       # NVHPC as a toolkit (no PrgEnv switch); rare
-    version: "24.5"
-    module: nvhpc/24.5
-    prefix: /opt/nvidia/hpc_sdk/24.5
+  nvhpc:                                       # NVIDIA/NVHPC SDK as a toolkit; rare
+    version: "24.7"
+    module: nvidia/24.7
+    prefix: /opt/nvidia/hpc_sdk/24.7
 ```
 
-The rendered GPU lane under the committed Option B path then looks like:
+The rendered GPU lane under the representative GCC-host Option B path then looks
+like:
 
 ```yaml
 # environments/gcc/gpu-craympich-gfx90a/spack.yaml
@@ -4187,11 +4194,11 @@ spack:
   view: { ... clean projection ... }
 ```
 
-— compiler is `%gcc_craympich` (Option B's GNU host), not `%rocmcc_craympich`
-(which would be Option A). The ROCm toolkit comes from `configs/gpu/amd-rocm`
-(the externals declared there for `hip`, `hsa-rocr-dev`, etc.), and the lane's
-front-door module requires `PrgEnv-gnu` + `rocm/<version>` +
-`cray-mpich/<version>` at runtime:
+— compiler is `%gcc_craympich` (this Option B lane's GNU host), not
+`%rocmcc_craympich` (which would be Option A). The ROCm toolkit comes from
+`configs/gpu/amd-rocm` (the externals declared there for `hip`,
+`hsa-rocr-dev`, etc.), and the lane's front-door module requires `PrgEnv-gnu` +
+`rocm/<version>` + `cray-mpich/<version>` at runtime:
 
 ```tcl
 # Front-door module for the gfx90a lane under Option B
@@ -4201,30 +4208,34 @@ prereq rocm/6.0.0
 prereq cray-mpich/8.1.29
 ```
 
-The exception-lane equivalents would substitute `PrgEnv-amd` + `rocm/...`
-(Option A — used only for an NVHPC- or ROCmCC-specific code) or
-`PrgEnv-cray` + `rocm/...` (Option C — used only for a CCE-host GPU code).
-The lane name, the spec compiler, the `runtime_node_type`, and the
-front-door module prerequisites all move together — the render step keeps them
-consistent because they all come from the same lane entry in `stack.yaml`.
+Other Option B lanes would substitute another general-purpose host compiler's
+PrgEnv/modules and matching Cray MPICH flavor. The exception-lane equivalent
+would substitute `PrgEnv-amd` + `rocm/...` or `PrgEnv-nvidia` + `cuda/...`
+(Option A — used only for ROCmCC- or NVHPC-specific code). The lane name, the
+spec compiler, the `runtime_node_type`, and the front-door module prerequisites
+all move together — the render step keeps them consistent because they all come
+from the same lane entry in `stack.yaml`.
 
-**NVIDIA on Cray: same shape, different modules.** Where the PE exposes
-NVIDIA support (`PrgEnv-nvidia`/`PrgEnv-nvhpc` on releases that ship it,
-`cudatoolkit` as a separately loadable module), the same three-option
-choice applies and the same default (Option B: GNU + CUDA toolkit module)
-holds. The NVHPC exception lane uses `PrgEnv-nvidia` directly because the
-code wants NVHPC's compiler driver, not just its libraries.
+**NVIDIA on Cray: same shape, current module names.** Where the PE exposes
+NVIDIA support, v1 targets current CPE naming: `PrgEnv-nvidia` for the
+GPU-aware programming environment, `nvidia/<version>` for the NVHPC compiler
+module, and `cuda/<version>` as the separately loadable CUDA toolkit module.
+The same family choice applies and the same default holds: Option B with a
+general-purpose host compiler + CUDA toolkit module. The NVHPC exception lane
+uses `PrgEnv-nvidia` directly because the code wants NVHPC's compiler driver,
+not just CUDA libraries.
 
 | Option | Committed use | Lane compiler | Lane platform-module prereqs |
 |---|---|---|---|
 | A — PrgEnv-vendor all-in-one | Narrow exception lanes (NVHPC for OpenACC/CUDA Fortran; ROCmCC for AMD-vendor codes) | `%rocmcc_craympich` / `%nvhpc_craympich` | PrgEnv-amd or PrgEnv-nvidia + cray-mpich |
-| B — PrgEnv-gnu + GPU toolkit module | **Default GPU lane** | `%gcc_craympich` | PrgEnv-gnu + GPU toolkit module + cray-mpich |
-| C — PrgEnv-cray + GPU toolkit module | Narrow lane for CCE-host GPU codes | `%cce_craympich` | PrgEnv-cray + GPU toolkit module + cray-mpich |
+| B — general-purpose PrgEnv + GPU toolkit module | **Default GPU lane family** | `%gcc_craympich`, `%cce_craympich`, `%aocc_craympich`, etc. as contract/profile allow | selected general-purpose PrgEnv + GPU toolkit module + matching cray-mpich flavor |
 
-On Cray PE specifically, the "GNU + GPU toolkit" pattern is realized by
-**PrgEnv-gnu + standalone toolkit module** (Option B), not by PrgEnv-amd or
-PrgEnv-nvidia. The exception lanes are named, scoped, and renderable, but never
-the default.
+On Cray PE specifically, the default family is realized by a
+**general-purpose PrgEnv + standalone toolkit module** (Option B), not by
+PrgEnv-amd or PrgEnv-nvidia. GNU is the common example; CCE, AOCC, or another
+site-verified general-purpose host compiler can use the same pattern when
+explicitly allowed. The vendor-compiler exception lanes are named, scoped, and
+renderable, but never the default.
 
 ## Compiler Bootstrap And Build Order
 
@@ -5221,7 +5232,7 @@ lanes:                                         # one entry per environment in th
       platform_backed: 8                       # cray-mpich + ROCm component externals (example count)
       site_external: 0
       spack_built: 0
-    platform_module_prereqs:                   # Option B: PrgEnv-gnu + standalone rocm + cray-mpich
+    platform_module_prereqs:                   # representative Option B: PrgEnv-gnu + standalone rocm + cray-mpich
       - PrgEnv-gnu
       - gcc-native/13
       - rocm/6.0.0
@@ -6392,11 +6403,11 @@ real-world evidence (a deployed system, a measured workload) to settle.
 | Repo layout split | `cray-*` vs `linux-*` at the top level is **not** the split. The repository is system-agnostic; per-system reality lives in `profile.yaml` and per-platform behavior lives in the scopes the render step selects. | Never — this is the generic-repo decision. |
 | Internal package repositories | Stack-owned package repos live under `package-repos/<name>/` and are selected by template defaults or `stack.yaml.package_repositories`. Render materializes them into the workspace, emits `repos.yaml`, and records namespace, digest, priority, and source commit in the manifest. They are stack source, not `cluster-inspector` facts. | A stack needs to consume an externally versioned package repo directly; the manifest still records the selected repo identity. |
 | Core sharing across compilers | **Per-compiler Core** is the committed model — each compiler builds its own Core view at its own path. Cross-compiler shared Core is a future, evidence-gated optimization (see §Per-Compiler Core, Not Shared Core). | Measured overlap across compiler Cores is large and expensive enough to justify the `include_concrete`/foundation-cache extraction work. Until then, per-compiler Core stays. |
-| GPU lane Core composition | When a stack renders Core lanes, a GPU lane uses its own compiler's Core. Under the committed Option B default the GPU lane is GCC-hosted, so `gcc/gpu-craympich-<arch>` ↔ `gcc/core`. Named exception lanes follow the same rule with their own host compiler: a ROCmCC exception lane uses `rocmcc/core`, an NVHPC exception lane uses `nvhpc/core`. No separate "gpu-core" layer in any case; small direct application stacks may omit Core entirely. | Never — this falls out of the per-compiler Core model. |
+| GPU lane Core composition | When a stack renders Core lanes, a GPU lane uses its own compiler's Core. Under the committed Option B default family the GPU lane is hosted by the selected general-purpose compiler, so `gcc/gpu-craympich-<arch>` ↔ `gcc/core`, `cce/gpu-craympich-<arch>` ↔ `cce/core`, and so on. Named exception lanes follow the same rule with their own host compiler: a ROCmCC exception lane uses `rocmcc/core`, an NVHPC exception lane uses `nvhpc/core`. No separate "gpu-core" layer in any case; small direct application stacks may omit Core entirely. | Never — this falls out of the per-compiler Core model. |
 | GPU vs. MPI as lane kinds | **GPU is its own lane kind, not an MPI sub-type.** In ScienceStack-style library stacks, a GPU lane is a *superset* of the matching MPI lane (it contains the same MPI-aware science libraries plus GPU-arch-pinned packages) and is pinned to one GPU class via `runtime_node_type`. One GPU lane per GPU class on a system. GPU lanes are not "MPI + a GPU add-on layer" — there is no GPU sub-load; users pick exactly one lane, and the GPU lane has everything that lane needs. See §Why GPU Is A Separate Lane Kind. | A real workload pattern materially benefits from a GPU-no-MPI sub-kind, which has not been observed yet. |
 | `cluster-inspector` module enumeration | **Three-phase hybrid: auto-discover by name pattern, narrow with operator hints, verify by load-and-probe.** The hints file lives in source control at `systems/<system>/inspector-hints.yaml` and is the committed override mechanism (CLI flags exist for one-off probes but the hints file is what persists). See `cluster_inspector_stack_profile_design_v1.md` (CLI/hints schema) and `cluster_inspector_profile_extraction_map_v1.md` (per-field discovery rules). | A site exposes externals through something other than modules (rare); add the appropriate discovery mechanism. The hints + verify model still applies. |
 | Host compiler for GPU lanes | **General-purpose host compiler by default, expressed through three lane kinds.** Kind-1 pure CPU `(compiler, mpi)`; Kind-2 GPU with general-purpose host `(host_compiler, mpi, gpu_toolkit)` where the GPU toolkit is CUDA or ROCm and the host compiler is GCC/AOCC/Intel/CCE; Kind-3 GPU-aware compiler `(gpu_aware_compiler, mpi)` for NVHPC or ROCmCC/amdclang specialist lanes. Kind-2 is the default GPU lane shape. All kinds obey the compiler-family lane purity rule: drop unbuildable specs honestly, never silently route a language to another compiler. See §Host-Compiler Policy For GPU Lanes. | A specific code's programming model demands a kind-3 lane that was not previously rendered; the lane is added without changing the kind-2 default. |
-| Cray PE + GPU lane assembly | **Option B: `PrgEnv-gnu` + standalone GPU toolkit module** (`rocm/<v>`, `cudatoolkit/<v>`) + the GCC-flavor cray-mpich. The lane compiler is `%gcc_craympich`; CUDA is usually one `cuda` external, while ROCm is rendered as component externals in `configs/gpu/amd-rocm/packages.yaml`; the lane's public entry module checks/prereqs PrgEnv-gnu + GPU toolkit module + cray-mpich at runtime unless `modules.platform_module_policy: autoload` is explicitly enabled. Option A (`PrgEnv-amd` / `PrgEnv-nvidia` all-in-one) appears only as the NVHPC or ROCmCC exception lane; Option C (`PrgEnv-cray` + GPU toolkit) only as the CCE-host GPU lane. | A vendor-PrgEnv-required code appears; the exception lane is added without changing the default. |
+| Cray PE + GPU lane assembly | **Option B: selected general-purpose PrgEnv + standalone GPU toolkit module** (`rocm/<v>`, `cuda/<v>` on current CPE) + the matching cray-mpich flavor. GNU is the representative example, but CCE, AOCC, or another site-verified, contract-approved general host compiler can use the same pattern. CUDA is usually one `cuda` external, while ROCm is rendered as component externals in `configs/gpu/amd-rocm/packages.yaml`; the lane's public entry module checks/prereqs the selected PrgEnv + GPU toolkit module + cray-mpich at runtime unless `modules.platform_module_policy: autoload` is explicitly enabled. Option A (`PrgEnv-amd` / `PrgEnv-nvidia` all-in-one) appears only as the NVHPC or ROCmCC exception lane. Legacy `PrgEnv-nvhpc` naming is out of v1 scope. | A vendor-PrgEnv-required code appears; the exception lane is added without changing the default. |
 | Concretizer `unify:` | ScienceStack-style stack lanes with deliberate multi-version and variant cross-products use **`unify: false`**. Narrow application lanes may use `unify: when_possible` when deduplication is useful and duplicate roots are incidental. `unify: true` is not a production default for this multi-version design. | Multi-version/cross-product policy is abandoned entirely, or a measured narrow application stack proves `when_possible` gives materially better results. |
 | Concretizer `reuse:` | Build-time environments (payload lanes, core, foundation) → `reuse: true`. Pipeline-driving environments (input to `spack ci generate`) → `reuse: false`. See §Concretizer Posture Per Environment Kind. | Never — this is structural. |
 | Build-cache keying | **OS/glibc + Spack/package-repo generation**, with an optional profile external-ABI token when one mirror spans incompatible same-OS site/vendor external surfaces. Compiler/MPI/target are directory labels for human readability, not reuse boundaries. See §Build-Cache Keying. | Never — the hash already enforces spec correctness, but the bucket still needs clear reuse boundaries; per-compiler keying actively strands the foundation. |
