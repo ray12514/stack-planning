@@ -1576,8 +1576,8 @@ specs:                                          # R - root specs by package-set 
     - netcdf-c@4.9.0+mpi
     - parallel-netcdf@1.13.0
     - tau+mpi
-    - kokkos+rocm
-    - raja+rocm
+    - kokkos+gpu
+    - raja+gpu
 
 provenance_hints:                               # O - override the render-step provenance derivation
   cray-mpich: Platform-backed                   #     (otherwise derived from packages.yaml)
@@ -1592,8 +1592,11 @@ The render step expands inline specs and package sets the same way. A flat list
 is emitted as-is. A map selects `specs.any` plus the block named by the build
 class's `package_set_kind` in the template contract (`specs.serial` for a serial
 class, `specs.mpi` for an MPI class, `specs.gpu` for a GPU class) and emits the
-result into the generated lane's `spack.yaml` `specs:` list. `specs.any` is only
-for roots that are literally identical for every kind the set supports.
+result into the generated lane's `spack.yaml` `specs:` list. GPU specs may use
+the neutral `+gpu` placeholder; render expands it to `+rocm
+amdgpu_target=<arch>` for AMD GPU lanes or `+cuda cuda_arch=<arch>` for NVIDIA
+GPU lanes. `specs.any` is only for roots that are literally identical for every
+kind the set supports.
 Dual-build packages such as HDF5 and NetCDF belong only in the
 package-set-kind-specific blocks. After expansion, duplicate root specs by
 package name and major variant class are a render-time validation error unless
