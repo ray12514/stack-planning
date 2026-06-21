@@ -14,6 +14,7 @@ expect downstream tools to break — coordinate the change.
 - `docs/cluster_inspector_stack_profile_design_v1.md` — Go inspector: product boundary, CLI, repo shape.
 - `docs/cluster_inspector_profile_extraction_map_v1.md` — per-field probe map for `profile.yaml`.
 - `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` — hardening note for Cray-hosted non-Cray MPI provider lanes, such as Intel compiler/runtime plus Intel MPI compatibility lanes.
+- `docs/foundation_core_view_semantics_note_v1.md` — hardening note for foundation/Core visibility, build-only views, version-collision policy, and whether foundation packages are public modules.
 - `schemas/*-v1.json` — six canonical JSON Schemas (Draft 2020-12, strict).
 - `schemas/README.md` — schema conventions and doc-to-schema mapping.
 - `schemas/.validation/` — round-trip validation harness + positive example YAMLs.
@@ -25,6 +26,9 @@ expect downstream tools to break — coordinate the change.
 - Preserve full provider module chains. A compatibility lane such as Intel compiler/runtime plus Intel MPI may need modules like `PrgEnv-intel`, the Intel compiler module, and the Intel MPI module recorded together.
 - MPI provider selection should be contract-driven. Do not choose MPI solely from `system.family == cray` or by assuming every Cray MPI lane means `cray-mpich`.
 - Read `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` before changing MPI provider selection, toolchain rendering, module emission, or profile MPI schema behavior.
+- **Do not expose foundation/Core packages as public modules by default.** Treat them as internal/build-only unless stack policy explicitly marks them public.
+- Do not project every transitive dependency into one flat public view. Foundation/Core view semantics must handle version collisions and shared library name conflicts explicitly.
+- Read `docs/foundation_core_view_semantics_note_v1.md` before changing foundation lanes, Core lanes, views, module visibility, `include_concrete:` composition, or foundation package pins.
 
 ## How to validate
 
@@ -104,6 +108,7 @@ strict when the venv exists (blocks the commit on a non-zero exit).
 | How does `cluster-inspector` discover modules? | `docs/cluster_inspector_stack_profile_design_v1.md` § Module Discovery And Hints |
 | Where do specific probe rules for `profile.yaml` fields live? | `docs/cluster_inspector_profile_extraction_map_v1.md` |
 | How should Cray-hosted non-Cray MPI lanes be represented? | `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` |
+| How should foundation/Core views and module visibility work? | `docs/foundation_core_view_semantics_note_v1.md` |
 | What schema conventions am I supposed to follow? | This file's "Conventions" section, plus `schemas/README.md` |
 
 ## When you are tempted to add a new top-level concept
