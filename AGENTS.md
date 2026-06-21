@@ -13,10 +13,18 @@ expect downstream tools to break — coordinate the change.
 - `docs/stack_composer_design_v1.md` — Python orchestrator: product boundary, commands, packaging.
 - `docs/cluster_inspector_stack_profile_design_v1.md` — Go inspector: product boundary, CLI, repo shape.
 - `docs/cluster_inspector_profile_extraction_map_v1.md` — per-field probe map for `profile.yaml`.
+- `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` — hardening note for Cray-hosted non-Cray MPI provider lanes, such as Intel compiler/runtime plus Intel MPI compatibility lanes.
 - `schemas/*-v1.json` — six canonical JSON Schemas (Draft 2020-12, strict).
 - `schemas/README.md` — schema conventions and doc-to-schema mapping.
 - `schemas/.validation/` — round-trip validation harness + positive example YAMLs.
 - `examples/reference/` — canonical example corpus (planned; populated as Phase 0b/0c land).
+
+## Active hardening reminders
+
+- **Do not let Cray MPICH become a hidden universal MPI assumption.** Cray MPICH remains the normal Cray-native provider, but the model must also support explicit non-Cray MPI provider lanes on Cray-hosted systems when policy requires them.
+- Preserve full provider module chains. A compatibility lane such as Intel compiler/runtime plus Intel MPI may need modules like `PrgEnv-intel`, the Intel compiler module, and the Intel MPI module recorded together.
+- MPI provider selection should be contract-driven. Do not choose MPI solely from `system.family == cray` or by assuming every Cray MPI lane means `cray-mpich`.
+- Read `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` before changing MPI provider selection, toolchain rendering, module emission, or profile MPI schema behavior.
 
 ## How to validate
 
@@ -95,6 +103,7 @@ strict when the venv exists (blocks the commit on a non-zero exit).
 | What's in a `profile.yaml`? | v6 § Durable Inputs / `profile.yaml`, then `schemas/profile-v1.json` |
 | How does `cluster-inspector` discover modules? | `docs/cluster_inspector_stack_profile_design_v1.md` § Module Discovery And Hints |
 | Where do specific probe rules for `profile.yaml` fields live? | `docs/cluster_inspector_profile_extraction_map_v1.md` |
+| How should Cray-hosted non-Cray MPI lanes be represented? | `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` |
 | What schema conventions am I supposed to follow? | This file's "Conventions" section, plus `schemas/README.md` |
 
 ## When you are tempted to add a new top-level concept
