@@ -40,9 +40,9 @@ A foundation package should generally be:
 
 ### Core lane
 
-A Core lane is compiler-adjacent stack infrastructure. Depending on implementation, the Core lane may either include the foundation layer directly or reference a separate foundation lane through `include_concrete:`.
+A Core lane is compiler-adjacent stack infrastructure. In the committed v1 model, each compiler's Core is a normal, independently concretized environment and carries the foundation roots directly. Reuse between Core and payload lanes happens through the foundation buildcache, not by including another lane's lockfile.
 
-The model should allow these two deployment shapes:
+The design records two possible deployment shapes, but only Option B is committed for v1:
 
 ```text
 Option A: separate foundation lane
@@ -60,7 +60,7 @@ gcc/core
 gcc/serial, gcc/mpi, gcc/gpu
 ```
 
-The separate foundation lane is cleaner for reuse accounting and build-cache policy. The squeezed Core shape may be simpler operationally for early deployments.
+The separate foundation lane is a future, evidence-gated optimization. If it is adopted under Spack 1.2+, environment composition uses `spack: include: [/absolute/path/to/spack.lock]`; the deprecated `include_concrete:` key is not used. The squeezed per-compiler Core shape is the committed v1 deployment model.
 
 ## Visibility policy
 
@@ -170,7 +170,7 @@ This avoids pretending that every dependency version can be globally unified.
 
 Foundation reuse must be a policy decision, not an accidental consequence of a view path.
 
-The concretizer should reuse foundation packages when the stack explicitly pins or includes them, and payload lanes should reference the foundation/Core layer through mechanisms such as `include_concrete:` or build-cache reuse.
+The concretizer should reuse foundation packages when the stack explicitly pins them. In the committed v1 model, payload lanes reuse compatible foundation/Core artifacts through configured buildcache mirrors. A future shared-foundation experiment may use Spack 1.2 lockfile inclusion (`spack: include: [...]`), but it is not part of the current per-compiler Core design.
 
 Do not rely on `PATH`, `LD_LIBRARY_PATH`, or a flat view alone to make payload lanes reuse foundation packages.
 

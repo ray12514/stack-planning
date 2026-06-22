@@ -204,8 +204,8 @@ fixture template or renderer Python implements:
 
 | Behavior | Design ref | Severity |
 |---|---|---|
-| Foundation lane rendering | v6 §"Foundation lane" + the lane-types diagram | CRITICAL — without it, foundation pins don't apply and Core lanes can drift |
-| Per-compiler Core composition with the GPU lane | v6 §"GPU lane Core composition" (committed) | HIGH — `gcc/gpu-craympich-<arch>` is rendered, but the include from `gcc/core` isn't expressed in `spack.yaml` (no `include_concrete` reference) |
+| Foundation-pin scope rendering | v6 §"Per-Compiler Core, Not Shared Core" + `stack.foundation_pins` | CRITICAL — without it, independently concretized compiler Cores can drift from the reviewed foundation version policy |
+| Per-compiler Core visibility with payload lanes | v6 §"GPU lane Core composition" (committed) | Covered by the Phase 9 front-door module work: payload front doors must prepend the matching compiler's Core module root. Build-time lockfile composition is deliberately not part of the committed per-compiler Core model. |
 | Lane runtime module requirements emitted as `prereq` / `depends-on` in front-door module | v6 §"Lane Runtime Module Requirements" | CRITICAL — `platform_module_prereqs` is computed; nothing writes it to a modulefile |
 | Provenance in modulefiles | v6 §"Provenance In Modulefiles" | HIGH |
 | Public package modules (vs. front-door modules) | v6 §"Public Package Modules" | HIGH |
@@ -224,10 +224,10 @@ fixture template or renderer Python implements:
 Adoption-blocking (CRITICAL) — fix before the first real deployment:
 
 1. **`configs/common/config.yaml` rendering** — without it, Spack installs to its default path, not the profile's install tree. Every adoption hits this on first install.
-2. **`stack.foundation_pins` enforcement** via a `foundation/packages.yaml` scope. Without it, the version pins documented as required for cross-compiler binary compatibility don't apply.
+2. **`stack.foundation_pins` enforcement** via a `foundation/packages.yaml` scope. Without it, the reviewed foundation versions do not apply consistently to each compiler's independently concretized Core.
 3. **Front-door modulefile emission** + `modules.yaml` scope. `stack.modules.exposure: front_door` silently does nothing today. Users are told to load `ScienceStack/GCC/...`; nothing is emitted.
 4. **`compilers.yaml` scope** — verify whether Spack v1.1's compiler discovery from `packages.yaml::extra_attributes.compilers` is sufficient (it may be); if not, render a `compilers.yaml`.
-5. **Foundation lane composition** — `gcc/gpu-craympich-<arch>`'s `spack.yaml` should `include_concrete` from `gcc/core`. Today it doesn't.
+5. **Foundation buildcache reuse** — build each compiler's Core lane first, push it to the profile-compatible foundation cache, and configure payload lanes to reuse compatible binaries. The committed v1 model does not include one lane's lockfile from another lane.
 
 High-impact (HIGH) but not blocking:
 
