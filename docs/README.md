@@ -22,3 +22,4 @@ contracts.
 | `stack_composer_design_v1.md` | `stack-composer` product boundary, commands, packaging, and phases. |
 | `cluster_inspector_stack_profile_design_v1.md` | `cluster-inspector` product boundary, CLI, packaging, and build plan. |
 | `cluster_inspector_profile_extraction_map_v1.md` | Field-by-field extraction map for `profile.yaml`. |
+| `runbook.md` | First-deployment operator runbook: probe → compose → build → expose → validate, with bring-back-to-GitHub notes. |

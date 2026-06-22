@@ -28,7 +28,7 @@ expect downstream tools to break — coordinate the change.
 - Read `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` before changing MPI provider selection, toolchain rendering, module emission, or profile MPI schema behavior.
 - **Do not expose foundation/Core packages as public modules by default.** Treat them as internal/build-only unless stack policy explicitly marks them public.
 - Do not project every transitive dependency into one flat public view. Foundation/Core view semantics must handle version collisions and shared library name conflicts explicitly.
-- Read `docs/foundation_core_view_semantics_note_v1.md` before changing foundation lanes, Core lanes, views, module visibility, `include_concrete:` composition, or foundation package pins.
+- Read `docs/foundation_core_view_semantics_note_v1.md` before changing foundation lanes, Core lanes, views, module visibility, lockfile composition, buildcache reuse, or foundation package pins.
 
 ## How to validate
 
