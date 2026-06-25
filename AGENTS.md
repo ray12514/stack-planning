@@ -7,6 +7,20 @@ system's architecture and data contracts. Implementation repos
 If you change anything in `schemas/` or rename anything in `docs/`,
 expect downstream tools to break — coordinate the change.
 
+## Pre-v1 policy
+
+No stack release has been deployed or tagged as v1 yet. Until that
+happens, do not add compatibility paths for previous contract shapes,
+schema fields, template behavior, or generated layouts. Treat the
+model as still changeable when the design calls for it:
+
+- update the design and schema directly instead of preserving unused
+  behavior;
+- fail fast when required fields are missing;
+- do not describe pre-v1 changes as migrations from deployed behavior;
+- reserve compatibility/migration sections for behavior that existed
+  in a tagged, deployed release.
+
 ## Layout
 
 - `docs/spack_stack_generation_design_v6.md` — cross-component design (the master plan).
@@ -66,8 +80,10 @@ strict when the venv exists (blocks the commit on a non-zero exit).
 - Required keys mirror `# R` annotations in the v6 reference YAML;
   optional keys are `# O`. Defaults from `# O - default <x>` become
   `default: <x>` and stay absent from `required`.
-- Schema bumps live as new files (`profile-v2.json`) alongside the
-  old, never edited in place.
+- Before a deployed v1 tag, schemas may be edited in place when the
+  design changes. After a deployed v1 tag, incompatible schema changes
+  live as new files (`profile-v2.json`) alongside the previous
+  version.
 
 ### Design docs
 - v6 is the cross-component master; per-tool docs defer to v6 on cross-cutting
@@ -90,8 +106,9 @@ strict when the venv exists (blocks the commit on a non-zero exit).
   dev-only.
 - Move design docs between repos casually. The architectural source of
   truth lives here; routing through another repo creates drift.
-- Edit `schemas/*-v1.json` in place to break a downstream — bump to
-  `-v2.json` instead.
+- After a deployed v1 tag, edit `schemas/*-v1.json` in place to break
+  a downstream — bump to `-v2.json` instead. Before that tag, update
+  v1 schemas directly when the design changes.
 - Skip the validation harness because "the change is small." If it
   touches `schemas/`, run the harness.
 

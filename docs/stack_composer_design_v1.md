@@ -1246,7 +1246,7 @@ Acceptance:
   compiler exception lanes.
 - For Cray NVIDIA, target current CPE naming only: `PrgEnv-nvidia`,
   `nvidia/<version>`, and `cuda/<version>`. The Spack compiler identity may be
-  `nvhpc`, but legacy `PrgEnv-nvhpc` module naming is out of v1 scope unless a
+  `nvhpc`, but older `PrgEnv-nvhpc` module naming is out of v1 scope unless a
   target site requires a future compatibility extension.
 
 Acceptance:

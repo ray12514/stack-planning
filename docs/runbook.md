@@ -1,8 +1,32 @@
-# First-Deployment Runbook
+# First Full-Iteration Runbook
 
-End-to-end sequence for the first real-hardware runs on Cray and Penguin
-systems. Keep one notes file per system and bring reviewed findings back to the
-source repositories after each stage.
+Alpha end-to-end sequence for the first real-hardware runs on Cray and
+Penguin systems. This is not a production deployment runbook yet. The goal is
+to exercise `cluster-inspector`, `stack-composer`, `spack-build`, and Spack on
+real systems, identify missing model fields or rendering gaps, and bring those
+findings back to the source repositories.
+
+Keep one notes file per system and bring reviewed findings back after each
+stage.
+
+## Current readiness
+
+The workflow is ready for controlled full-iteration testing, not for a tagged
+v1 release.
+
+| Area | Current status | First-test handling |
+|---|---|---|
+| System facts | `cluster-inspector` can generate and verify `profile.yaml`; operator hints are expected. | Review the generated profile before render. Hand-edit only with notes that become inspector bugs or schema/design updates. |
+| Stack render | `stack-composer` renders lane workspaces and Spack scopes from the stack/profile/template inputs. | Use `validate` and inspect the rendered `configs/` and `environments/` before invoking Spack. |
+| Vendor scope selection | The template contract must include `vendor_scope_selectors`; there is no fallback. | Add the selector block to the template contract before render. |
+| Install tree / `config.yaml` | Phase 7 is still open. The profile reports filesystem candidates, but the installer/package owner must choose the final install tree. | For the first test, render or hand-add a temporary `configs/common/config.yaml` with the selected install tree, build stage, source cache, and misc cache. Record the exact shape needed for Phase 7. |
+| Module exposure | Phase 9 is still open. Front-door/lane modulefiles are not generated yet. | Use temporary shell/view exposure only. Record required prereqs and MODULEPATH behavior for the module design. |
+| MPI provider policy | Phase 6f.2 is still open. Cray MPICH works as the current Cray default, but general `mpi.mode: auto` provider resolution is not complete. | Start with a simple lane whose external MPI/provider behavior is already represented in the profile/template. Record any cross-compiler MPI or non-Cray-provider gaps. |
+| Build/cache orchestration | `spack-build` can drive lanes and emit reports; production cache policy may be owned by other site tools. | Use `--skip-push` unless this test is explicitly exercising cache publication. |
+
+Because no v1 deployment exists yet, do not preserve compatibility with
+previous alpha contract shapes. If a field or layout is wrong, change the
+current design/schema/tooling and document the decision.
 
 ## Pre-flight
 
@@ -18,6 +42,15 @@ Confirm that `cluster-inspector --help`,
 `python3 stack-composer.pyz --help`, and `spack --version` all run before
 continuing. Record the Spack version and intended install, view, build-stage,
 and buildcache paths in the deployment notes.
+
+Before render, also decide the deployment-owned paths that are not facts:
+
+- selected install tree;
+- source cache;
+- misc/user cache if used;
+- build stage per node type;
+- buildcache destination, if this run will push binaries;
+- temporary module/view exposure path for the test.
 
 ## Stage 1 — Probe
 
@@ -67,7 +100,8 @@ Manual review checklist:
   prerequisites.
 - Module patterns in the hints and discovery evidence match the live system.
 - `filesystem.install_tree_candidates` and node build-stage candidates are
-  writable and large enough.
+  writable and large enough. These are candidates/facts, not the final install
+  policy.
 
 Commit the reviewed profile to the stack source. Preserve probe output for any
 fact that required manual correction.
@@ -78,7 +112,9 @@ Design references:
 
 ## Stage 2 — Compose
 
-Validate the inputs, then render a deterministic workspace.
+Validate the inputs, then render a deterministic workspace. Confirm the selected
+template contract contains `vendor_scope_selectors`; missing selectors are a
+contract error.
 
 ```bash
 python3 stack-composer.pyz validate \
@@ -118,6 +154,12 @@ The workspace is
 Front-door and lane module emission is Phase 9 work. No generated modulefiles
 are expected from the current renderer.
 
+Until Phase 7 renders `configs/common/config.yaml`, verify whether the rendered
+workspace contains the selected deployment paths. If it does not, add the
+temporary `config.yaml` scope for this test and record it as Phase 7 evidence.
+The temporary file should include only deployment-owned path policy and should
+not be committed as generated output.
+
 ## Stage 3 — Build
 
 Run one Core lane end to end before queueing the remaining lanes. Build all
@@ -156,7 +198,8 @@ export MANPATH="$VIEW_ROOT/share/man${MANPATH:+:$MANPATH}"
 
 Do not treat this helper as the final user interface. Record any additional
 paths needed by real applications; they are evidence for Phase 9 module
-generation and `prefix_inspections` policy.
+generation, platform-module prerequisite handling, and `prefix_inspections`
+policy.
 
 ## Stage 5 — Validate end to end
 

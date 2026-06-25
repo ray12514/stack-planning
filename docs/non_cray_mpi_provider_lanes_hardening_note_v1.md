@@ -103,6 +103,57 @@ toolchains:
     purpose: cray-native
 ```
 
+## Desired provider policy
+
+MPI provider selection is a render-time policy decision, not a
+`cluster-inspector` decision. `cluster-inspector` reports observed
+facts: available compilers, MPI providers, prefixes, modules, and the
+provider's compiler or programming-environment preconditions when
+known. Stack Composer resolves those facts against the selected stack
+contract and lane compiler.
+
+The contract-facing MPI shape should allow a package manager to omit
+the mode in the common case:
+
+```yaml
+toolchains:
+  science-mpi:
+    compiler: each_science_mpi_compiler
+    mpi:
+      provider: openmpi
+```
+
+Omitting `mode` is equivalent to:
+
+```yaml
+mpi:
+  provider: openmpi
+  mode: auto
+```
+
+`auto` means: use a compatible external MPI if the profile and
+contract prove one exists for the lane's compiler; otherwise let Spack
+build that MPI for the lane. It must never silently reuse an external
+MPI built with a different compiler. Power users and compatibility
+lanes may override the default with stricter modes such as:
+
+- `external` — require a compatible external and fail render if none
+  exists;
+- `spack` — always build the named MPI provider with Spack for that
+  lane;
+- `platform` — require a platform-backed provider such as Cray MPICH;
+- `bespoke` — use an explicitly named site/provider resolver from the
+  template contract.
+
+Cray MPICH remains the default production Cray MPI provider today, and
+Spack-built MPI remains forbidden for production Cray MPICH lanes. The
+model still needs to support alternate, contract-approved providers on
+Cray-hosted systems — for example Intel MPI compatibility lanes today,
+or future OpenMPI/MPICH-style providers that officially support the
+site's Slingshot/CPE environment. Those providers should be added as
+profile facts plus contract policy, not as new hardcoded Python
+branches.
+
 ## Desired Spack external rendering
 
 For the Intel MPI case, rendered Spack configuration should preserve the full platform module chain:
@@ -135,6 +186,8 @@ The current implementation is expected to handle Cray MPICH more naturally than 
 - generic MPI verification only needs to load the MPI module itself;
 - MPI providers do not need compiler or programming-environment preconditions;
 - lane planning can choose the MPI provider from system family alone.
+- an MPI provider named in the contract is always usable as an
+  external for every compiler lane.
 
 Instead, MPI provider selection should be explicit and contract-driven.
 
@@ -148,6 +201,10 @@ A future hardening pass should make the following possible:
 4. The default Cray lanes continue to prefer Cray MPICH unless policy says otherwise.
 5. Rendered `packages.yaml`, lane metadata, and final manifests show which MPI provider was selected.
 6. Module emission preserves the full provider module chain for user-facing front-door modules.
+7. A generic Linux MPI toolchain can omit `mode` and get `auto`
+   semantics: compatible external if proven, otherwise Spack-built MPI.
+8. If no compatible external MPI exists for a lane compiler, Stack
+   Composer does not borrow another compiler's MPI external.
 
 ## Non-goal
 
