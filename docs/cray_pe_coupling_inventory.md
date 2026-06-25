@@ -45,7 +45,7 @@ Three columns matter:
 
 | Spot | Coupling | CPE2 likely change |
 |---|---|---|
-| `vendor_cray` top-level block (line 111-117) | shape | The block name itself encodes "Cray PE". If CPE2 unbundles, the components may not belong together. Options: keep `vendor_cray` for legacy, add a sibling `vendor_blocks: [...]`; or schema v2 with a generic `vendor_externals` array. |
+| `vendor_cray` top-level block (line 111-117) | shape | The block name itself encodes "Cray PE". If CPE2 unbundles, the components may not belong together. Options: keep `vendor_cray` for current CPE-shaped systems, add a sibling `vendor_blocks: [...]`; or schema v2 with a generic `vendor_externals` array. |
 | `vendor_cray_block` definition (line 311+) — keys: `cce`, `gcc`, `aocc`, `intel`, `nvhpc`, `rocmcc`, `cray_mpich`, `libsci` (and friends) | names + shape | Per-component fields baked in. New components require a schema bump. |
 | `cray_mpich_block.flavors` (line 356+) — map of `<compiler-name>` → `{prefix, modules}` | shape | Per-compiler-flavored MPI build prefixes are a CPE-specific packaging artifact. CPE2 unbundled MPI may not be compiler-flavored at all. |
 | `compilers_external` description (line 120) — "Excludes Cray PE compilers (those live under vendor_cray)." | flow | Explicit carve-out. If `vendor_cray` goes away, this comment + the implicit routing logic in the inspector both have to move. |
@@ -78,7 +78,7 @@ move together.
 
 | File:line | Spot | Coupling | CPE2 likely change |
 |---|---|---|---|
-| `src/stack_composer/render/scopes.py:88-91` | `vendor_scope(profile)` — returns `"vendor/cray"` if `profile.vendor_cray`, else `"vendor/linux"` | flow + names | Binary vendor choice. A third vendor scope (CPE2 or other) means Python code change. **Move to contract-driven selector to fix permanently.** |
+| `src/stack_composer/render/plan.py:165-177` + `src/stack_composer/render/scopes.py:74-80` | `vendor_scope_for(profile, contract)` resolves required `contract.vendor_scope_selectors`, and each rendered lane carries the selected `vendor_scope` | flow + names | CPE2 or another vendor should add a profile discriminator, a `contract.vendor_scope_selectors` entry, and a template-set scope; no Python render edit should be needed unless the selector language itself is insufficient. |
 | `src/stack_composer/render/platform_modules.py:43-59` | `_compiler_modules` checks `vendor_cray.<compiler>` first, then falls back to `compilers_external` | shape + flow | Tied to the schema's `vendor_cray` block layout. |
 | `src/stack_composer/render/platform_modules.py:68-82` | `_mpi_modules` special-cases `provider == "cray-mpich"` to read `vendor_cray.cray_mpich.flavors` | names + flow | Hardcoded provider name and special-case data path. **Generalize to per-provider `modules:` field in `profile.mpi[]`-style block.** |
 | `src/stack_composer/render/plan.py:141-149` | `compiler_candidates()` enumerates `vendor_cray` compiler names in a hardcoded tuple `("gcc", "cce", "aocc", "intel", "nvhpc", "rocmcc")` | names + shape | New compilers added to CPE2 require code change. Could be schema-driven (iterate the block's keys). |
@@ -115,7 +115,7 @@ between them based on the profile.
 
 | File:line | Spot | Coupling | CPE2 likely change |
 |---|---|---|---|
-| `stack-planning/docs/spack_stack_generation_design_v6.md` (415 mentions of "cray" total) | Examples and canonical packages.yaml templates for CPE | names + shape | A successor doc (v7 / cpe2 supplement) describes the new conventions; v6 stays valid for legacy CPE deployments. |
+| `stack-planning/docs/spack_stack_generation_design_v6.md` (415 mentions of "cray" total) | Examples and canonical packages.yaml templates for CPE | names + shape | A successor doc (v7 / cpe2 supplement) describes the new conventions; v6 stays valid for current CPE-shaped deployments. |
 | `stack-planning/docs/cluster_inspector_profile_extraction_map_v1.md` | Extraction rules for `vendor_cray` fields | shape | Either extend in place or supplement with a `cpe2_extraction_map.md`. |
 
 ---
@@ -130,20 +130,24 @@ Today: `render/scopes.py::vendor_scope` is `if profile.vendor_cray:
 return "vendor/cray" else "vendor/linux"`. To add a third vendor, you
 edit Python.
 
-Better: declare the rule in `contract.yaml`:
+Implemented direction: declare the rule in `contract.yaml`:
 
 ```yaml
-vendor_scopes:
-  - when: profile.vendor_cray
+vendor_scope_selectors:
+  cray:
+    profile_key: vendor_cray
     scope: vendor/cray
-  - when: profile.vendor_cpe2
+  cpe2:
+    profile_key: vendor_cpe2
     scope: vendor/cpe2
-  - default: true
+  linux:
+    default: true
     scope: vendor/linux
 ```
 
-Renderer evaluates the rules in order. New PE → new contract field +
-new template-set, no Python change.
+Renderer evaluates profile-key selectors first and then the default.
+New PE → new profile discriminator + contract entry + template-set
+scope, no Python render change.
 
 **Cost:** ~50 lines Python, plus a contract schema field, plus test.
 
