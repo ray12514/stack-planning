@@ -2,9 +2,10 @@
 
 Alpha end-to-end sequence for the first real-hardware runs on Cray and
 Penguin systems. This is not a production deployment runbook yet. The goal is
-to exercise `cluster-inspector`, `stack-composer`, `spack-build`, and Spack on
-real systems, identify missing model fields or rendering gaps, and bring those
-findings back to the source repositories.
+to exercise `cluster-inspector`, `stack-composer`, the chosen build path
+(`spack-build` or `stack tools`), and Spack on real systems, identify missing
+model fields or rendering gaps, and bring those findings back to the source
+repositories.
 
 Keep one notes file per system and bring reviewed findings back after each
 stage.
@@ -22,7 +23,7 @@ v1 release.
 | Install tree / `config.yaml` | Phase 7 is still open. The profile reports filesystem candidates, but the installer/package owner must choose the final install tree. | For the first test, render or hand-add a temporary `configs/common/config.yaml` with the selected install tree, build stage, source cache, and misc cache. Record the exact shape needed for Phase 7. |
 | Module exposure | Phase 9 is still open. Front-door/lane modulefiles are not generated yet. | Use temporary shell/view exposure only. Record required prereqs and MODULEPATH behavior for the module design. |
 | MPI provider policy | Phase 6f.2 is still open. Cray MPICH works as the current Cray default, but general `mpi.mode: auto` provider resolution is not complete. | Start with a simple lane whose external MPI/provider behavior is already represented in the profile/template. Record any cross-compiler MPI or non-Cray-provider gaps. |
-| Build/cache orchestration | `spack-build` can drive lanes and emit reports; production cache policy may be owned by other site tools. | Use `--skip-push` unless this test is explicitly exercising cache publication. |
+| Build/cache orchestration | A co-equal build path drives lanes — `stack tools`, `spack-build`, Ansible, or bare Spack; production cache policy may be owned by other site tools. | Pick one build path. With `spack-build`, use `--skip-push` unless this test is explicitly exercising cache publication. |
 
 Because no v1 deployment exists yet, do not preserve compatibility with
 previous alpha contract shapes. If a field or layout is wrong, change the
@@ -51,6 +52,40 @@ Before render, also decide the deployment-owned paths that are not facts:
 - build stage per node type;
 - buildcache destination, if this run will push binaries;
 - temporary module/view exposure path for the test.
+
+These roots can be rendered into `configs/common/config.yaml` (a self-locating
+workspace) and/or supplied/overridden at build time by the build path; both are
+supported. See `stack_build_handoff_note_v1.md`.
+
+## Stage 0 — Establish the stack directory
+
+Set up the `stack-content` directory before probing. It is the hosted source of
+truth render consumes, synced onto the target's shared filesystem.
+
+1. Create (or clone) the `stack-content` repo in the project GitLab group and lay
+   out the source tree:
+
+   ```text
+   stack-content/
+     systems/<system>/profile.yaml      # added in Stage 1
+     stacks/<stack>/stack.yaml
+     package-sets/*.yaml
+     package-repos/<name>/
+     templates/<set>/{contract.yaml,stack-defaults.yaml,configs/,environments/}
+   ```
+
+2. Decide the config delivery mode for this run:
+   - **synced tree** (default): sync `stack-content` to the shared filesystem;
+     render emits relative `include::`; the build path roots the rendered tree there.
+   - **GitLab-direct**: render emits remote GitLab-URL `include::`; Spack reads
+     config yaml directly from GitLab with no sync. Validate the remote-include
+     syntax against the pinned Spack version first.
+
+3. Confirm the shared-filesystem path is writable and visible from the build and
+   compute node types.
+
+Design references: `pre_v1_hosting_and_external_inventory_note_v1.md` and
+`stack_build_handoff_note_v1.md`.
 
 ## Stage 1 — Probe
 
@@ -160,7 +195,17 @@ temporary `config.yaml` scope for this test and record it as Phase 7 evidence.
 The temporary file should include only deployment-owned path policy and should
 not be committed as generated output.
 
+Alternatively, pass the install/view/module/cache roots to the build path at
+build time instead of rendering them; the handoff supports both. Record which
+mode this run used as Phase 7 evidence.
+
 ## Stage 3 — Build
+
+Build is a **co-equal choice** of build path — `stack tools`, `spack-build`,
+Ansible, or bare Spack. Pick the one this site will operate. The example below
+uses the in-house `spack-build`; to hand off to `stack tools` instead, give it
+the rendered workspace tree (or the GitLab-direct config URLs) and let it run
+concretize + install. See `stack_build_handoff_note_v1.md`.
 
 Run one Core lane end to end before queueing the remaining lanes. Build all
 Core lanes before serial, MPI, and GPU payload lanes so their artifacts can be

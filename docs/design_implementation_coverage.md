@@ -164,15 +164,17 @@ in Phase 1-6a). Notable absences:
 | `vendor_cray.libsci` | NOT READ (rendered scope doesn't emit libsci externals) | MEDIUM |
 | `vendor_cray.aocc` / `vendor_cray.intel` (schema-new) | Read by `vendor/cray/packages.yaml.j2` (Phase 5) | OK |
 | `vendor_cray.cray_mpich.flavors[*]` | Read by `mpi/cray-mpich/packages.yaml.j2` (Phase 5) + `render/platform_modules.py` | OK |
+| generic provider inventory / `vendor_cray` generalization | PARTIAL — current profile has `vendor_cray`, `compilers_external`, and `mpi`, but no generic provider-family/compatibility model | HIGH — Cray PE should be treated as provider-family metadata layered on Linux/provider facts, not as the universal render model. See `pre_v1_hosting_and_external_inventory_note_v1.md`. |
 | `gpu_toolkit_modules.rocm.spack_components` | Read by `gpu/amd-rocm/packages.yaml.j2` (Phase 5) | OK |
 | `gpu_toolkit_modules.cudatoolkit` | Read by `gpu/nvidia-cuda/packages.yaml.j2` (Phase 5) | OK |
 | `gpu_toolkit_modules.nvhpc` (standalone NVHPC toolkit) | NOT READ — only `cudatoolkit` is emitted as a CUDA scope; NVHPC is exception-lane-only and not separately rendered | MEDIUM |
 | `compilers_external[*]` | Read by `vendor/linux/packages.yaml.j2` (Phase 5) | OK |
 | `mpi[*]` | Read by `mpi/openmpi/packages.yaml.j2` (currently openmpi-only; mpich/mvapich2 etc. would need new scope templates) | MEDIUM |
 | `fabric.userspace` | NOT READ (renderer doesn't emit fabric userspace externals like libfabric/ucx) | HIGH (these are real Spack externals on most Cray/Slingshot deployments) |
+| generic system package externals (`openssl`, `curl`, etc.) | NO PROFILE FIELD — only stack policy exists today (`stack.externals.openssl`, `stack.externals.curl`) | HIGH — if stack policy says to use a system external, the profile needs observed version/prefix/variant facts so render can emit correct `packages.yaml` or fail fast |
 | `os.minor`, `os.glibc` | Read by `manifest/draft.py` and probe context; OK for now | OK |
 | `modules_system.tool`, `.version` | NOT READ at render — fixture assumes Lmod/Tcl works; not validated against the rendered modulefile format | MEDIUM (related to module-emission gap) |
-| `filesystem.install_tree_candidates[*]` | NOT READ (renderer doesn't emit `config.yaml` scope with `install_tree`) | CRITICAL — Spack must be told where to install; today it uses Spack default `/home/spack/spack/opt`. The profile supplies candidate shared filesystems and lock/space facts; stack/site/deployment input must select the final install tree. A real deployment will install in the wrong place until that policy is rendered. |
+| `filesystem.install_tree_candidates[*]` | NOT READ (renderer doesn't emit `config.yaml` scope with `install_tree`) | CRITICAL — Spack must be told where to install; today it uses Spack default `/home/spack/spack/opt`. The profile supplies candidate shared filesystems and lock/space facts; stack/site/deployment input must select the final install tree. A real deployment will install in the wrong place until that policy is rendered. Decided shape: render the roots into `config.yaml` **and/or** supply them to the build path at build time; both are supported (see `stack_build_handoff_note_v1.md`). |
 | `filesystem.source_cache_candidate` | NOT READ | HIGH |
 | `filesystem.buildcache_candidate` | NOT READ | HIGH |
 | `node_types[*].build_stage` | NOT READ at render — would normally feed `config.yaml.build_stage` | HIGH |
@@ -188,7 +190,7 @@ set should ship; none exist:
 | Scope file | Design ref | Severity | What it should contain |
 |---|---|---|---|
 | `configs/common/concretizer.yaml.j2` | v6 §"Concretizer Posture Per Environment Kind" | HIGH | `unify: false` for stack lanes; `unify: when_possible` for narrow application lanes; `reuse: true` for build-time, `reuse: false` for CI generators |
-| `configs/common/config.yaml.j2` | v6 §Render Step (the `config.yaml` Spack scope) | CRITICAL | `install_tree: ...` from explicit stack/site/deployment selection, validated against `profile.filesystem.install_tree_candidates`; `build_stage: ...` from `profile.node_types[*].build_stage`; `source_cache: ...`; `misc_cache: ...` |
+| `configs/common/config.yaml.j2` | v6 §Render Step (the `config.yaml` Spack scope) | CRITICAL | `install_tree: ...` from explicit stack/site/deployment selection, validated against `profile.filesystem.install_tree_candidates`; `build_stage: ...` from `profile.node_types[*].build_stage`; `source_cache: ...`; `misc_cache: ...`; plus view/module roots. These roots are rendered here **and** overridable at build time (see `stack_build_handoff_note_v1.md`). |
 | `configs/common/compilers.yaml.j2` | Spack convention (every site needs this for compiler discovery to work without `spack compiler find`) | CRITICAL | Compilers declared per profile facts (or, with Spack v1+, the `packages.yaml::extra_attributes.compilers` we already emit might be enough — needs verification with `spack -e <env> compiler list`) |
 | `configs/common/mirrors.yaml.j2` | v6 §"Build-Cache Keying" + `stack.buildcache.spack_generation` etc. | HIGH | Mirror entries with expanded `{spack_generation}`/`{system}` substitutions for each declared buildcache and source-cache |
 | `configs/common/modules.yaml.j2` | v6 §4380-4480 | HIGH | Module hierarchy style, projections, blacklist, prefix inspections; reads `stack.modules.*` |
@@ -224,7 +226,7 @@ fixture template or renderer Python implements:
 
 Adoption-blocking (CRITICAL) — fix before the first real deployment:
 
-1. **`configs/common/config.yaml` rendering** — without it, Spack installs to its default path, not the install tree chosen by the site/package owner. The profile should provide candidate filesystem facts; stack/site/deployment input should choose the final path. Every adoption hits this on first install.
+1. **`configs/common/config.yaml` rendering** — without it, Spack installs to its default path, not the install tree chosen by the site/package owner. The profile should provide candidate filesystem facts; stack/site/deployment input should choose the final path. Every adoption hits this on first install. Decided: render the roots into `config.yaml` and/or supply them at build time; both supported (`stack_build_handoff_note_v1.md`).
 2. **`stack.foundation_pins` enforcement** via a `foundation/packages.yaml` scope. Without it, the reviewed foundation versions do not apply consistently to each compiler's independently concretized Core.
 3. **Front-door modulefile emission** + `modules.yaml` scope. `stack.modules.exposure: front_door` silently does nothing today. Users are told to load `ScienceStack/GCC/...`; nothing is emitted.
 4. **`compilers.yaml` scope** — verify whether Spack v1.1's compiler discovery from `packages.yaml::extra_attributes.compilers` is sufficient (it may be); if not, render a `compilers.yaml`.
@@ -238,17 +240,19 @@ High-impact (HIGH) but not blocking:
 9. **`profile.filesystem.source_cache_candidate`/`buildcache_candidate`** consumption — they're probed but no scope reads them.
 10. **`profile.fabric.userspace`** externals — libfabric/ucx are real Spack externals on Slingshot/IB sites.
 11. **MPI provider policy and compatibility resolution** — `toolchains[*].mpi` should default to `mode: auto`: use compiler-compatible externals when proven, otherwise let Spack build MPI for that lane. Cray MPICH remains platform-required for production Cray lanes, but non-Cray providers on Cray-hosted systems must be contract-selected instead of hardcoded away.
-12. **`contract.target_policies`** — per-build-class target override (core → `foundation`/`baseline_target` vs payload → `lane.cpu.preferred`). Today every lane uses `lane.cpu.preferred`.
-13. **`configs/common/concretizer.yaml`** — `unify: false` policy from the design.
-14. **`vendor_cray.libsci`** rendering (Cray scientific library externals).
+12. **Generic provider inventory / Cray generalization** — current profile and renderer still expose a Cray-shaped block instead of a generic provider-family/compatibility model. See `pre_v1_hosting_and_external_inventory_note_v1.md`.
+13. **Generic system external facts** — profile schema lacks observed OpenSSL/curl/system-package external candidates. See `pre_v1_hosting_and_external_inventory_note_v1.md`.
+14. **`contract.target_policies`** — per-build-class target override (core → `foundation`/`baseline_target` vs payload → `lane.cpu.preferred`). Today every lane uses `lane.cpu.preferred`.
+15. **`configs/common/concretizer.yaml`** — `unify: false` policy from the design.
+16. **`vendor_cray.libsci`** rendering (Cray scientific library externals).
 
 Medium / advisory (MEDIUM):
 
-15. `helpers.{inspector,render,ansible}` are unused; clarify whether they're advisory or document them as deferred.
-16. `gpu_selectors[*].vendor` / `.spack` (in contract) are not read; vendor inferred from arch prefix instead.
-17. `gpu_toolkit_modules.nvhpc` (standalone NVHPC toolkit) — not rendered as a scope.
-18. `mpi[*]` scopes — only openmpi has a template; mpich, mvapich2, intel-mpi would need new scope templates.
-19. Site-smoke-tests scaffolding — verification hooks exist in manifest but no harness emits site tests.
+17. `helpers.{inspector,render,ansible}` are unused; clarify whether they're advisory or document them as deferred.
+18. `gpu_selectors[*].vendor` / `.spack` (in contract) are not read; vendor inferred from arch prefix instead.
+19. `gpu_toolkit_modules.nvhpc` (standalone NVHPC toolkit) — not rendered as a scope.
+20. `mpi[*]` scopes — only openmpi has a template; mpich, mvapich2, intel-mpi would need new scope templates.
+21. Site-smoke-tests scaffolding — verification hooks exist in manifest but no harness emits site tests.
 
 ---
 
@@ -256,14 +260,21 @@ Medium / advisory (MEDIUM):
 
 Suggested ordering for a Phase 7+ campaign:
 
+- **Phase 6g — Declarative render alignment gate.** Before adding more
+  feature branches to Stack Composer, read
+  `stack_composer_declarative_render_alignment_v1.md` and start moving
+  hardcoded compiler/MPI/GPU/target/scope/spec-expansion policy from Python
+  into contract/profile/template data. This should run before or alongside any
+  Phase 7 implementation so adoption-blocking scopes do not depend on the
+  wrong abstraction.
 - **Phase 7 — Adoption-blocking scopes.** Items 1, 4, 5 from §6. Without these, the first real install lands in the wrong place and has no compiler discovery. ~2 days.
-- **Phase 8 — Foundation pins + foundation lane.** Items 2, 12. ~2 days.
+- **Phase 8 — Foundation pins + foundation lane.** Items 2, 14. ~2 days.
 - **Phase 9 — Front-door modules.** Item 3. ~3 days (covered in detail in agent memory `project-module-emission-gap.md`).
-- **Phase 10 — Externals policy + buildcache mirrors.** Items 6, 7. ~2 days.
-- **Phase 6f — Pre-CPE2 MPI/vendor hardening.** Item 11. This can
+- **Phase 10 — Externals policy + buildcache mirrors.** Items 6, 7, 13. ~2 days.
+- **Phase 6f — Pre-CPE2 MPI/vendor hardening.** Items 11, 12. This can
   run before or alongside Phase 10 because it is mostly lane-planner
   and provider-policy work.
-- **Phase 11 — Cleanup / cosmetic.** Items 13-19. ~2 days.
+- **Phase 11 — Cleanup / cosmetic.** Items 15-21. ~2 days.
 
 After Phase 7-9, the first real deployment is plausible. Phase 10-11
 can land in parallel with adoption feedback.
