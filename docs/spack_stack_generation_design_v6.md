@@ -401,6 +401,7 @@ repo/
   systems/
     <system>/
       profile.yaml
+      deployment.yaml      # installer-owned site paths; see deployment_inputs_and_ownership_v1.md
   stacks/
     <stack>/
       stack.yaml

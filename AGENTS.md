@@ -40,6 +40,7 @@ design calls for it:
 - `docs/stack_build_handoff_note_v1.md` — pre-v1 build-handoff note: Stack Composer renders a workspace tree; build/concretize is a co-equal choice (stack tools / spack-build / Ansible / manual); the stack-content source dir and config delivery modes.
 - `docs/stack_generation_orchestration_note_v1.md` — per-system render seam, intersection model, input lifecycle/cadence, re-render/rebuild trigger matrix, and the tool-agnostic driver contract that keeps the multi-system loop outside `stack-composer`.
 - `docs/end_to_end_map_v1.md` — the consolidated point-A-to-point-B map: inputs, producers, outputs, consumers, tools, the sync step, and first-time-vs-continuous cadence, with a worked `example-cray` walkthrough.
+- `docs/deployment_inputs_and_ownership_v1.md` — who owns each input (auto vs explicit), and the `deployment.yaml` overlay for installer-chosen site paths (install tree, caches, roots, `publish_root`). The install tree is never auto-derived.
 - `schemas/*-v1.json` — six canonical JSON Schemas (Draft 2020-12, strict).
 - `schemas/README.md` — schema conventions and doc-to-schema mapping.
 - `schemas/.validation/` — round-trip validation harness + positive example YAMLs.
@@ -53,6 +54,7 @@ design calls for it:
 - **Do not add project-owned personal-GitHub import paths.** Before a v1 tag, move Go module/import paths and project-owned docs references to the final GitLab namespace or a neutral vanity path. Read `docs/pre_v1_hosting_and_external_inventory_note_v1.md` before changing repository hosting assumptions or external inventory schema.
 - **Stack Composer renders; it does not build.** It produces the rendered workspace tree (the handoff). Build/concretize is a co-equal downstream choice — `stack tools`, `spack-build`, Ansible, or bare Spack; never the renderer. The whole tree must travel intact (relative `include::`) or use GitLab-direct remote includes. The `stack-content` repo is the hosted source dir synced to the shared filesystem. Read `docs/stack_build_handoff_note_v1.md` before changing the build seam, the workspace handoff, the stack-content layout, or `config.yaml`/install-tree rendering. Do not rename `spack-build`. Render is a pure per-system seam; the multi-system loop and re-render cadence live in an external driver, not in `stack-composer` — see `docs/stack_generation_orchestration_note_v1.md`.
 - **Keep `stack.yaml` spec-native and minimal.** A build is `name` + Spack `specs` (or a `package_set`). `kind` (cpu/mpi/gpu), `compilers`, and the advanced `class`/`toolchain`/`nodes`/`expand` fields are optional and inferred from the spec + profile — never make them required, and do not invent user-facing policy names like `science-mpi-default`. The template contract keeps the resolver machinery; the user surface stays Spack-native. Catch wrong-environment specs with a fact-based preflight, never by running Spack inside `stack-composer`.
+- **Install tree, caches, view/module roots, and module exposure are installer-chosen, never auto-derived.** The profile offers candidates only; the installer records the choice in `systems/<system>/deployment.yaml` (or build-time flags). Read `docs/deployment_inputs_and_ownership_v1.md` before changing install-tree, `config.yaml`, module-exposure, or deployment-path handling.
 - Preserve full provider module chains. A compatibility lane such as Intel compiler/runtime plus Intel MPI may need modules like `PrgEnv-intel`, the Intel compiler module, and the Intel MPI module recorded together.
 - MPI provider selection should be contract-driven. Do not choose MPI solely from `system.family == cray` or by assuming every Cray MPI lane means `cray-mpich`.
 - Read `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` before changing MPI provider selection, toolchain rendering, module emission, or profile MPI schema behavior.
@@ -148,6 +150,7 @@ strict when the venv exists (blocks the commit on a non-zero exit).
 | Where does the `stack-content` source directory live and how is it hosted? | `docs/stack_build_handoff_note_v1.md` + `docs/pre_v1_hosting_and_external_inventory_note_v1.md` |
 | How is render orchestrated across systems, and what re-renders when an input changes? | `docs/stack_generation_orchestration_note_v1.md` |
 | What is the complete flow from `profile.yaml` to a built `spack.yaml`? | `docs/end_to_end_map_v1.md` |
+| Who chooses the install tree / module exposure / site paths, and where? | `docs/deployment_inputs_and_ownership_v1.md` |
 | What schema conventions am I supposed to follow? | This file's "Conventions" section, plus `schemas/README.md` |
 
 ## When you are tempted to add a new top-level concept
