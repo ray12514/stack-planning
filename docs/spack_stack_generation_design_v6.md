@@ -902,32 +902,17 @@ builds:                                         # R - generic build requests, no
     publish: true                               # O - default true; false skips public module/view publication
     required: false                             # O - default false; true → render errors if unsatisfied
 
-  - name: serial                                # ScienceStack serial payload request
-    class: serial
+  - name: serial                                # spec-native form: kind + package_set, no ceremony
+    kind: cpu
     package_set: science-full
-    specs: null
-    toolchain: science-serial-default
-    nodes: cpu
-    expand: one
-    publish: true
 
-  - name: mpi                                   # ScienceStack-style payload request
-    class: mpi
+  - name: mpi
+    kind: mpi
     package_set: science-full
-    specs: null
-    toolchain: science-mpi-default
-    nodes: cpu
-    expand: one
-    publish: true
 
-  - name: gpu                                   # ScienceStack-style GPU payload request
-    class: gpu
+  - name: gpu
+    kind: gpu
     package_set: science-full
-    specs: null
-    toolchain: science-gpu-default
-    nodes: gpu
-    expand: per_gpu_arch
-    publish: true
 
 per_system:                                     # O - system-scoped narrowing; ignored for other profile.system.name values
   example-cray:
@@ -1547,7 +1532,6 @@ Inline specs can be a flat list:
 ```yaml
 builds:
   - name: payload
-    class: serial
     specs:
       - hdf5@1.14.5
       - netcdf-c@4.9.2
@@ -1558,7 +1542,7 @@ or a package-set-kind map when one build class needs `any` plus a specific block
 ```yaml
 builds:
   - name: mpi
-    class: mpi
+    kind: mpi
     specs:
       any:
         - gsl@2.8
@@ -6238,6 +6222,15 @@ Assumptions:
 - This stack does not need a separate Core lane. Build tools and dependencies are
   normal concretized dependencies of the FUN3D lanes.
 
+> **Current model.** Same as the other walkthroughs: the `systems/`, `stacks/`,
+> and `templates/` paths live in the `stack-content` repo synced to the shared
+> filesystem; render emits the workspace tree; the build commands drive bare
+> Spack as one of four co-equal build paths (`stack tools`, `spack-build`,
+> Ansible, bare Spack). The `stack.yaml` builds are spec-native — `name` + specs
+> with an optional `kind`. This stack uses `modules.exposure: direct` with
+> `publish_root: /apps/modulefiles`, the package-manager-chosen MODULEPATH
+> location. See `end_to_end_map_v1.md`.
+
 ### Phase 1 — Author the stack file
 
 The stack file declares direct exposure and two generic build requests. The
@@ -6266,24 +6259,16 @@ modules:
 
 builds:
   - name: cpu
-    class: cpu
-    toolchain: fun3d-default
-    nodes: cpu
-    expand: one
+    kind: cpu
     specs:
       - fun3d@14.2+mpi~rocm~cuda
       - fun3d@14.1+mpi~rocm~cuda
-    publish: true
 
   - name: gpu
-    class: gpu
-    toolchain: fun3d-default
-    nodes: gpu
-    expand: per_gpu_arch
+    kind: gpu
     specs:
       - fun3d@14.2+mpi+rocm
       - fun3d@14.1+mpi+rocm
-    publish: true
 
 externals:
   compilers: prefer_platform

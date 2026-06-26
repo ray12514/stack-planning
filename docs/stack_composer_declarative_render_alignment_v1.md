@@ -160,7 +160,7 @@ Normal Spack specs must always be accepted:
 ```yaml
 builds:
   - name: mpi
-    class: mpi
+    kind: mpi
     specs:
       mpi:
         - hdf5@1.14.5+mpi+fortran
