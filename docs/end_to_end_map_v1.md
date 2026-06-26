@@ -22,6 +22,7 @@ No v1 stack release has been deployed yet. This map is changeable pre-v1.
 | `cluster-inspector` (Go binary) | Probes one system; produces `profile.yaml`. Read-only facts; never decides policy. |
 | Template maintainer | Curates the supported vocabulary: `templates/<set>/` (contract, configs, environments). |
 | Package manager | Authors stack intent: `stacks/<stack>/stack.yaml`, optional `package-sets/`. |
+| Installer | Chooses the site paths in `systems/<system>/deployment.yaml`: install tree, caches, view/module roots, `publish_root`. Often the same person as the package manager. |
 | `stack-content` (GitLab repo) | The hosted source of truth render consumes; synced to each target's shared filesystem. |
 | Driver (Make / CI / Ansible / shell) | Thin, external. Loops render over targets and hands trees to a build path. Owns no policy. See orchestration note. |
 | `stack-composer` (Python `.pyz`) | Validates inputs, resolves intent, renders the workspace tree. Never calls Spack. |
@@ -39,12 +40,14 @@ No v1 stack release has been deployed yet. This map is changeable pre-v1.
 | 2 | Curate template set | observed patterns | Template maintainer | `stack-composer scaffold-templates` + review | `templates/<set>/{contract,stack-defaults,configs,environments}` | render | hand-done; rare (new OS/MPI/GPU/compiler) · P |
 | 3 | Author stack intent | package needs | Package manager | editor | `stacks/<stack>/stack.yaml` (+ `package-sets/`) | render | hand-done; **most frequent** · C |
 | 4 | Sync source to shared FS | `stack-content` (GitLab) | Driver / CI | `git clone`/`pull` (or GitLab-direct, no sync) | `stack-content` on shared FS (or remote URLs) | render | automatable from day one · C |
-| 5 | Render | profile + stack + templates + package-sets | Driver invokes | `stack-composer render` | rendered workspace tree: `configs/**`, `environments/**/spack.yaml`, `release-manifest.yaml` | build path | automatable; re-render on any input change · C |
+| 5 | Render | profile + stack + templates + package-sets + **`deployment.yaml`** | Driver invokes | `stack-composer render` | rendered workspace tree: `configs/**`, `environments/**/spack.yaml`, `release-manifest.yaml` | build path | automatable; re-render on any input change · C |
 | 6 | Build + concretize | rendered workspace tree | Site | a build path (`stack tools` / `spack-build` / Ansible / bare Spack) | install tree, `spack.lock` per lane, buildcache | Spack, users | first run validated by hand; then automatable · C |
 | 7 | Expose | installed lanes + manifest | Site / publish | `stack-composer publish-manifest` + module/view emission | modules, views, final manifest, `current` symlink | users | per release · C |
 | 8 | Validate | installed lanes | Operator | smoke tests | pass/fail evidence | release record | per release · C |
 
 The `spack.yaml` you asked about is the **stage-5 output** (`environments/<compiler>/<lane>/spack.yaml`). It is generated, not hand-written — produced by render from stages 1–3, then consumed by the build path at stage 6.
+
+The install tree, caches, view/module roots, and module `publish_root` are **not** auto-derived. The installer chooses them in `systems/<system>/deployment.yaml` (the profile offers only candidates); build-time flags can override. See `deployment_inputs_and_ownership_v1.md`.
 
 ## Worked example: `example-cray` / ScienceStack `2026.06`
 

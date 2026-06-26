@@ -90,10 +90,12 @@ A build cannot run until Spack knows the install tree, caches, build stage, and
 view/module roots. These are **deployment-owned**, not facts. The handoff
 supports **both** mechanisms, and they compose:
 
-- **Rendered default** — the selected roots are rendered into
-  `configs/common/config.yaml`, so the workspace is self-locating. (Rendering
-  `config.yaml` is the open Phase 7 implementation item in
-  `design_implementation_coverage.md`.)
+- **From the deployment overlay** — the installer's chosen roots in
+  `systems/<system>/deployment.yaml` are rendered into
+  `configs/common/config.yaml`. They are *chosen*, never auto-derived from the
+  profile (which only offers install-tree candidates). See
+  `deployment_inputs_and_ownership_v1.md`. (Rendering `config.yaml` is the open
+  Phase 7 item in `design_implementation_coverage.md`.)
 - **Build-time override** — the build path may supply or override
   install/view/module/cache roots when it invokes Spack, without re-rendering.
 
@@ -150,7 +152,7 @@ systems and when to re-render, see `stack_generation_orchestration_note_v1.md`.
 | Concern | Owner |
 |---|---|
 | Validate inputs, resolve intent, render the workspace tree | `stack-composer` |
-| Choose install tree / caches / view & module roots | Deployment (rendered into `config.yaml` and/or supplied at build time) |
+| Choose install tree / caches / view & module roots | **Installer** via `deployment.yaml` (or build-time flags); profile offers candidates only, never auto |
 | Concretize, fetch, install, smoke/verify | `stack tools` (or `spack-build` / Ansible / bare Spack) |
 | Buildcache push | The build path, per stack policy |
 
