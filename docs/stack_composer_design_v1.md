@@ -2,19 +2,22 @@
 
 ## Purpose
 
-`stack-composer` is the central stack-side tool described in the v6 design
+`stack-composer` is the stack-side render-and-validation tool described in the v6 design
 notes (`docs/spack_stack_generation_design_v6.md`). Stack content (profiles,
 stacks, templates, package sets, package repos) remains human-authored YAML and
 Jinja; `stack-composer` operates on that content and produces Spack-consumable
 workspaces, validation reports, scaffolded template stubs, local-build reference
 scripts, and finalized release manifests.
 
-It is the **non-helper** of the v6 model: unlike `cluster-inspector` or
-Ansible, the typical end-to-end flow goes through `stack-composer`. The
-"manual workflow" remains executable (a human can write `spack.yaml` and run
-`spack install` by hand), but the supported path is `stack-composer
-render` → Spack commands or the reference `spack-build` script →
-`stack-composer publish-manifest`.
+`stack-composer` is one mechanical seam in the flow, not a tool the whole
+pipeline depends on. It renders the runnable Spack input; a **co-equal build
+path** then concretizes and installs it — `stack tools` (an external
+build/concretize tool), the in-house `spack-build` script, Ansible, or bare
+Spack by hand. The "manual workflow" remains executable (a human can write
+`spack.yaml` and run `spack install` directly). The render-driven path is
+`stack-composer render` → a build path → `stack-composer publish-manifest`, and
+a site can render here and build with whatever it already trusts. See
+`docs/stack_build_handoff_note_v1.md`.
 
 ## Document Set
 
@@ -37,7 +40,7 @@ for stack operations.
 | Boundary | Decision |
 |---|---|
 | Primary artifact | A rendered Spack workspace at `<output-root>/<system>/<stack>/<release>/`. |
-| Primary consumer | Spack itself, on a build host; downstream Ansible playbooks for distribution. |
+| Primary consumer | A build path that concretizes/installs the rendered workspace: `stack tools`, `spack-build`, Ansible, or bare Spack. Distribution is downstream of that. |
 | Primary command | `stack-composer render`. |
 | Durable inputs | `systems/<system>/profile.yaml`, `stacks/<stack>/stack.yaml`, `templates/<set>/...`, optional `package-sets/<name>.yaml`, optional `package-repos/<name>/`. |
 | Durable outputs | Rendered workspace tree + `release-manifest.yaml`. The manifest is rewritten in place by `publish-manifest` to add build-context fields. |
@@ -90,9 +93,10 @@ These are *not* `stack-composer`'s job:
   Ansible or human review.
 - **No Spack execution.** `stack-composer` does not loop over lanes, submit
   `srun` jobs, run `spack install`, refresh modules, or push to buildcaches.
-  Those operations live in Ansible, direct operator commands, or the reference
-  `examples/reference/scripts/spack-build` bash script for local single-machine
-  installs.
+  Those operations live in a co-equal build path — `stack tools`, Ansible, the
+  reference `examples/reference/scripts/spack-build` bash script for local
+  single-machine installs, or bare Spack by hand. See
+  `docs/stack_build_handoff_note_v1.md`.
 - **No template policy.** `scaffold-templates` proposes; the maintainer
   decides what becomes a committed template set. `stack-composer` will
   never overwrite an existing template scope or contract without the
@@ -551,6 +555,7 @@ function validate(profile_path, stack_path, templates_dir,
     issues += validate_package_sets(stack, package_sets_dir, contract)
     issues += validate_package_repositories(stack, defaults, package_repos_dir)
     issues += validate_per_system_narrowing(stack, profile, contract)
+    issues += preflight_specs_against_profile(stack, profile, contract)
 
     write_report(report_path, issues)
     return 0 if not issues.has_errors() else 1
@@ -558,6 +563,17 @@ function validate(profile_path, stack_path, templates_dir,
 
 Every check is one the renderer would have run before writing the
 workspace. `validate` is the renderer with the writes removed.
+
+`preflight_specs_against_profile` is a **fact-based** spec sanity check, not a
+solve. It compares each build's Spack specs against observed profile facts and
+warns (or errors, per policy) on obvious environment mismatches — for example a
+spec carrying `+cuda`/`cuda_arch` when the profile reports no NVIDIA GPU, or
+`+rocm`/`amdgpu_target` with no AMD GPU. It is a cheap hint to catch a
+wrong-environment spec early. It is **not** authoritative and **never runs
+Spack**: stack-composer does no concretization. The authoritative check is
+downstream concretization by the chosen build path (`stack tools`,
+`spack-build`, Ansible, or bare Spack), which fails honestly if a spec is truly
+unsatisfiable on the system.
 
 **Invariants.**
 
@@ -567,6 +583,9 @@ workspace. `validate` is the renderer with the writes removed.
   pass here guarantees the renderer's pre-render validation will pass.
 - Includes the `per_system` validation: every name in the matching
   `per_system.<system>` block must resolve in the profile or contract.
+- The spec preflight is fact-based only: it compares specs to profile facts and
+  never invokes Spack or concretizes. Authoritative satisfiability is the
+  downstream build path's job.
 
 **Example.**
 
@@ -698,6 +717,11 @@ manifest-driven local single-machine build flow for users who do not want to set
 up Ansible. It is not part of `stack-composer`, and Ansible does not need to call
 it; Ansible can run the same Spack commands directly from the rendered workspace
 and manifest.
+
+`spack-build` is **one of four co-equal build paths** that consume the rendered
+workspace — alongside `stack tools` (an external build/concretize tool),
+Ansible, and bare Spack. None is the default; a site picks the path it already
+trusts. See `docs/stack_build_handoff_note_v1.md`.
 
 ### Why a shell script, not a Python subcommand
 

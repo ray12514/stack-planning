@@ -1,11 +1,13 @@
-# Canonical science-stack multi-build stack, derived from
-# docs/spack_stack_generation_design_v6.md § stack.yaml reference schema (lines ~872-980).
+# Canonical science-stack intent — spec-native.
+#
+# Minimal builds are just `name` + `specs` (or a `package_set`). The
+# `class`/`toolchain`/`nodes`/`expand` fields are optional/advanced and are
+# inferred from the spec + `kind` when omitted. See
+# docs/spack_stack_generation_design_v6.md § stack.yaml and
+# docs/stack_composer_declarative_render_alignment_v1.md.
 
 schema_version: 1
 name: science-stack
-
-profile_contract:
-  schema_version: 1
 
 templates:
   set: v6
@@ -13,99 +15,34 @@ templates:
 spack:
   version: ">=1.1.1,<1.2"
 
-modules:
-  format: tcl
-  additional_formats: []
-  exposure: front_door
-  init_module: science-stack-init
-  module_root: ScienceStack
-  publish_root: null
-  hierarchy_style: collapsed
-  expose_provenance: true
-  platform_module_policy: prereq
-
 builds:
+  # Curated foundation set, package-set form — no per-build ceremony.
   - name: core
-    class: core
     package_set: core-foundation
-    specs: null
-    toolchain: science-core
-    nodes: cpu
-    expand: one
-    publish: true
-    required: false
 
-  - name: serial
-    class: serial
-    package_set: science-full
-    specs: null
-    toolchain: science-serial-default
-    nodes: cpu
-    expand: one
-    publish: true
-
+  # Minimal spec-native build: just specs. kind is inferred from +mpi.
   - name: mpi
-    class: mpi
-    package_set: science-full
-    specs: null
-    toolchain: science-mpi-default
-    nodes: cpu
-    expand: one
-    publish: true
+    specs:
+      - hdf5@1.14.5+mpi+fortran
+      - netcdf-c@4.9.2+mpi
 
+  # "A little more": an explicit kind tag, package-set reuse, and portable
+  # compiler narrowing using real compiler ids (no invented toolchain name).
   - name: gpu
-    class: gpu
+    kind: gpu
     package_set: science-full
-    specs: null
-    toolchain: science-gpu-default
-    nodes: gpu
-    expand: per_gpu_arch
-    publish: true
+    compilers: [gcc]
 
+# System-scoped narrowing (subset semantics; ignored for other systems).
 per_system:
   example-cray:
     builds:
       mpi:
         compilers: [gcc, cce]
         mpi: [cray-mpich]
-      gpu:
-        compilers: [gcc]
-        mpi: [cray-mpich]
-        gpu_selectors: [mi250x]
 
-externals:
-  compilers: prefer_platform
-  mpi: prefer_platform
-  openssl: system
-  curl: system
-  fabric_userspace: prefer_platform
-  gpu_toolkit: prefer_platform
-
-foundation_pins:
-  zlib: "1.3.1"
-  xz: "5.4.6"
-  zstd: "1.5.6"
-
-buildcache:
-  spack_generation: "spack-{spack_version}/repo-{package_repo_generation}"
-  foundation_lane: "foundation/{os_id}/glibc-{glibc}/{spack_generation}/{baseline_target}"
-  payload_lane: "payload/{os_id}/glibc-{glibc}/{spack_generation}/{system}"
-  signed: false
-  push_after_every_step: true
-
+# Release retention/promotion is stack-level policy, not per-build ceremony.
 release:
   save_lockfiles: true
   save_manifest: true
-  retain_previous: 2
   promotion: gated_manual
-
-helpers:
-  inspector: available
-  render: available
-  ansible: available
-
-package_repositories:
-  - name: science
-    namespace: science
-    path: package-repos/science
-    priority: before_builtin

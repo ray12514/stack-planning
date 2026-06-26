@@ -146,10 +146,13 @@ and what users and other systems see.
 saved**: `spack.lock` per lane, the release manifest, and the build-cache
 contents. Everything else is regeneratable.
 
-**One generated tree in this picture is deterministic but ephemeral**: the
-rendered workspace should be byte-identical for the same inputs, but it is not
-committed source. It can be deleted and re-rendered at any time. Treat the
-workspace as a build artifact, not a source artifact.
+**One generated tree in this picture is a regeneratable build artifact, not
+source of truth**: the rendered workspace is byte-identical for the same inputs
+and is not committed source. It persists on the shared filesystem for the life of
+the release — the build runs in it, and the release's lockfiles, manifest, views,
+and modules anchor to it — but it can be deleted and re-rendered at any time from
+the `stack-content` inputs. Back up the inputs and the reproducibility artifacts
+(lockfiles, manifest, buildcache), not the workspace tree.
 
 **Two things in this picture are optional**: the render step itself (a human
 can construct the workspace by hand) and any orchestration around Spack (a
@@ -169,6 +172,12 @@ The framework exists so a package manager can bring ordinary Spack specs and get
 a correct stack on several different systems. The extra machinery is there to
 hide repeated system work, not to make package managers learn another Spack.
 
+The source files below live in the `stack-content` repo synced to each target's
+shared filesystem; the rendered workspace is the handoff to a co-equal build
+path. For the full point-A-to-point-B map — every input, producer, output,
+consumer, the sync step, and the first-time-vs-continuous cadence — see
+`end_to_end_map_v1.md`.
+
 | Step | Owner / tool | Artifact | Purpose |
 |---|---|---|---|
 | Probe one system | `cluster-inspector` or system owner | `systems/<system>/profile.yaml` | Record observed system facts: OS, compilers, MPI, GPU, fabric, filesystem, modules. |
@@ -177,8 +186,9 @@ hide repeated system work, not to make package managers learn another Spack.
 | Curate support policy | framework/template maintainer | `templates/<set>/contract.yaml`, config templates, defaults | Define the finite vocabulary and supported compiler/MPI/GPU combinations. |
 | Write package intent | package manager | `stacks/<stack>/stack.yaml`, optional package sets | List normal Spack specs and select build classes such as CPU, MPI, or GPU. |
 | Explain valid choices | `stack-composer explain` | human-readable menu | Show valid compiler, MPI, GPU, and node selector names for one stack/template/system. |
+| Sync source to build host | driver (Make / CI / Ansible) or operator | `stack-content` on the shared filesystem (or remote GitLab URLs) | Make the reviewed source available where render runs. |
 | Render | `stack-composer render` or manual equivalent | `configs/`, `environments/*/spack.yaml`, manifest | Instantiate Spack input for one stack, system, and release. |
-| Build | Spack and orchestration | install tree, lockfiles, buildcache | Concretize, fetch, install, test, and cache. |
+| Build | A build path: `stack tools`, `spack-build`, Ansible, or bare Spack | install tree, lockfiles, buildcache | Concretize, fetch, install, test, and cache. The path is a co-equal choice; see §Driving Spack From The Rendered Workspace. |
 | Publish | release tooling | views, modules, final manifest, `current` symlink | Expose the release to users after verification. |
 
 The profile can list more than the stack uses. For example, a Cray profile may
@@ -425,6 +435,14 @@ repo/
 The important split is not Cray versus Linux at the top level. The split is
 between facts, stack intent, reusable templates, package sets, and rendered
 output.
+
+This source tree is the **stack-content** directory: its own GitLab repo in the
+project group, synced onto each target's shared filesystem where
+`stack-composer render` and the chosen build path run. The rendered output is a
+separate, regeneratable workspace tree (see §Rendered Release Workspace) — it
+persists on the shared filesystem for the release's life but is a build artifact,
+not committed back here. See `pre_v1_hosting_and_external_inventory_note_v1.md` and
+`stack_build_handoff_note_v1.md`.
 
 ## Durable Inputs
 
@@ -784,19 +802,17 @@ templates:
 
 builds:
   - name: payload
-    class: cpu
-    toolchain: app-default
-    nodes: cpu
-    expand: one
     specs:
       - hdf5@1.14.5
       - netcdf-c@4.9.2
 ```
 
 That is the normal adoption path: copy a starter, edit `name` and Spack `specs`,
-adjust `class`, `toolchain`, `nodes`, or `expand` only when the starter's default
-shape is not the one you want, then render. The selected template contract must
-define those names. The full reference schema follows for stack owners and
+then render. A build is just a name plus specs (or a `package_set`); `kind`
+(`cpu`/`mpi`/`gpu`), `compilers`, and the advanced `class`/`toolchain`/`nodes`/
+`expand` fields are optional and inferred from the spec + profile when omitted.
+Reach for them only when inference is wrong or you want a larger cross-product;
+the selected template contract defines any advanced names you use. The full reference schema follows for stack owners and
 ScienceStack-scale stacks. Required keys in source `stack.yaml` are marked **R**; optional
 keys are marked **O**. Optional keys may still be required after merging with
 `templates/<set>/stack-defaults.yaml`; if neither the source stack nor the
@@ -820,18 +836,12 @@ modules:
 
 builds:
   - name: cpu-mpi
-    class: mpi
-    toolchain: science-mpi-default       # contract expands to GCC/CCE + Cray MPICH on Cray
-    nodes: cpu
-    expand: one
+    kind: mpi                            # inferred from +mpi; shown for clarity
     specs:
       - lammps@2024.06.27 +mpi +manybody +molecule
 
   - name: gpu-a100
-    class: gpu
-    toolchain: science-craympich-cuda    # contract allows AOCC host + Cray MPICH + CUDA
-    nodes: gpu
-    expand: per_gpu_arch
+    kind: gpu                            # inferred from +cuda; shown for clarity
     specs:
       - lammps@2024.06.27 +mpi +kokkos +cuda
 
@@ -881,12 +891,14 @@ modules:                                        # O - user-visible module strate
 
 builds:                                         # R - generic build requests, not resolved lanes
   - name: core                                  # R - request name; appears as source_build in generated lanes
-    class: core                                 # R - key in templates/<set>/contract.yaml build_classes
-    package_set: core-foundation                # O - mutually exclusive with specs; package-set file stem
-    specs: null                                 # O - mutually exclusive with package_set; inline Spack root specs
-    toolchain: science-core                         # R - key in template contract toolchains
-    nodes: cpu                                  # R - key in template contract node_selectors
-    expand: one                                 # R - one | per_node_type | per_cpu_target | per_gpu_arch
+    kind: cpu                                   # O - cpu | mpi | gpu; inferred from spec variants when omitted
+    package_set: core-foundation                # R(one-of) - mutually exclusive with specs; package-set file stem
+    specs: null                                 # R(one-of) - mutually exclusive with package_set; inline Spack root specs
+    compilers: [gcc, cce]                       # O - portable narrowing to these compiler ids
+    class: core                                 # O/advanced - contract build_classes key; inferred from kind
+    toolchain: science-core                     # O/advanced - contract toolchains key; inferred from kind + defaults
+    nodes: cpu                                  # O/advanced - contract node_selectors key; inferred from kind
+    expand: one                                 # O/advanced - one|per_node_type|per_cpu_target|per_gpu_arch; inferred from kind
     publish: true                               # O - default true; false skips public module/view publication
     required: false                             # O - default false; true → render errors if unsatisfied
 
@@ -992,10 +1004,12 @@ reaches Spack config follows this map.
 | `builds[*]` | source build requests expanded into one or more resolved lanes |
 | `builds[*].specs` | inline Spack root specs expanded into each generated lane; mutually exclusive with `package_set` |
 | `builds[*].package_set` | optional reusable `package-sets/<name>.yaml` expanded into each generated lane; mutually exclusive with `specs` |
-| `builds[*].class` | key into the template contract's `build_classes`; determines lane kind, spec kind (`package_set_kind`), default target policy, and required capabilities |
-| `builds[*].toolchain` | key into the template contract's `toolchains`; determines compiler/MPI/GPU-toolkit resolution policy |
-| `builds[*].nodes` | key into the template contract's `node_selectors`; determines which `profile.node_types` entries are eligible |
-| `builds[*].expand` | global expansion rule for multiple eligible node matches |
+| `builds[*].kind` | optional `cpu`/`mpi`/`gpu` tag; inferred from spec variants when omitted; selects the contract build-class default |
+| `builds[*].compilers` / `.mpi` / `.gpu_selectors` | optional portable narrowing to specific compiler ids / MPI providers / GPU selectors |
+| `builds[*].class` | optional/advanced key into the template contract's `build_classes`; inferred from `kind`. Determines lane kind, spec kind (`package_set_kind`), default target policy, required capabilities |
+| `builds[*].toolchain` | optional/advanced key into the template contract's `toolchains`; inferred from `kind` + defaults. Determines compiler/MPI/GPU-toolkit resolution policy |
+| `builds[*].nodes` | optional/advanced key into the template contract's `node_selectors`; inferred from `kind` |
+| `builds[*].expand` | optional/advanced expansion rule for multiple eligible node matches; inferred from `kind` |
 | `per_system.<system>.builds.<name>` | optional subset-only narrowing after the contract resolves eligible compilers, MPI providers, and GPU arches |
 | `externals.compilers` | `configs/vendor/<family>/packages.yaml` content for compilers |
 | `externals.mpi` | `configs/mpi/<provider>/packages.yaml` content for MPI |
@@ -1020,10 +1034,14 @@ Source Contract Rubric:
 | `modules.publish_root` | `null` or absolute path | Existing site MODULEPATH root used for direct publication or site-managed symlinks. |
 | `builds[*].specs` | List of Spack root spec strings, or a map keyed by spec kind (`any`, `serial`, `mpi`, `gpu`, etc.) | Inline package roots and versions for this build request. Recommended for small stacks. |
 | `builds[*].package_set` | Filename stem under `package-sets/` | Optional reuse mechanism for root specs. Use when the same spec list is shared across multiple build requests. Mutually exclusive with `specs`. |
-| `builds[*].class` | Any key in `templates/<set>/contract.yaml.build_classes` | Named build class such as `core`, `cpu`, `gpu`, `mpi`, or another template-defined class. |
-| `builds[*].toolchain` | Any key in `templates/<set>/contract.yaml.toolchains` | Named toolchain policy. The contract, not `stack.yaml`, defines compiler/MPI/GPU-toolkit behavior. |
-| `builds[*].nodes` | Any key in `templates/<set>/contract.yaml.node_selectors` | Named node-selection policy. The contract defines how it matches `profile.node_types`. |
-| `builds[*].expand` | `one`, `per_node_type`, `per_cpu_target`, `per_gpu_arch` | Global expansion rule for multiple matched node types. |
+| `builds[*].kind` | `cpu`, `mpi`, `gpu` | Optional. Disambiguates the build when the spec is not obviously CPU/MPI/GPU; inferred from spec variants when omitted. Selects the contract build-class default. |
+| `builds[*].compilers` | List of compiler IDs from the profile | Optional, portable. Restrict the build to these compilers (a subset of profile/contract-resolved). `per_system` narrows further. |
+| `builds[*].mpi` | List of MPI provider names | Optional, portable. Restrict the build to these MPI providers (list semantics; distinct from the `externals.mpi` posture scalar). |
+| `builds[*].gpu_selectors` | List of contract GPU selector names (e.g. `a100`, `mi250x`) | Optional, portable. Restrict the build to these GPU selectors. |
+| `builds[*].class` | Any key in `templates/<set>/contract.yaml.build_classes` | Optional/advanced. Named build class; inferred from `kind` when omitted. |
+| `builds[*].toolchain` | Any key in `templates/<set>/contract.yaml.toolchains` | Optional/advanced. Named toolchain policy; inferred from `kind` + contract defaults when omitted. The contract, not `stack.yaml`, defines compiler/MPI/GPU-toolkit behavior. |
+| `builds[*].nodes` | Any key in `templates/<set>/contract.yaml.node_selectors` | Optional/advanced. Named node-selection policy; inferred from `kind`. |
+| `builds[*].expand` | `one`, `per_node_type`, `per_cpu_target`, `per_gpu_arch` | Optional/advanced. Expansion rule for multiple matched node types; inferred from `kind`. |
 | `builds[*].publish` | `true`, `false` | Whether public modules/views are generated for lanes from this request. |
 | `builds[*].required` | `true`, `false` | Whether an unsatisfied request fails render instead of being skipped with an explanation. |
 | `per_system.<system>.builds.<name>.compilers` | List of normalized compiler IDs from the matching profile | Optional subset of compilers after contract resolution. Unknown values are errors for the matching system. |
@@ -1723,6 +1741,11 @@ This workspace is not the highest-order source of truth. It is the runnable
 Spack input. It may live in a temporary controller directory, on the target
 shared filesystem, or in a release directory.
 
+Because each lane `spack.yaml` includes its config scopes by **relative** path,
+the workspace is a single relocatable unit: a build path must receive the
+**whole tree** intact (or use remote-include delivery — see §Config Layering
+Details). Handing off a lone `spack.yaml` does not work.
+
 The generated workspace should be reproducible from:
 
 ```text
@@ -1760,6 +1783,15 @@ or stack value must be substituted. Render writes the selected scopes to
 those rendered directories with one `include::` list. The include list, not
 ambient Spack config under `$HOME` or `/etc`, is the production isolation
 boundary.
+
+**Config delivery has two modes, selectable per render / template contract.**
+Mode A (default) emits **relative** include paths (`../../../configs/...`); the
+workspace tree is synced to the shared filesystem and the build path roots it
+there. Mode B emits **remote GitLab URLs** so Spack reads the config yaml
+directly from GitLab with no local sync. Mode B requires a Spack release that
+supports URL/remote config includes; validate the exact syntax against the
+pinned Spack floor (§Spack Version Floor) before committing it to a template set.
+See `stack_build_handoff_note_v1.md`.
 
 Example isolated lane manifest:
 
@@ -2736,32 +2768,37 @@ that drops some lanes from a build without emptying it is recorded under
 ### Driving Spack From The Rendered Workspace
 
 The render step ends at the rendered workspace. The build half — concretize,
-install, smoke, ldd, manifest-verify, buildcache push — has three supported
-paths:
+install, smoke, ldd, manifest-verify, buildcache push — is a **co-equal choice**
+of build path. None is "the default"; a site picks the one it already trusts.
+There are four supported paths:
 
-1. **`spack-build`** (the committed default for everything except Ansible-managed
-   production): a standalone shell script shipped with `stack-composer` and
+1. **`stack tools`** (an external build/concretize tool): consumes the rendered
+   workspace tree and runs concretize + install + cache. It is a separate tool,
+   not part of `stack-composer`; `stack-planning` owns only the workspace
+   contract it reads. See `docs/stack_build_handoff_note_v1.md`.
+2. **`spack-build`** (the in-house reference script for local / single-machine
+   builds): a standalone shell script shipped with `stack-composer` and
    installed onto `$PATH`. Takes `--workspace <dir>` plus optional lane filters,
    runs Spack per lane, writes per-lane reports, and emits the three roll-up
    files (`verify-results.yaml`, `buildcache-destinations.yaml`,
    `platform-module-prereqs.yaml`) that `stack-composer publish-manifest`
-   consumes. See `docs/stack_composer_design_v1.md` §Companion Script:
+   consumes. See `docs/stack_composer_design_v1.md` §Reference Script:
    `spack-build` for the CLI contract and per-lane flow.
-2. **Ansible** (the production path on multi-host clusters): see §Ansible —
-   Specification. The playbook may call `spack-build` per host or replicate
-   its loop; either is supported.
-3. **Bare Spack commands by hand** (the manual fallback): the §Example Cray
+3. **Ansible** (multi-host clusters): see §Ansible — Specification. The playbook
+   may call `spack-build` per host or replicate its loop; either is supported.
+4. **Bare Spack commands by hand** (the manual fallback): the §Example Cray
    Flow and §Example Generic Linux HPC Flow walkthroughs show the exact
    command sequence. This is the path that is always available without any
    helper installed.
 
-The two helpers (`spack-build` and Ansible) own *how* Spack is invoked.
-`stack-composer` itself never calls Spack and never reads host state during
-render. The split keeps render byte-deterministic and lets each site customize
-build orchestration without forking the render engine.
+The build paths own *how* Spack is invoked. `stack-composer` itself never calls
+Spack and never reads host state during render. The split keeps render
+byte-deterministic and lets each site choose or change build orchestration
+without forking the render engine.
 
-**Version enforcement is owned by `spack-build`** (or by Ansible when it
-drives Spack directly). Before any lane runs, the driver compares the
+**Version enforcement is owned by the build path** (`spack-build`, or Ansible
+when it drives Spack directly; `stack tools` is expected to enforce the same
+floor — see `docs/stack_build_handoff_note_v1.md`). Before any lane runs, the driver compares the
 selected Spack install's `spack --version` against `stack-defaults.yaml.spack.floor`
 and the optional `stack.yaml.spack.version` pin; mismatches refuse to build.
 See §Spack Version Floor for the three-layer model.
@@ -5620,6 +5657,15 @@ runnable; the values mirror the schema examples in §Durable Inputs.
 > and render steps, and run `spack -e <env> install` directly. The
 > helpers are convenience; the model does not require them.
 
+> **Current model.** The `systems/`, `stacks/`, `package-sets/`, and `templates/`
+> paths below live in the `stack-content` repo (hosted on GitLab, synced to the
+> shared filesystem shown here as `/shared/stack/...`). Render emits the workspace
+> tree; the build commands shown drive **bare Spack** — one of four co-equal build
+> paths (`stack tools`, `spack-build`, Ansible, bare Spack) that consume the same
+> tree. Config scopes are delivered here as relative-include files; a site may
+> instead use GitLab-direct remote includes. See `end_to_end_map_v1.md`,
+> `stack_build_handoff_note_v1.md`, and `stack_generation_orchestration_note_v1.md`.
+
 ### Phase 1 — Author the profile
 
 Run `cluster-inspector` for the first time on the login node, no hints file
@@ -5700,7 +5746,8 @@ PASS  fabric: slingshot/cxi; drivers: rdma-core@29.0, cxi-userlibs@1.0
 ```
 
 Commit `systems/example-cray/profile.yaml` and
-`systems/example-cray/inspector-hints.yaml` together.
+`systems/example-cray/inspector-hints.yaml` together into the `stack-content`
+repo, which is synced to the shared filesystem where render and build run.
 
 ### Phase 2 — Author the stack file
 
@@ -5720,10 +5767,10 @@ modules:
   publish_root: null
 
 builds:
-  - { name: core,   class: core,   package_set: core-foundation, toolchain: science-core,           nodes: cpu, expand: one,          publish: true }
-  - { name: serial, class: serial, package_set: science-full,    toolchain: science-serial-default, nodes: cpu, expand: one,          publish: true }
-  - { name: mpi,    class: mpi,    package_set: science-full,    toolchain: science-mpi-default,    nodes: cpu, expand: one,          publish: true }
-  - { name: gpu,    class: gpu,    package_set: science-full,    toolchain: science-gpu-default,    nodes: gpu, expand: per_gpu_arch, publish: true }
+  - { name: core,   class: core, package_set: core-foundation }   # 'core' is a foundation class, not a cpu/mpi/gpu kind
+  - { name: serial, kind: cpu,   package_set: science-full }
+  - { name: mpi,    kind: mpi,   package_set: science-full }
+  - { name: gpu,    kind: gpu,   package_set: science-full }
 ```
 
 Those names are validated against `templates/v6/contract.yaml`; none of the CPU
@@ -5876,7 +5923,9 @@ Every line traces to the rendered workspace — no `~/.spack`, no
 ### Phase 4 — Build the foundation neck
 
 Build the bootstrap compiler externals, then GCC Core, then CCE Core.
-This is the sequential neck:
+This is the sequential neck. The commands below drive **bare Spack** directly —
+the always-available build path; `stack tools`, `spack-build`, or Ansible build
+the same rendered tree if a site prefers one of those:
 
 ```bash
 # On the login node (build_host):
@@ -6009,6 +6058,12 @@ as a `prefix:`-only external, no GPU.
 
 > **Helper-assisted.** Same caveat as the Cray flow above — the helpers
 > reduce labor but are not required. The manual workflow remains valid.
+>
+> **Current model.** Same framing as the Cray flow: the `systems/`, `stacks/`,
+> `package-sets/`, and `templates/` paths live in the `stack-content` repo synced
+> to the shared filesystem; render emits the workspace tree; the build commands
+> drive bare Spack as one of four co-equal build paths (`stack tools`,
+> `spack-build`, Ansible, bare Spack). See `end_to_end_map_v1.md`.
 
 ### Phase 1 — Author the profile
 
@@ -6100,7 +6155,8 @@ external).
 
 Build each compiler's Core first; the site MPI lane reads its MPI as an
 external so no MPI build happens there. The Spack-built OpenMPI lane
-builds OpenMPI from source as part of the lane.
+builds OpenMPI from source as part of the lane. The commands drive bare Spack —
+`stack tools`, `spack-build`, or Ansible build the same rendered tree.
 
 ```bash
 $ spack -e environments/aocc/core concretize
