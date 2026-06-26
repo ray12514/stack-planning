@@ -89,3 +89,23 @@ target_policies:
   payload_default:
     resolve: runtime_preferred
     hard_require: false
+
+# Spec-native defaults: a stack.yaml build that gives only name + specs (+ an
+# optional kind) resolves class/toolchain/nodes/expand from here. Explicit build
+# fields override. `core` stays framework-managed (not a user kind).
+kind_defaults:
+  cpu:
+    class: serial
+    toolchain: science-serial-default
+    nodes: cpu
+    expand: one
+  mpi:
+    class: mpi
+    toolchain: science-mpi-default
+    nodes: cpu
+    expand: one
+  gpu:
+    class: gpu
+    toolchain: science-gpu-default
+    nodes: gpu
+    expand: per_gpu_arch
