@@ -112,30 +112,41 @@ gpu). So `compilers: [gcc, aocc]` + `kind: mpi` = two lanes. Each lane →
 Before authoring a stack, see the system's buildable menu:
 
 ```
-stack-composer show <profile> [--defaults defaults.yaml] [--stack stack.yaml]
+stack-composer show --profile profile.yaml \
+  [--defaults defaults.yaml | --templates templates --template-set v6] \
+  [--stack stack.yaml]
 ```
 
-Summary-first, never a wall of text. One line per MPI **provider** (versions
-collapsed, compilers it ties to shown), then the lanes you would build under the
-current defaults:
+Summary-first, not a raw profile dump. `show` reports provider families,
+compiler modules, MPI provider/flavor relationships, GPU toolkit modules, and
+resolved lane module prerequisites under the current defaults. Program
+environment modules such as `PrgEnv-*` are shown because the profile reports
+them under `compiler_providers` and `mpi_providers`, not because Stack Composer
+hardcodes vendor module names:
 
 ```
-penguin · rhel9 · targets: zen4 (native), x86_64_v3 (baseline)
+penguin · rhel9 · provider families: site, system
+targets: zen4 (native), x86_64_v3 (baseline)
 
 compilers (4 available)
-  gcc 13.2.0, 11.4.0   aocc 4.1.0   intel 2024.1   llvm 17.0.6
+  gcc      13.2.0       family=system   modules=none
+  aocc     4.1.0        family=site     modules=aocc/4.1.0
 
-mpi (28 module variants → 3 providers)
-  openmpi   5.0.3, 4.1.6   compilers: gcc, aocc, intel, llvm   [platform]
-  mpich     4.2.1          compilers: gcc, intel               [platform]
-  mvapich2  2.3.7          compilers: gcc, intel               [platform]
+mpi (1 providers)
+  openmpi    5.0.3        family=site     compilers: aocc modules=openmpi/5.0.3   [platform]
 
 you would build  (defaults: compilers=all · mpi=openmpi · target=native)
-  cpu → 4 lanes    mpi → 4 lanes    gpu → 0 lanes
+  cpu → 2 lanes    aocc · gcc
+  mpi → 1 lanes    aocc
+  gpu → 0 lanes
+
+resolved lanes
+  aocc-mpi-openmpi  kind=mpi compiler=aocc mpi=openmpi scope=vendor/linux modules=aocc/4.1.0, openmpi/5.0.3
 ```
 
 Top half is "what the system offers" (profile only); bottom is "what you'd get"
-(profile ∩ defaults). The line shape never changes, so 30 variants read like 3.
+(`profile ∩ defaults ∩ stack`). Large systems should stay readable by grouping
+providers and showing lane module chains only after the summary.
 
 ## The pieces, final
 
