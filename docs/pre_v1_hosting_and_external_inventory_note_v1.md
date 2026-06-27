@@ -126,13 +126,13 @@ renderer to either emit a correct Spack external or fail with a useful error.
 
 ## Pre-v1 direction for Cray and provider generalization
 
-> **Status — realized.** `vendor_cray` + `compilers_external` + `mpi` were
-> replaced by generic `compiler_providers` + `mpi_providers`, each tagged with a
-> `provider_family` (cray-pe / platform / site / system). Cray PE is now one
-> family, not a special block. See `stack_generation_structure_v1.md`.
+> **Status — realized.** Provider inventory now uses generic
+> `compiler_providers` + `mpi_providers`. The generic provider axis is
+> `provider_family: platform|site|system`; platform-specific detail such as
+> Cray PE/CPE is `platform_family: cray-pe`.
 
-Treat Cray PE as a provider family layered on normal Linux/provider facts, not
-as the primary model for the whole system.
+Treat Cray PE/CPE as platform-family detail layered on normal Linux/provider
+facts, not as the primary model for the whole system.
 
 The durable direction is:
 
@@ -155,16 +155,16 @@ The generic provider shape is:
 compiler_providers:
   - name: gcc
     version: "13"
-    provider_family: cray-pe
-    provenance: platform-backed
+    provider_family: platform
+    platform_family: cray-pe
     modules: [PrgEnv-gnu, gcc-native/13]
     prefix: /opt/cray/pe/gcc-native/13
 
 mpi_providers:
   - name: cray-mpich
     version: "8.1.29"
-    provider_family: cray-pe
-    provenance: platform-backed
+    provider_family: platform
+    platform_family: cray-pe
     modules: [cray-mpich/8.1.29]
     compatibility:
       compilers: [gcc]

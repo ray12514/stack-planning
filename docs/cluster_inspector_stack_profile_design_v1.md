@@ -6,9 +6,10 @@
 generation model in `docs/stack_generation_structure_v1.md`.
 
 > **Provider shape.** The profile now emits generic `compiler_providers` +
-> `mpi_providers` (tagged `provider_family`), not `vendor_cray` +
-> `compilers_external` + `mpi`. Probing stays family-aware; a transform at merge
-> emits the generic inventories. Source of truth: `../schemas/profile-v1.json`.
+> `mpi_providers`. `provider_family` is the generic axis (`platform`, `site`,
+> `system`); platform-specific detail such as Cray PE/CPE is recorded as
+> `platform_family: cray-pe`. Do not introduce provider-specific fragment
+> contracts or alternate compiler/MPI inventory shapes.
 
 Its job is intentionally narrow: produce a reviewed, commit-ready
 `systems/<system>/profile.yaml` that the stack renderer can consume. A human may
@@ -405,7 +406,7 @@ too broad for the stack-profile helper. Extract selectively.
 | Leave Behind Or Rework | Reason |
 |---|---|
 | Representative-node profile schema | v6 needs one merged system profile with `node_types`. |
-| `vendor_substrate` | Replace with v6-native `vendor_cray`, `compilers_external`, `mpi`, and `gpu_toolkit_modules`. |
+| `vendor_substrate` | Replace with v6-native generic provider inventory: `compiler_providers`, `mpi_providers`, and `gpu_toolkit_modules`. |
 | `externals_policy` | Policy belongs to stack defaults and render templates. |
 | `generate spack-packages` | Spack config generation belongs to render tooling. |
 | `profile --format spack-packages` | Same reason: inspector should not write Spack config. |
@@ -520,8 +521,9 @@ Acceptance:
 Acceptance:
 
 - A generic Linux login-node system fragment is produced.
-- A Cray login-node system fragment includes `vendor_cray` and Cray MPICH flavor
-  candidates when modules are available.
+- Platform login-node system fragments include generic `compiler_providers` and
+  `mpi_providers`; Cray PE/CPE details are `platform_family` evidence, not a
+  Cray-shaped fragment block.
 - No probe requires Spack.
 
 ### Phase 3: Node-Type Probes And Merge

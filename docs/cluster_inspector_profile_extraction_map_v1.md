@@ -1,13 +1,10 @@
 # Cluster-Inspector Profile Extraction Map v1
 
 > **Provider shape.** The emitted `profile.yaml` now carries generic
-> `compiler_providers` + `mpi_providers` (each tagged `provider_family`:
-> cray-pe/platform/site/system), not `vendor_cray` + `compilers_external` + `mpi`.
-> Probing stays family-aware (the evidence boundary below is unchanged — it still
-> recognizes Cray PE, generic compilers, etc.); a transform at `merge` emits the
-> generic inventories. Where sections below say `vendor_cray` / `compilers_external`
-> / `mpi`, read them as the detection stage that feeds `compiler_providers` /
-> `mpi_providers`. Source of truth: `../schemas/profile-v1.json`.
+> `compiler_providers` + `mpi_providers`. `provider_family` is the generic axis
+> (`platform`, `site`, `system`). Platform-specific detail, such as Cray PE/CPE,
+> is recorded as `platform_family: cray-pe`. Do not introduce provider-specific
+> fragment contracts or alternate compiler/MPI inventory shapes.
 
 ## Purpose
 
@@ -192,9 +189,8 @@ os:
 modules_system:
   tool: lmod
   version: "8.7"
-vendor_cray: null
-compilers_external: []
-mpi: []
+compiler_providers: []
+mpi_providers: []
 gpu_toolkit_modules: {}
 filesystem:
   install_tree_candidates: []
@@ -321,48 +317,28 @@ are stable.
 | Hints filtering | `inspector-hints.yaml` include/exclude/extras. | Hints make discovery repeatable. |
 | Verification | Controlled non-login shell, purge/clear module state, `module load <candidate>`, then probe env/commands. | Verified candidates can enter `profile.yaml`; failed candidates remain diagnostics. |
 
-### Generic Compiler Externals
+### Compiler Providers
 
 | Profile field | Probe location | Primary extraction | Normalize to | Confidence | Fallback |
 |---|---|---|---|---|---|
-| `compilers_external[*].name` | probe-system | Candidate module name, compiler command identity, or explicit hint. | `gcc`, `aocc`, `intel`, `nvhpc`, etc. | `probed` after load verification | hint-only entries require prefix validation |
-| `compilers_external[*].version` | probe-system | Compiler command version: `gcc -dumpfullversion`, `clang --version`, AOCC/NVHPC/Intel env vars. | exact version string | `probed` | module version string if command version unavailable |
-| `compilers_external[*].prefix` | probe-system | Prefix from compiler binary path, env vars such as `AOCC_HOME`, `ONEAPI_ROOT`, `NVHPC_ROOT`, or module show output. | absolute path | `probed` | hint required |
-| `compilers_external[*].modules` | probe-system | Module list used during clean-shell verification. | list of module names | `probed` | omit for prefix-only system compiler |
-| `compilers_external[*].languages` | probe-system | Presence of C, C++, and Fortran drivers under prefix or after module load. | `[c, c++, fortran]` subset | `probed` | omit missing languages |
+| `compiler_providers[*].name` | probe-system | Candidate module name, real compiler command identity, or explicit hint. Wrapper commands such as Cray `cc`, `CC`, `ftn` are evidence only, not compiler identity. | `gcc`, `cce`, `aocc`, `intel`, `nvhpc`, etc. | `probed` after load verification | hint-only entries require prefix validation |
+| `compiler_providers[*].version` | probe-system | Compiler command version, module metadata, or env vars such as `GCC_PATH`, `AOCC_HOME`, `ONEAPI_ROOT`, `NVHPC_ROOT`. | exact version string | `probed` | module version string if command version unavailable |
+| `compiler_providers[*].prefix` | probe-system | Prefix from compiler binary path, env vars, or module show output. | absolute path | `probed` | hint required |
+| `compiler_providers[*].provider_family` | probe-system | Source classification from module/prefix/evidence. | `platform`, `site`, `system` | `inferred` | `site` |
+| `compiler_providers[*].platform_family` | probe-system | Optional platform detail when provider family is `platform`. | `cray-pe`, future platform id | `inferred` | omit |
+| `compiler_providers[*].modules` | probe-system | Module list used during clean-shell verification. | list of module names | `probed` | omit for prefix-only system compiler |
+| `compiler_providers[*].languages` | probe-system | Presence of C, C++, and Fortran drivers under prefix or after module load. | `[c, c++, fortran]` subset | `probed` | omit missing languages |
 
-Generic compiler externals exclude Cray PE compiler entries that belong under
-`vendor_cray`.
-
-### Cray PE
-
-| Profile field | Probe location | Primary extraction | Normalize to | Confidence | Fallback |
-|---|---|---|---|---|---|
-| `vendor_cray` | probe-system | Present when Cray PE evidence exists: `/opt/cray/pe`, `CRAYPE_VERSION`, `PrgEnv-*`, or Cray wrappers. | map or null | `probed` | null |
-| `vendor_cray.pe_version` | probe-system | `$CRAYPE_VERSION`, module metadata, `/opt/cray/pe` release files. | version string | `probed` | hint required for renderable Cray profile |
-| `vendor_cray.cce.version` | module verification | Load `PrgEnv-cray` + CCE module; read `$CRAY_CC_VERSION`, `cce --version`, or module version. | version string | `probed` | omit if CCE absent |
-| `vendor_cray.cce.prefix` | module verification | `$CRAY_PE_CCE_PREFIX`, `command -v craycc`, module show, `/opt/cray/pe/cce/<version>`. | absolute path | `probed` | hint required if module hides prefix |
-| `vendor_cray.cce.modules` | hints + verification | Modules loaded to expose CCE. | list such as `[PrgEnv-cray, cce/17.0.1]` | `probed` | hint required |
-| `vendor_cray.gcc.*` | module verification | Load `PrgEnv-gnu` and GCC module; read `$GCC_PATH`, GCC version. | version, prefix, modules | `probed` | omit if absent |
-| `vendor_cray.aocc.*` | module verification | Load `PrgEnv-aocc` and AOCC module; read `$AOCC_HOME`, `$AOCC_ROOT`, or AOCC compiler paths. | version, prefix, modules | `probed` | omit if absent |
-| `vendor_cray.intel.*` | module verification | Load `PrgEnv-intel` and Intel compiler module; read `$INTEL_PATH`, `$INTEL_HOME`, `$ONEAPI_ROOT`, or `$CMPLR_ROOT`. | version, prefix, modules | `probed` | omit if absent |
-| `vendor_cray.rocmcc.*` | module verification | Load `PrgEnv-amd` or ROCm compiler module; read `$ROCM_PATH`, `amdclang --version`. | version, prefix, modules | `probed` | omit if absent |
-| `vendor_cray.nvhpc.*` | module verification | Load current CPE NVIDIA modules (`PrgEnv-nvidia` plus `nvidia/<version>`); read `$NVHPC_ROOT`, compiler versions. The profile key remains `nvhpc` because Spack/compiler identity is NVHPC. | version, prefix, modules | `probed` | omit if absent; older `PrgEnv-nvhpc` naming is out of v1 scope unless a target site requires it |
-| `vendor_cray.cray_mpich.version` | module verification | Load `cray-mpich`; read `$CRAY_MPICH_VERSION`, module version, or `mpichversion`. | version string | `probed` | hint required if wrappers hide version |
-| `vendor_cray.cray_mpich.flavors.<compiler>.prefix` | module verification | For each PrgEnv/compiler flavor, load matching modules and read `$MPICH_DIR` or wrapper paths. | absolute prefix | `probed` | omit unavailable flavor |
-| `vendor_cray.cray_mpich.flavors.<compiler>.modules` | module verification | Module list needed at runtime for that flavor. | list, usually `[cray-mpich/<v>]` | `probed` | hint required |
-| `vendor_cray.libsci.version` | module verification | `$CRAY_LIBSCI_VERSION`, module version, or directory under `/opt/cray/pe/libsci`. | version string | `probed` | omit |
-| `vendor_cray.libsci.prefix` | module verification | `$CRAY_LIBSCI_PREFIX_DIR` or `/opt/cray/pe/libsci/<version>`. | absolute path | `probed` | omit |
-
-Cray MPICH is expressed under `vendor_cray.cray_mpich`, not as a generic
-`mpi[*]` entry, because its per-compiler flavor prefixes are platform-specific.
-
-### Generic MPI Inventory
+### MPI Providers
 
 | Profile field | Probe location | Primary extraction | Normalize to | Confidence | Fallback |
 |---|---|---|---|---|---|
-| `mpi[*].name` | module verification | MPI module name, `mpicc -show`, `mpirun --version`. | `openmpi`, `mpich`, `mvapich`, `intel-mpi`, etc. | `probed` | hint-only requires wrapper verification |
-| `mpi[*].provenance` | probe-system | Site module/prefix -> `site`; OS package path -> `system`; vendor stack -> `vendor_bundled`. | enum | `inferred` from source | `site` for hinted site module |
+| `mpi_providers[*].name` | module verification | MPI module name, `mpicc -show`, `mpirun --version`, `mpichversion`, `ompi_info`. | `openmpi`, `mpich`, `cray-mpich`, `mvapich`, `intel-mpi`, etc. | `probed` | hint-only requires wrapper verification |
+| `mpi_providers[*].provider_family` | probe-system | Source classification from module/prefix/evidence. | `platform`, `site`, `system` | `inferred` | `site` |
+| `mpi_providers[*].platform_family` | probe-system | Optional platform detail when provider family is `platform`. | `cray-pe`, future platform id | `inferred` | omit |
+| `mpi_providers[*].compatibility.compilers` | module verification | `mpicc -show`, `mpicc -compile-info`, `mpichversion`, `ompi_info`, module prereqs, env vars, and link/runtime evidence. | compiler provider names | `probed` / `inferred` | platform-specific fallback |
+| `mpi_providers[*].flavors.<compiler>.prefix` | module verification | Prefix for per-compiler MPI flavor when the MPI exposes multiple ABI/layout flavors. | absolute prefix | `probed` | omit unavailable flavor |
+| `mpi_providers[*].flavors.<compiler>.modules` | module verification | Module list needed to expose that MPI/compiler relationship. | list of module names | `probed` | hint required |
 | `mpi[*].version` | module verification | `mpirun --version`, `ompi_info`, `mpichversion`, module version. | exact version string | `probed` | module version string |
 | `mpi[*].prefix` | module verification | Prefix from `command -v mpicc`, env vars such as `MPI_HOME`, or module show output. | absolute path | `probed` | hint required |
 | `mpi[*].compiler` | module verification | Decode wrapper output and loaded compiler module; cross-check against compiler inventory. | compiler spec such as `aocc@4.2.0` | `inferred` from wrapper evidence | omit if unknown |
@@ -387,9 +363,10 @@ Cray MPICH is expressed under `vendor_cray.cray_mpich`, not as a generic
 Section 5 acceptance:
 
 - False compiler modules can be excluded through hints.
-- Verified Cray compiler modules produce `vendor_cray` fields, not generic
-  compiler entries.
-- Site OpenMPI produces `mpi[*]` with prefix, version, compiler, and modules.
+- Verified platform compiler modules produce generic `compiler_providers`
+  entries with `provider_family: platform` and optional `platform_family`.
+- Site OpenMPI produces `mpi_providers[*]` with prefix, version, compiler
+  compatibility, and modules.
 - ROCm emits component externals; `rocm/<version>` alone is never considered
   sufficient for a renderable AMD GPU profile.
 - Focused system package externals such as OpenSSL and curl emit
@@ -409,10 +386,10 @@ Composer derivation rules:
   build host node type exists.
 - Serial payload lanes are possible for contract-supported compilers and
   CPU-compatible runtime node types.
-- Cray MPI lanes are possible only when `vendor_cray.cray_mpich.flavors` contains
-  the matching compiler flavor.
-- Site MPI lanes are possible only when an `mpi[*]` entry exists and its compiler
-  can be matched to a compiler external.
+- Platform MPI lanes are possible only when `mpi_providers[*].flavors` or
+  `compatibility.compilers` contains the matching compiler.
+- Site MPI lanes are possible only when an `mpi_providers[*]` entry exists and
+  its compiler can be matched to a compiler provider.
 - GPU lanes are possible only for runtime node types with a GPU block, a matching
   contract `gpu_selectors` entry, and a compatible toolkit module.
 - Default Cray GPU lanes use a general-purpose host compiler plus the standalone
@@ -442,7 +419,7 @@ by the tool or written by hand.
 | Enum values | `system.family`, node roles, fabric type, GPU vendor | Error for invalid values. |
 | Version strings | OS/glibc, compiler, MPI, GPU toolkit | Warning for unknown optional versions; error when render requires exact version. |
 | Path shape | prefixes, filesystem candidates, build-stage paths | Warning if path is relative where absolute is required. |
-| Cray MPICH flavors | `vendor_cray.cray_mpich.flavors` | Error if a flavor entry is incomplete or internally inconsistent. |
+| MPI provider flavors | `mpi_providers[*].flavors` | Error if a flavor entry is incomplete or internally inconsistent. |
 | ROCm components | `gpu_toolkit_modules.rocm.spack_components` | Error if AMD GPU toolkit exists without coherent components. |
 | Node role consistency | `node_types` | Error if no build host exists or no runtime node exists. |
 
