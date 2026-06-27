@@ -29,19 +29,17 @@ design calls for it:
 
 ## Layout
 
-- `docs/spack_stack_generation_design_v6.md` — cross-component design (the master plan).
-- `docs/stack_composer_design_v1.md` — Python orchestrator: product boundary, commands, packaging.
-- `docs/stack_composer_declarative_render_alignment_v1.md` — pre-v1 correction note for keeping Stack Composer declarative-first and moving site/vendor policy out of Python branches.
+- `docs/stack_generation_structure_v1.md` — current method: where each file lives, defaults/profile/stack/template resolution, and `stack-composer show`.
+- `docs/stack_workspace_lifecycle_v1.md` — per-stack workspaces, shared install tree, and kept/regenerable/durable lifetimes.
+- `docs/end_to_end_map_v1.md` — complete input/output/tool/cadence map and worked example.
+- `docs/deployment_inputs_and_ownership_v1.md` — installer-owned `deployment.yaml`; install tree and roots are never auto-derived.
+- `docs/stack_build_handoff_note_v1.md` — render/build seam and the stack-content handoff.
+- `docs/stack_generation_orchestration_note_v1.md` — external driver contract for multi-system render/build loops.
 - `docs/cluster_inspector_stack_profile_design_v1.md` — Go inspector: product boundary, CLI, repo shape.
 - `docs/cluster_inspector_profile_extraction_map_v1.md` — per-field probe map for `profile.yaml`.
-- `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` — hardening note for Cray-hosted non-Cray MPI provider lanes, such as Intel compiler/runtime plus Intel MPI compatibility lanes.
 - `docs/foundation_core_view_semantics_note_v1.md` — hardening note for foundation/Core visibility, build-only views, version-collision policy, and whether foundation packages are public modules.
 - `docs/pre_v1_hosting_and_external_inventory_note_v1.md` — pre-v1 GitLab/import-path policy and the external-candidate boundary between observed profile facts and Stack Composer policy.
-- `docs/stack_build_handoff_note_v1.md` — pre-v1 build-handoff note: Stack Composer renders a workspace tree; build/concretize is a co-equal choice (stack tools / spack-build / Ansible / manual); the stack-content source dir and config delivery modes.
-- `docs/stack_generation_orchestration_note_v1.md` — per-system render seam, intersection model, input lifecycle/cadence, re-render/rebuild trigger matrix, and the tool-agnostic driver contract that keeps the multi-system loop outside `stack-composer`.
-- `docs/end_to_end_map_v1.md` — the consolidated point-A-to-point-B map: inputs, producers, outputs, consumers, tools, the sync step, and first-time-vs-continuous cadence, with a worked `example-cray` walkthrough.
-- `docs/deployment_inputs_and_ownership_v1.md` — who owns each input (auto vs explicit), and the `deployment.yaml` overlay for installer-chosen site paths (install tree, caches, roots, `publish_root`). The install tree is never auto-derived.
-- `schemas/*-v1.json` — six canonical JSON Schemas (Draft 2020-12, strict).
+- `schemas/*-v1.json` — canonical JSON Schemas (Draft 2020-12, strict).
 - `schemas/README.md` — schema conventions and doc-to-schema mapping.
 - `schemas/.validation/` — round-trip validation harness + positive example YAMLs.
 - `examples/reference/` — canonical example corpus (planned; populated as Phase 0b/0c land).
@@ -49,15 +47,14 @@ design calls for it:
 ## Active hardening reminders
 
 - **Do not let Cray MPICH become a hidden universal MPI assumption.** Cray MPICH remains the normal Cray-native provider, but the model must also support explicit non-Cray MPI provider lanes on Cray-hosted systems when policy requires them.
-- **Keep Stack Composer declarative-first.** Python should validate, merge, generically resolve, and render; package/provider/module/GPU/MPI/external policy should live in profile facts, stack policy, contracts, and templates wherever possible. Read `docs/stack_composer_declarative_render_alignment_v1.md` before changing `stack-composer` lane planning, scope selection, spec expansion, provider resolution, or template contracts.
+- **Keep Stack Composer declarative-first.** Python should validate, merge, generically resolve, and render; package/provider/module/GPU/MPI/external policy should live in profile facts, stack policy, defaults, and templates wherever possible. Read `docs/stack_generation_structure_v1.md` before changing `stack-composer` lane planning, scope selection, spec expansion, provider resolution, or template inputs.
 - **Treat Cray PE as provider-family metadata, not the universal model.** Cray-specific probes are allowed, but new render policy should prefer generic compiler/MPI/GPU/fabric/system-external provider facts and compatibility relationships.
 - **Do not add project-owned personal-GitHub import paths.** Before a v1 tag, move Go module/import paths and project-owned docs references to the final GitLab namespace or a neutral vanity path. Read `docs/pre_v1_hosting_and_external_inventory_note_v1.md` before changing repository hosting assumptions or external inventory schema.
 - **Stack Composer renders; it does not build.** It produces the rendered workspace tree (the handoff). Build/concretize is a co-equal downstream choice — `stack tools`, `spack-build`, Ansible, or bare Spack; never the renderer. The whole tree must travel intact (relative `include::`) or use GitLab-direct remote includes. The `stack-content` repo is the hosted source dir synced to the shared filesystem. Read `docs/stack_build_handoff_note_v1.md` before changing the build seam, the workspace handoff, the stack-content layout, or `config.yaml`/install-tree rendering. Do not rename `spack-build`. Render is a pure per-system seam; the multi-system loop and re-render cadence live in an external driver, not in `stack-composer` — see `docs/stack_generation_orchestration_note_v1.md`.
-- **Keep `stack.yaml` spec-native and minimal.** A build is `name` + Spack `specs` (or a `package_set`). `kind` (cpu/mpi/gpu), `compilers`, and the advanced `class`/`toolchain`/`nodes`/`expand` fields are optional and inferred from the spec + profile — never make them required, and do not invent user-facing policy names like `science-mpi-default`. The template contract keeps the resolver machinery; the user surface stays Spack-native. Catch wrong-environment specs with a fact-based preflight, never by running Spack inside `stack-composer`.
+- **Keep `stack.yaml` spec-native and minimal.** A build is `name` + Spack `specs` (or a `package_set`). `kind` (cpu/mpi/gpu), `compilers`, and other narrowing fields are optional and inferred from the spec + profile/defaults — never make them required, and do not invent user-facing policy names like `science-mpi-default`. The user surface stays Spack-native. Catch wrong-environment specs with a fact-based preflight, never by running Spack inside `stack-composer`.
 - **Install tree, caches, view/module roots, and module exposure are installer-chosen, never auto-derived.** The profile offers candidates only; the installer records the choice in `systems/<system>/deployment.yaml` (or build-time flags). Read `docs/deployment_inputs_and_ownership_v1.md` before changing install-tree, `config.yaml`, module-exposure, or deployment-path handling.
 - Preserve full provider module chains. A compatibility lane such as Intel compiler/runtime plus Intel MPI may need modules like `PrgEnv-intel`, the Intel compiler module, and the Intel MPI module recorded together.
-- MPI provider selection should be contract-driven. Do not choose MPI solely from `system.family == cray` or by assuming every Cray MPI lane means `cray-mpich`.
-- Read `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` before changing MPI provider selection, toolchain rendering, module emission, or profile MPI schema behavior.
+- MPI provider selection should be provider/defaults-driven. Do not choose MPI solely from `system.family == cray` or by assuming every Cray-hosted MPI lane means `cray-mpich`.
 - **Do not expose foundation/Core packages as public modules by default.** Treat them as internal/build-only unless stack policy explicitly marks them public.
 - Do not project every transitive dependency into one flat public view. Foundation/Core view semantics must handle version collisions and shared library name conflicts explicitly.
 - Read `docs/foundation_core_view_semantics_note_v1.md` before changing foundation lanes, Core lanes, views, module visibility, lockfile composition, buildcache reuse, or foundation package pins.
@@ -134,16 +131,16 @@ strict when the venv exists (blocks the commit on a non-zero exit).
 
 | Question | Read |
 |---|---|
-| What does the rendered workspace contain? | `docs/spack_stack_generation_design_v6.md` § Render Step — Specification |
-| What's the contract for a render-time check? | Same section, § Failure modes the render step catches |
-| What's a `lane_kind`? | v6 § Lane Model |
-| What variables can a Jinja template reference? | v6 § Template Render Context |
-| What does `spack-composer render` actually do? | `docs/stack_composer_design_v1.md` § `stack-composer render` |
-| How should Stack Composer avoid hardcoded site/vendor policy? | `docs/stack_composer_declarative_render_alignment_v1.md` |
+| What does the rendered workspace contain? | `docs/stack_build_handoff_note_v1.md` and `docs/stack_workspace_lifecycle_v1.md` |
+| What's the render-time model? | `docs/stack_generation_structure_v1.md` |
+| What's a lane? | `docs/stack_generation_structure_v1.md` § Resolution |
+| What variables can templates reference? | `docs/stack_generation_structure_v1.md`, plus implementation docs in `stack-composer` |
+| What does `stack-composer render` do? | `docs/end_to_end_map_v1.md` Stage 5 + `docs/stack_build_handoff_note_v1.md` |
+| How should Stack Composer avoid hardcoded site/vendor policy? | `docs/stack_generation_structure_v1.md` |
 | What's in a `profile.yaml`? | v6 § Durable Inputs / `profile.yaml`, then `schemas/profile-v1.json` |
 | How does `cluster-inspector` discover modules? | `docs/cluster_inspector_stack_profile_design_v1.md` § Module Discovery And Hints |
 | Where do specific probe rules for `profile.yaml` fields live? | `docs/cluster_inspector_profile_extraction_map_v1.md` |
-| How should Cray-hosted non-Cray MPI lanes be represented? | `docs/non_cray_mpi_provider_lanes_hardening_note_v1.md` |
+| How should MPI provider policy work? | `docs/stack_generation_structure_v1.md` § Resolution |
 | How should foundation/Core views and module visibility work? | `docs/foundation_core_view_semantics_note_v1.md` |
 | How should pre-v1 GitLab hosting and external candidates be handled? | `docs/pre_v1_hosting_and_external_inventory_note_v1.md` |
 | How is the rendered workspace handed off to a build tool? | `docs/stack_build_handoff_note_v1.md` |

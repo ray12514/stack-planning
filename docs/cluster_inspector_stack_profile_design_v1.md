@@ -42,7 +42,7 @@ but the durable contract is the v6 stack `profile.yaml` shape.
 | Primary artifact | One `profile.yaml` per system. |
 | Primary consumer | The stack render step. |
 | Primary command | `cluster-inspector profile ...`. |
-| Durable schema | The v6 stack profile schema. |
+| Durable schema | `schemas/profile-v1.json`. |
 | Diagnostics | Allowed, but not part of the render contract unless explicitly documented. |
 | Old repo role | Source material for reusable probes and execution patterns, not the schema baseline. |
 
@@ -52,10 +52,10 @@ but the durable contract is the v6 stack `profile.yaml` shape.
   `spack concretize`, or `spack install`.
 - No render: it does not write `spack.yaml`, Spack config scopes, modulefiles,
   views, lockfiles, or release manifests.
-- No template or contract generation: it does not write `templates/<set>/`,
-  `contract.yaml`, or `stack-defaults.yaml`. Profile corpora may feed
-  `stack-composer assess-profiles` and `stack-composer scaffold-templates`, but
-  those advisory maintainer tools live on the stack side.
+- No template/default generation: it does not write `templates/<set>/`,
+  `defaults.yaml`, config scopes, or environment templates. Profile corpora may
+  feed stack-side review tools such as `stack-composer show`, but those advisory
+  maintainer tools live on the stack side.
 - No deploy: it does not copy files to a release tree, change permissions, submit
   production builds, or swap `current` symlinks.
 - No package decisions: it does not decide what the stack should build, which
@@ -140,8 +140,8 @@ The stack design separates facts from intent:
 |---|---|---|
 | `profile.yaml` | System owner / inspector | Observed platform facts. |
 | `stack.yaml` | Stack owner | Desired stack behavior and root specs. |
-| `templates/<set>/contract.yaml` | Framework/template owner | Vocabulary and resolver semantics. |
-| `templates/<set>/stack-defaults.yaml` | Framework/template owner | Defaults for modules, externals, buildcache, release policy. |
+| `templates/<set>/defaults.yaml` | Framework/template owner | Site policy: compiler/MPI/GPU/target defaults plus modules, externals, buildcache, release policy. |
+| `templates/<set>/configs/**` and `environments/**` | Template owner | Render mechanics for Spack config scopes and per-lane `spack.yaml` files. |
 
 `cluster-inspector` only helps with the first row. It must not infer stack
 intent from system facts. For example, it may report that Cray MPICH exists, but
@@ -164,13 +164,11 @@ system: {}
 os: {}
 fabric: {}
 modules_system: {}
-vendor_cray: null
-compilers_external: []
-mpi: []
+compiler_providers: []
+mpi_providers: []
 gpu_toolkit_modules: {}
 filesystem: {}
 node_types: {}
-capabilities: {}
 ```
 
 The generated profile must be deterministic for the same inputs and observed

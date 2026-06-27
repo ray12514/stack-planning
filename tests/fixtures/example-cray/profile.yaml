@@ -1,5 +1,5 @@
 # Canonical example-cray profile, derived from
-# docs/spack_stack_generation_design_v6.md § profile.yaml reference schema (lines ~470-676).
+# Profile fixture for the current provider/defaults model.
 # Used by schemas/.validation/validate.py to round-trip-test profile-v1.json.
 
 schema_version: 1

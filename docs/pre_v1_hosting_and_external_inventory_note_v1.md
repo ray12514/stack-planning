@@ -70,7 +70,7 @@ This keeps ownership boundaries clear:
 - `stack-planning`: schemas, design docs, and operating model;
 - `stack-content`: the human-authored source render consumes — per-system
   `profile.yaml`, `stack.yaml`, package sets, package repos, and the template
-  set (`contract.yaml`, `stack-defaults.yaml`, `configs/`, `environments/`).
+  set (`defaults.yaml`, `configs/`, `environments/`).
 
 `stack-content` is data, not a tool. It is the "stack directory" a deployment
 sets up first, and it is **synced onto each target's shared filesystem** where
@@ -96,15 +96,15 @@ That means:
   prerequisites, prefixes, versions, and confidence/evidence.
 - `cluster-inspector` should not decide stack policy such as "use OpenSSL from
   the OS" versus "build OpenSSL with Spack." That belongs to
-  `stack.externals`, template contract policy, and render-time validation.
+  `stack.externals`, `defaults.yaml` policy, and render-time validation.
 - `stack-composer` should not probe the host. It consumes `profile.yaml`,
-  stack/default policy, package sets, package repos, and templates.
+  `deployment.yaml`, stack/default policy, package sets, package repos, and
+  templates.
 
 Current profile v1 already has first-class fields for:
 
-- `compilers_external`;
-- `mpi`;
-- `vendor_cray`;
+- `compiler_providers`;
+- `mpi_providers`;
 - `gpu_toolkit_modules`;
 - `fabric.drivers`;
 - `fabric.userspace`;
@@ -126,26 +126,13 @@ renderer to either emit a correct Spack external or fail with a useful error.
 
 ## Pre-v1 direction for Cray and provider generalization
 
-> **Status — realized.** `vendor_cray` + `compilers_external` + `mpi` have been
+> **Status — realized.** `vendor_cray` + `compilers_external` + `mpi` were
 > replaced by generic `compiler_providers` + `mpi_providers`, each tagged with a
 > `provider_family` (cray-pe / platform / site / system). Cray PE is now one
-> family, not a special block. cluster-inspector probing stays Cray-aware (the
-> evidence boundary) and a transform emits the generic facts; stack-composer
-> render reads providers by family (no `vendor_cray` branch, no hardcoded
-> compiler list). A new CPE that bumps versions/modules/paths needs no code
-> change; a new compiler family is picked up automatically. See
-> `stack_generation_structure_v1.md`. The notes below record the direction this
-> realized.
+> family, not a special block. See `stack_generation_structure_v1.md`.
 
 Treat Cray PE as a provider family layered on normal Linux/provider facts, not
 as the primary model for the whole system.
-
-The current `vendor_cray` profile block is useful because current Cray PE has
-well-known names, paths, modules, and MPI/compiler conventions. It should not
-become the long-term organizing principle for all compiler, MPI, GPU, fabric,
-and external package decisions. Cray's PE model is expected to evolve, and
-non-Cray systems such as Penguin or IBM systems should not require Python edits
-in Stack Composer just because their provider layout differs.
 
 The durable direction is:
 
@@ -162,7 +149,7 @@ requirements, and module prerequisites. Render-time policy should consume the
 resulting facts and compatibility relationships instead of hardcoding
 `/opt/cray/pe` or assuming every Cray-hosted MPI lane is `cray-mpich`.
 
-A future generic provider shape could look like this:
+The generic provider shape is:
 
 ```yaml
 compiler_providers:
@@ -190,11 +177,9 @@ renderer operates on provider facts and relationships that can also represent
 Penguin, IBM, generic Linux, future modular Cray PE, Open MPI on Slingshot, or
 site-built MPI/toolkit providers.
 
-Before v1, first-system testing should decide whether to keep `vendor_cray` as
-the v1 Cray-specific profile shape or replace it with a generic provider
-inventory. Do not add more Cray-only render branches without checking whether
-the same information is really a compiler, MPI, GPU toolkit, fabric, or system
-external provider fact.
+Do not add more Cray-only render branches without checking whether the same
+information is really a compiler, MPI, GPU toolkit, fabric, or system external
+provider fact.
 
 ## Current ROCm/GPU toolkit behavior
 
