@@ -1,0 +1,49 @@
+<svg viewBox="0 0 680 424" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>Many stacks per system feed one shared, persistent install tree</title>
+<desc>One system has one profile and one shared install tree plus module root. Many stacks each render their own regenerable workspace; building installs into the one shared, hash-deduplicated tree that persists and that users point at.</desc>
+<style>
+text{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif}
+.t{font-size:14px;font-weight:500;fill:#16223a}
+.ts{font-size:12px;font-weight:400;fill:#46506a}
+.th{font-size:14px;font-weight:500;fill:#16223a}
+.blue{fill:#eef1fe;stroke:#534ab7}
+.teal{fill:#e1f5ee;stroke:#1d9e75}
+</style>
+<defs>
+<marker id="ah2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9aa0a6"/></marker>
+</defs>
+<rect class="blue" x="160" y="40" width="360" height="44" rx="4"/>
+<text class="t" x="340" y="62" text-anchor="middle">profile.yaml — one per system</text>
+<text class="ts" x="340" y="78" text-anchor="middle">system blueprint, used by every render</text>
+<text class="ts" x="40" y="106">stacks — many per system (a stack can be one package)</text>
+<rect class="blue" x="70" y="116" width="150" height="44" rx="4"/>
+<text class="t" x="145" y="138" text-anchor="middle">stack: science</text>
+<text class="ts" x="145" y="154" text-anchor="middle">many packages</text>
+<rect class="blue" x="265" y="116" width="150" height="44" rx="4"/>
+<text class="t" x="340" y="138" text-anchor="middle">stack: lammps</text>
+<text class="ts" x="340" y="154" text-anchor="middle">one package</text>
+<rect class="blue" x="460" y="116" width="150" height="44" rx="4"/>
+<text class="t" x="535" y="138" text-anchor="middle">stack: dev-tools</text>
+<text class="ts" x="535" y="154" text-anchor="middle">stack.yaml</text>
+<line x1="145" y1="160" x2="145" y2="190" stroke="#9aa0a6" stroke-width="1.5" marker-end="url(#ah2)"/>
+<line x1="340" y1="160" x2="340" y2="190" stroke="#9aa0a6" stroke-width="1.5" marker-end="url(#ah2)"/>
+<line x1="535" y1="160" x2="535" y2="190" stroke="#9aa0a6" stroke-width="1.5" marker-end="url(#ah2)"/>
+<rect class="teal" x="70" y="192" width="150" height="48" rx="4" stroke-dasharray="4 3"/>
+<text class="t" x="145" y="215" text-anchor="middle">workspace</text>
+<text class="ts" x="145" y="232" text-anchor="middle">regenerable</text>
+<rect class="teal" x="265" y="192" width="150" height="48" rx="4" stroke-dasharray="4 3"/>
+<text class="t" x="340" y="215" text-anchor="middle">workspace</text>
+<text class="ts" x="340" y="232" text-anchor="middle">regenerable</text>
+<rect class="teal" x="460" y="192" width="150" height="48" rx="4" stroke-dasharray="4 3"/>
+<text class="t" x="535" y="215" text-anchor="middle">workspace</text>
+<text class="ts" x="535" y="232" text-anchor="middle">regenerable</text>
+<text class="ts" x="408" y="272">build</text>
+<line x1="145" y1="240" x2="250" y2="298" stroke="#9aa0a6" stroke-width="1.5" marker-end="url(#ah2)"/>
+<line x1="340" y1="240" x2="340" y2="298" stroke="#9aa0a6" stroke-width="1.5" marker-end="url(#ah2)"/>
+<line x1="535" y1="240" x2="430" y2="298" stroke="#9aa0a6" stroke-width="1.5" marker-end="url(#ah2)"/>
+<rect class="teal" x="110" y="300" width="460" height="58" rx="4"/>
+<text class="t" x="340" y="324" text-anchor="middle">shared install tree + modules / views</text>
+<text class="ts" x="340" y="343" text-anchor="middle">dedup by hash · persists · users point here</text>
+<text class="ts" x="40" y="384">solid = kept   ·   dashed = regenerable (re-render anytime)</text>
+<text class="ts" x="40" y="404">render fills each recipe from profile + templates · build installs into the shared tree</text>
+</svg>

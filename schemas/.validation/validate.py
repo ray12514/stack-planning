@@ -171,7 +171,7 @@ def package_set_negatives(base: dict) -> list[tuple[str, dict, str]]:
     ]
 
 
-def stack_defaults_negatives(base: dict) -> list[tuple[str, dict, str]]:
+def defaults_negatives(base: dict) -> list[tuple[str, dict, str]]:
     return [
         (
             "missing required schema_version",
@@ -179,29 +179,14 @@ def stack_defaults_negatives(base: dict) -> list[tuple[str, dict, str]]:
             "<root>",
         ),
         (
-            "missing required spack block",
-            with_mutation(base, ["spack"], _MISSING),
-            "<root>",
+            "compilers wrong type (integer)",
+            with_mutation(base, ["compilers"], 5),
+            "compilers",
         ),
         (
-            "missing required spack.floor",
-            with_mutation(base, ["spack"], {}),
-            "spack",
-        ),
-        (
-            "forbidden name key present",
-            with_mutation(base, ["name"], "should-not-be-here"),
-            "<root>",
-        ),
-        (
-            "forbidden templates.set inside templates block",
-            with_mutation(base, ["templates"], {"set": "v6"}),
-            "templates",
-        ),
-        (
-            "externals.compilers outside enum",
-            with_mutation(base, ["externals", "compilers"], "yolo"),
-            "externals/compilers",
+            "mpi.source outside enum",
+            with_mutation(base, ["mpi", "source"], "yolo"),
+            "mpi/source",
         ),
         (
             "extra top-level key",
@@ -237,13 +222,7 @@ def stack_negatives(base: dict) -> list[tuple[str, dict, str]]:
             with_mutation(
                 base,
                 ["builds", 0],
-                {
-                    "name": "broken",
-                    "class": "core",
-                    "toolchain": "science-core",
-                    "nodes": "cpu",
-                    "expand": "one",
-                },
+                {"name": "broken", "kind": "cpu"},
             ),
             "builds/0",
         ),
@@ -265,50 +244,6 @@ def stack_negatives(base: dict) -> list[tuple[str, dict, str]]:
                 [],
             ),
             "per_system/example-cray/builds/mpi/compilers",
-        ),
-        (
-            "extra top-level key",
-            with_mutation(base, ["unexpected_field"], "uh oh"),
-            "<root>",
-        ),
-    ]
-
-
-def template_contract_negatives(base: dict) -> list[tuple[str, dict, str]]:
-    return [
-        (
-            "missing build_classes",
-            with_mutation(base, ["build_classes"], _MISSING),
-            "<root>",
-        ),
-        (
-            "empty build_classes object",
-            with_mutation(base, ["build_classes"], {}),
-            "build_classes",
-        ),
-        (
-            "toolchain missing compiler",
-            with_mutation(
-                base,
-                ["toolchains", "science-core"],
-                {"mpi": "none", "gpu_toolkit": "none"},
-            ),
-            "toolchains/science-core",
-        ),
-        (
-            "gpu_selector with wrong vendor enum",
-            with_mutation(base, ["gpu_selectors", "mi250x", "vendor"], "intel"),
-            "gpu_selectors/mi250x/vendor",
-        ),
-        (
-            "node_selector missing match",
-            with_mutation(base, ["node_selectors", "cpu"], {}),
-            "node_selectors/cpu",
-        ),
-        (
-            "target_policy resolve is not a string",
-            with_mutation(base, ["target_policies", "foundation", "resolve"], None),
-            "target_policies/foundation/resolve",
         ),
         (
             "extra top-level key",
@@ -364,7 +299,7 @@ def release_manifest_negatives(base_final: dict) -> list[tuple[str, dict, str]]:
                         "gpu": {
                             "dropped_lanes": ["x"],
                             "narrowed_by": {
-                                "gpu_selectors": {"kept": ["a"], "dropped": ["b"]}
+                                "gpu_archs": {"kept": ["a"], "dropped": ["b"]}
                             },
                         }
                     }
@@ -400,9 +335,8 @@ SCHEMAS: list[tuple[str, list[str], str, NegFactory]] = [
     # (schema filename, [positive example filenames], filename whose loaded YAML feeds the negatives, factory)
     ("profile-v1.json",          ["example-cray.yaml", "example-linux.yaml"],          "example-cray.yaml",                     profile_negatives),
     ("package-set-v1.json",      ["example-package-set.yaml"],                          "example-package-set.yaml",              package_set_negatives),
-    ("stack-defaults-v1.json",   ["example-stack-defaults.yaml"],                       "example-stack-defaults.yaml",           stack_defaults_negatives),
+    ("defaults-v1.json",         ["example-defaults.yaml"],                             "example-defaults.yaml",                 defaults_negatives),
     ("stack-v1.json",            ["example-stack-science.yaml"],                        "example-stack-science.yaml",            stack_negatives),
-    ("template-contract-v1.json",["example-template-contract-v6.yaml"],                 "example-template-contract-v6.yaml",     template_contract_negatives),
     ("release-manifest-v1.json", ["example-release-manifest-draft.yaml", "example-release-manifest-final.yaml"],
                                                                                         "example-release-manifest-final.yaml",   release_manifest_negatives),
 ]
