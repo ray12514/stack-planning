@@ -97,6 +97,7 @@ render runs:
 ```bash
 stack-composer render \
   --profile systems/example-cray/profile.yaml \
+  --deployment systems/example-cray/deployment.yaml \
   --stack   stacks/science-stack/stack.yaml \
   --templates templates --package-sets package-sets \
   --output-root <shared-fs>/rendered --release 2026.06
@@ -105,9 +106,9 @@ stack-composer render \
 Output tree `<shared-fs>/rendered/example-cray/science-stack/2026.06/`:
 `environments/cce/mpi-craympich/spack.yaml` (and the other lanes) +
 `configs/**` + `release-manifest.yaml`. Only the lanes in
-`profile ∩ defaults ∩ stack` are emitted. This tree is a **regeneratable build
-artifact** — it persists on the shared FS but is rebuilt from inputs, not
-committed. Producer: `stack-composer`. Consumer: the build path.
+`profile ∩ deployment ∩ defaults ∩ stack` are emitted. This tree is a
+**regeneratable build artifact** — it persists on the shared FS but is rebuilt
+from inputs, not committed. Producer: `stack-composer`. Consumer: the build path.
 
 **Stage 6 — build (co-equal choice).** Hand the tree to one build path:
 

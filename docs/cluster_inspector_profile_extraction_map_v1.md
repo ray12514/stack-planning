@@ -27,7 +27,7 @@ slices, but their main purpose is to keep the extraction logic understandable.
 - Prefer observed facts over guesses.
 - Treat operator input as explicit evidence, not as hidden policy.
 - Keep package intent out of the profile.
-- Do not emit `packages.yaml`, template contracts, stack defaults, or template
+- Do not emit `packages.yaml`, template files, defaults files, or template
   trees. Profile corpora feed `stack-composer` analysis/scaffolding on the stack
   side, not `cluster-inspector` output.
 - Never call Spack to discover facts.

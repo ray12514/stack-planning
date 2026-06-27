@@ -20,7 +20,7 @@ v1 release.
 | System facts | `cluster-inspector` can generate and verify `profile.yaml`; operator hints are expected. | Review the generated profile before render. Hand-edit only with notes that become inspector bugs or schema/design updates. |
 | Stack render | `stack-composer` renders lane workspaces and Spack scopes from the stack/profile/template inputs. | Use `validate` and inspect the rendered `configs/` and `environments/` before invoking Spack. |
 | Vendor scope selection | Automatic by provider family — a `cray-pe` compiler in the profile → `vendor/cray`, else `vendor/linux`. No knob. | Nothing to configure; ensure the profile tags `provider_family` correctly. |
-| Install tree / `config.yaml` | Phase 7 is still open. The profile reports filesystem candidates, but the installer chooses the final install tree in `deployment.yaml` (never auto-derived). | For the first test, render or hand-add a temporary `configs/common/config.yaml` with the selected install tree, build stage, source cache, and misc cache. Record the exact shape needed for Phase 7. |
+| Install tree / `config.yaml` | `deployment.yaml` is the render input for installer-chosen paths. The profile reports filesystem candidates only. | For the first test, fill `deployment.yaml` with the selected install tree, build stage, source cache, misc cache, view root, module root, and buildcache destination. |
 | Module exposure | Phase 9 is still open. Front-door/lane modulefiles are not generated yet. | Use temporary shell/view exposure only. Record required prereqs and MODULEPATH behavior for the module design. |
 | MPI provider policy | Phase 6f.2 is still open. Cray MPICH works as the current Cray default, but general `mpi.mode: auto` provider resolution is not complete. | Start with a simple lane whose external MPI/provider behavior is already represented in the profile/template. Record any cross-compiler MPI or non-Cray-provider gaps. |
 | Build/cache orchestration | A co-equal build path drives lanes — `stack tools`, `spack-build`, Ansible, or bare Spack; production cache policy may be owned by other site tools. | Pick one build path. With `spack-build`, use `--skip-push` unless this test is explicitly exercising cache publication. |
@@ -157,6 +157,7 @@ configure.
 ```bash
 python3 stack-composer.pyz validate \
   --profile ./profile.yaml \
+  --deployment ./deployment.yaml \
   --stack ./stack.yaml \
   --templates ./templates \
   --package-sets ./package-sets \
@@ -165,6 +166,7 @@ python3 stack-composer.pyz validate \
 
 python3 stack-composer.pyz render \
   --profile ./profile.yaml \
+  --deployment ./deployment.yaml \
   --stack ./stack.yaml \
   --templates ./templates \
   --package-sets ./package-sets \

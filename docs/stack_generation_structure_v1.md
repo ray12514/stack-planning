@@ -2,10 +2,11 @@
 
 The canonical structure for the stack-generation project: what files exist, what
 each holds, and the one rule that decides where every piece of information lives.
-This supersedes the separate `contract.yaml` + `stack-defaults.yaml` model —
-there is no "contract" any more.
+The active inputs are `profile.yaml`, `deployment.yaml`, `defaults.yaml`,
+`stack.yaml`, package content, and templates.
 
-No v1 release deployed yet; provisional. Change directly before v1 if wrong.
+No v1 release has deployed yet. Change the current model directly before v1 if
+first-system evidence shows it is wrong.
 
 ## The method: each fact lives where it varies
 
@@ -21,10 +22,8 @@ system.
 | the stack — intent | `stacks/<stack>/stack.yaml` | anyone | specs, kind, optional narrowing ("this one: cce only") |
 | render mechanics | `templates/<set>/*.j2` | maintainer, ~never | how a `packages.yaml` is written |
 
-There is no `contract.yaml`. Its old contents were either site policy
-(→ `defaults.yaml`) or render mechanics (→ templates) or pure ceremony
-(`toolchains`, `build_classes`, `node_selectors` — deleted; Spack already builds
-with a compiler + MPI, we do not re-model that).
+No additional contract layer is required. Site policy lives in `defaults.yaml`;
+render mechanics live in templates; Spack already models compiler/MPI selection.
 
 ## defaults.yaml — site policy, one file, write as policy not lists
 
