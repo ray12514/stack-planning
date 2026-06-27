@@ -126,6 +126,17 @@ renderer to either emit a correct Spack external or fail with a useful error.
 
 ## Pre-v1 direction for Cray and provider generalization
 
+> **Status — realized.** `vendor_cray` + `compilers_external` + `mpi` have been
+> replaced by generic `compiler_providers` + `mpi_providers`, each tagged with a
+> `provider_family` (cray-pe / platform / site / system). Cray PE is now one
+> family, not a special block. cluster-inspector probing stays Cray-aware (the
+> evidence boundary) and a transform emits the generic facts; stack-composer
+> render reads providers by family (no `vendor_cray` branch, no hardcoded
+> compiler list). A new CPE that bumps versions/modules/paths needs no code
+> change; a new compiler family is picked up automatically. See
+> `stack_generation_structure_v1.md`. The notes below record the direction this
+> realized.
+
 Treat Cray PE as a provider family layered on normal Linux/provider facts, not
 as the primary model for the whole system.
 
