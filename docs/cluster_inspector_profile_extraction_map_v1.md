@@ -392,13 +392,16 @@ Section 5 acceptance:
 - Site OpenMPI produces `mpi[*]` with prefix, version, compiler, and modules.
 - ROCm emits component externals; `rocm/<version>` alone is never considered
   sufficient for a renderable AMD GPU profile.
+- Focused system package externals such as OpenSSL and curl emit
+  `system_externals[*]` facts when the installer/site policy intends to use
+  them as Spack externals.
 
 ## Section 6: Composer-Derived Capabilities
 
 `cluster-inspector` does not emit lane capabilities. Lane capability is a
-template-aware composition of observed facts, selected contract vocabulary, and
-stack intent, so it belongs to `stack-composer validate` and
-`stack-composer explain`.
+template-aware composition of observed facts, selected defaults/template policy,
+and stack intent, so it belongs to `stack-composer validate` and
+`stack-composer show`.
 
 Composer derivation rules:
 

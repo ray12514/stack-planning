@@ -124,6 +124,16 @@ def profile_negatives(base: dict) -> list[tuple[str, dict, str]]:
             "node_types/gpu_compute_mi250x/gpu",
         ),
         (
+            "system external prefix must be absolute",
+            with_mutation(base, ["system_externals", 0, "prefix"], "usr"),
+            "system_externals/0/prefix",
+        ),
+        (
+            "system external detection source is required",
+            with_mutation(base, ["system_externals", 0, "detection", "source"], _MISSING),
+            "system_externals/0/detection",
+        ),
+        (
             "extra top-level key",
             with_mutation(base, ["unexpected_field"], "uh oh"),
             "<root>",

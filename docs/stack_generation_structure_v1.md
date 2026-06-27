@@ -119,10 +119,10 @@ stack-composer show --profile profile.yaml \
 
 Summary-first, not a raw profile dump. `show` reports provider families,
 compiler modules, MPI provider/flavor relationships, GPU toolkit modules, and
-resolved lane module prerequisites under the current defaults. Program
-environment modules such as `PrgEnv-*` are shown because the profile reports
-them under `compiler_providers` and `mpi_providers`, not because Stack Composer
-hardcodes vendor module names:
+system external candidates, plus resolved lane module prerequisites under the
+current defaults. Program environment modules such as `PrgEnv-*` are shown
+because the profile reports them under `compiler_providers` and
+`mpi_providers`, not because Stack Composer hardcodes vendor module names:
 
 ```
 penguin · rhel9 · provider families: site, system
@@ -134,6 +134,10 @@ compilers (4 available)
 
 mpi (1 providers)
   openmpi    5.0.3        family=site     compilers: aocc modules=openmpi/5.0.3   [platform]
+
+system externals (2 candidates)
+  openssl    3.0.7        family=system   prefix=/usr variants=+shared modules=none detected=probed/rpm
+  curl       8.7.1        family=system   prefix=/usr modules=none detected=probed/rpm
 
 you would build  (defaults: compilers=all · mpi=openmpi · target=native)
   cpu → 2 lanes    aocc · gcc

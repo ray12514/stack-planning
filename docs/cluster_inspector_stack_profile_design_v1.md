@@ -217,6 +217,7 @@ System-wide probes run once per system, usually on the login node.
 | Site compilers | AOCC, GCC, Intel, NVHPC, ROCmCC, or other compiler externals. |
 | MPI inventory | Cray MPICH, site OpenMPI, MPICH, MVAPICH, Intel MPI, provider prefixes/modules. |
 | GPU toolkit modules | ROCm/CUDA toolkit modules and component prefixes. |
+| System externals | Focused package externals such as OpenSSL and curl with version, prefix, provider family, and detection source. |
 | Shared filesystems | install tree, source cache, buildcache candidates. |
 
 ### Per-Node-Type Facts
