@@ -22,9 +22,9 @@ package manager, a concretizer, or a build orchestrator. It must stay
 adoptable: a site should be able to take its rendered output and build with
 whatever tool it already trusts.
 
-This complements `stack_composer_declarative_render_alignment_v1.md`, which keeps
-the *render internals* declarative. This note governs the *downstream* build seam
-and the *upstream* source directory.
+This complements `stack_generation_structure_v1.md`, which defines the current
+declarative render model. This note governs the *downstream* build seam and the
+*upstream* source directory.
 
 The framing in older docs — "the non-helper," "the central tool," "everything
 goes through `stack-composer`" — overstates the tool. Render is one mechanical
@@ -94,8 +94,7 @@ supports **both** mechanisms, and they compose:
   `systems/<system>/deployment.yaml` are rendered into
   `configs/common/config.yaml`. They are *chosen*, never auto-derived from the
   profile (which only offers install-tree candidates). See
-  `deployment_inputs_and_ownership_v1.md`. (Rendering `config.yaml` is the open
-  Phase 7 item in `design_implementation_coverage.md`.)
+  `deployment_inputs_and_ownership_v1.md`.
 - **Build-time override** — the build path may supply or override
   install/view/module/cache roots when it invokes Spack, without re-rendering.
 
@@ -113,13 +112,12 @@ How the build consumer reads the config scopes is a **user choice**:
 
 Mode B requires a Spack release that supports URL/remote config includes.
 **Validate the exact remote-include syntax against the pinned Spack floor**
-(current tested floor 1.1.1; 1.2 is an explicit adoption test) before committing
-it to a template set. Do not assume the syntax from this note; prove it with the
-deployed Spack first.
+(current floor: 1.1.1 or newer) before committing it to a template set. Do not
+assume the syntax from this note; prove it with the deployed Spack first.
 
 Both modes deliver the same logical workspace; only the include targets and the
-sync requirement differ. The chosen mode is a render option / template-contract
-setting, not a fork in the model.
+sync requirement differ. The chosen mode is a render option / template-set
+default setting, not a fork in the model.
 
 ## Stack-content directory (the upstream source)
 

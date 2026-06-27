@@ -24,16 +24,8 @@ generic `compiler_providers` + `mpi_providers` tagged by `provider_family`;
 lanes = selected compilers × MPI provider × GPU archs, resolved from
 `defaults ∩ profile ∩ per-build override`.
 
-## Historical — superseded (pre-provider-refactor)
+## Removed pre-v1 notes
 
-Kept for design rationale; each carries a banner pointing here. The model they
-describe (`contract` / `toolchain` / `vendor_cray`) is **not** current.
-
-| File | Was |
-|---|---|
-| `spack_stack_generation_design_v6.md` | The big cross-component design; superseded by the v1 notes above. |
-| `stack_composer_design_v1.md` | Composer boundary under the contract model. |
-| `stack_composer_declarative_render_alignment_v1.md` | Declarative-render correction; realized in the structure note. |
-| `cray_pe_coupling_inventory.md` | Cray PE coupling; Cray is now one `provider_family`. |
-| `non_cray_mpi_provider_lanes_hardening_note_v1.md` | Non-Cray MPI lanes; folded into the provider model. |
-| `design_implementation_coverage.md` | Pre-refactor implementation tracker. |
+The old contract/toolchain/vendor-Cray notes were removed during the provider
+and spec-native cleanup. Do not route new work through the removed model; update
+the current v1 notes above instead.

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://stack-composer.example/schemas/package-set-v1.json",
   "title": "Spack stack package set (v1)",
-  "description": "A named list of root specs grouped by purpose. Referenced from stack.yaml.builds[*].package_set. Mirrors docs/spack_stack_generation_design_v6.md § Package Sets.",
+  "description": "A named list of root specs grouped by purpose. Referenced from stack.yaml.builds[*].package_set.",
   "type": "object",
   "properties": {
     "schema_version": {
@@ -27,7 +27,7 @@
     },
     "kinds": {
       "type": "array",
-      "description": "Package-set kinds this set can satisfy. Open vocabulary; the contract resolver matches these against build_classes[*].package_set_kind. Large science stacks commonly use serial/mpi/gpu/core.",
+      "description": "Package-set kinds this set can satisfy. Open vocabulary matched against build kinds such as cpu/mpi/gpu/core.",
       "items": {
         "type": "string",
         "minLength": 1
