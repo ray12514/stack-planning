@@ -3,7 +3,12 @@
 ## Purpose
 
 `cluster-inspector` is the optional system-facts helper for the Spack stack
-generation model described in `docs/spack_stack_generation_design_v6.md`.
+generation model in `docs/stack_generation_structure_v1.md`.
+
+> **Provider shape.** The profile now emits generic `compiler_providers` +
+> `mpi_providers` (tagged `provider_family`), not `vendor_cray` +
+> `compilers_external` + `mpi`. Probing stays family-aware; a transform at merge
+> emits the generic inventories. Source of truth: `../schemas/profile-v1.json`.
 
 Its job is intentionally narrow: produce a reviewed, commit-ready
 `systems/<system>/profile.yaml` that the stack renderer can consume. A human may

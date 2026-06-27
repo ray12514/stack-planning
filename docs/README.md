@@ -1,37 +1,39 @@
 # Documentation Index
 
-This directory contains the human-readable contracts for the stack planning
-system. The JSON Schemas in `../schemas/` are the machine-readable form of these
-contracts.
+Human-readable contracts for the stack-planning system. The JSON Schemas in
+`../schemas/` are the machine-readable form and the source of truth.
 
-## Start Here
-
-| Reader | Start with | Then read |
-|---|---|---|
-| End-to-end overview (any reader) | `end_to_end_map_v1.md` | `runbook.md`, `stack_generation_orchestration_note_v1.md` |
-| Architecture reviewer | `spack_stack_generation_design_v6.md` | `stack_composer_design_v1.md` |
-| Tool implementer | `stack_composer_design_v1.md` | `spack_stack_generation_design_v6.md`, `../schemas/README.md` |
-| Stack Composer refactor implementer | `stack_composer_declarative_render_alignment_v1.md` | `design_implementation_coverage.md` |
-| Build/handoff integrator | `stack_build_handoff_note_v1.md` | `runbook.md`, `pre_v1_hosting_and_external_inventory_note_v1.md` |
-| Orchestration / driver author | `stack_generation_orchestration_note_v1.md` | `stack_build_handoff_note_v1.md`, `runbook.md` |
-| Installer / deployment author | `deployment_inputs_and_ownership_v1.md` | `runbook.md`, `stack_build_handoff_note_v1.md` |
-| System probe implementer | `cluster_inspector_stack_profile_design_v1.md` | `cluster_inspector_profile_extraction_map_v1.md` |
-| Schema consumer | `../schemas/README.md` | The specific schema file and matching design section |
-| Fixture author | `../examples/reference/README.md` | `spack_stack_generation_design_v6.md` |
-| Pre-v1 repository/setup reviewer | `pre_v1_hosting_and_external_inventory_note_v1.md` | `AGENTS.md` |
-
-## Files
+## Current model — start here
 
 | File | Purpose |
 |---|---|
-| `spack_stack_generation_design_v6.md` | Cross-component architecture and operating model. |
-| `stack_composer_design_v1.md` | `stack-composer` product boundary, commands, packaging, and phases. |
-| `stack_composer_declarative_render_alignment_v1.md` | Pre-v1 correction note: keep Stack Composer declarative-first and move site/vendor policy out of Python branches. |
-| `cluster_inspector_stack_profile_design_v1.md` | `cluster-inspector` product boundary, CLI, packaging, and build plan. |
-| `cluster_inspector_profile_extraction_map_v1.md` | Field-by-field extraction map for `profile.yaml`. |
-| `pre_v1_hosting_and_external_inventory_note_v1.md` | Pre-v1 GitLab/import-path policy and external-candidate inventory boundary. |
-| `stack_build_handoff_note_v1.md` | Pre-v1 build-handoff: Stack Composer renders a workspace tree; build is a co-equal choice (stack tools / spack-build / Ansible / manual); stack-content source dir + config delivery modes. |
-| `stack_generation_orchestration_note_v1.md` | How render is orchestrated across systems: per-system seam, intersection model, input lifecycle/cadence, re-render/rebuild triggers, tool-agnostic driver contract. |
-| `end_to_end_map_v1.md` | The consolidated point-A-to-point-B map: inputs, producers, outputs, consumers, tools, sync, and first-time-vs-continuous cadence, with a worked example. |
-| `deployment_inputs_and_ownership_v1.md` | Input ownership (auto vs explicit) and the `deployment.yaml` overlay for installer-chosen site paths; the install tree is never auto-derived. |
-| `runbook.md` | First full-iteration operator runbook: probe → compose → build → expose → validate, with bring-back notes. |
+| `stack_generation_structure_v1.md` | **The method.** What each file holds (profile, deployment, `defaults.yaml`, stack, templates), the selection/resolution rules, and `stack-composer show`. Read this first. |
+| `stack_workspace_lifecycle_v1.md` | Per-stack workspaces, the one shared hash-deduplicated install tree, and the three lifetimes (kept / regenerable / durable). |
+| `end_to_end_map_v1.md` | Point-A-to-point-B map: inputs, producers, outputs, consumers, tools, cadence, worked example. |
+| `runbook.md` | First-iteration operator runbook: probe → compose → build → expose → validate. |
+| `stack_build_handoff_note_v1.md` | Where render stops; build is a co-equal choice (stack tools / spack-build / Ansible / manual); stack-content + config delivery modes. |
+| `stack_generation_orchestration_note_v1.md` | Render across systems: the intersection model, input cadence, re-render/rebuild triggers, tool-agnostic driver contract. |
+| `deployment_inputs_and_ownership_v1.md` | Auto-vs-explicit ownership and the `deployment.yaml` overlay; the install tree is never auto-derived. |
+| `pre_v1_hosting_and_external_inventory_note_v1.md` | Four-repo GitLab layout, the stack-content repo, and the (realized) provider-family generalization. |
+| `cluster_inspector_stack_profile_design_v1.md` | `cluster-inspector` boundary, CLI, packaging. |
+| `cluster_inspector_profile_extraction_map_v1.md` | Field-by-field extraction map for `profile.yaml` (provider inventories). |
+| `../schemas/README.md` | The schemas (`profile`, `defaults`, `stack`, `package-set`, `release-manifest`). |
+
+The model in one line: one site `defaults.yaml` (no contract/toolchain/class);
+generic `compiler_providers` + `mpi_providers` tagged by `provider_family`;
+lanes = selected compilers × MPI provider × GPU archs, resolved from
+`defaults ∩ profile ∩ per-build override`.
+
+## Historical — superseded (pre-provider-refactor)
+
+Kept for design rationale; each carries a banner pointing here. The model they
+describe (`contract` / `toolchain` / `vendor_cray`) is **not** current.
+
+| File | Was |
+|---|---|
+| `spack_stack_generation_design_v6.md` | The big cross-component design; superseded by the v1 notes above. |
+| `stack_composer_design_v1.md` | Composer boundary under the contract model. |
+| `stack_composer_declarative_render_alignment_v1.md` | Declarative-render correction; realized in the structure note. |
+| `cray_pe_coupling_inventory.md` | Cray PE coupling; Cray is now one `provider_family`. |
+| `non_cray_mpi_provider_lanes_hardening_note_v1.md` | Non-Cray MPI lanes; folded into the provider model. |
+| `design_implementation_coverage.md` | Pre-refactor implementation tracker. |

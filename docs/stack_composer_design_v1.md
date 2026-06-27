@@ -1,3 +1,11 @@
+> **Superseded (pre-provider-refactor).** This document predates the move to a
+> single `defaults.yaml` (no contract/toolchain/build-class) and generic
+> `compiler_providers`/`mpi_providers` (Cray PE is one `provider_family`). It is
+> kept for design history. The current model lives in
+> `stack_generation_structure_v1.md`, `stack_workspace_lifecycle_v1.md`, and the
+> JSON Schemas under `../schemas/`. Names below (`vendor_cray`, `contract`,
+> `toolchain`, `build_classes`, `compilers_external`) are historical.
+
 # Stack-Composer Design v1
 
 ## Purpose

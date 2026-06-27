@@ -17,7 +17,7 @@ it directly before v1 rather than preserving unused alpha behavior.
 ## Decision: Stack Composer is a spec/workspace generator
 
 `stack-composer` validates inputs, resolves stack intent against profile facts
-and the template contract, and renders normal Spack input. It is **not** a
+and the site defaults (defaults.yaml), and renders normal Spack input. It is **not** a
 package manager, a concretizer, or a build orchestrator. It must stay
 adoptable: a site should be able to take its rendered output and build with
 whatever tool it already trusts.
@@ -133,8 +133,7 @@ stack-content/
   package-sets/*.yaml                             # curated Spack spec sets
   package-repos/<name>/                           # optional package repositories
   templates/<set>/
-    contract.yaml
-    stack-defaults.yaml
+    defaults.yaml                                  # site policy (selection + conventions)
     configs/                                       # Spack component yamls (.j2)
     environments/
 ```

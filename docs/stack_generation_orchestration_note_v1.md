@@ -44,7 +44,7 @@ only its slice:
 
 ```text
 profile (what this system has)
-  ∩ contract (what the template set supports)
+  ∩ defaults (what the template set supports)
   ∩ stack.yaml (what is requested)
   [∩ per_system (optional narrowing for this system name)]
   → the concrete lanes rendered for this system
@@ -58,7 +58,7 @@ guardrail is what lets one `stack.yaml` stay portable across every system.
 
 | Input | Shared or per-system |
 |---|---|
-| `templates/<set>/` (contract, configs, environments) | Shared |
+| `templates/<set>/` (defaults, configs, environments) | Shared |
 | `stacks/<stack>/stack.yaml` | Per-stack (shared across systems) |
 | `package-sets/*`, `package-repos/*` | Shared |
 | `systems/<system>/profile.yaml` | Per-system |
@@ -86,7 +86,7 @@ The driver uses this to decide scope after a change:
 | `profile.yaml` for system S | S only | S's affected lanes |
 | `stack.yaml` for stack T | every system deploying T | changed lanes of T on those systems |
 | `package-set` P | every stack referencing P (on its systems) | lanes whose specs changed |
-| `template set` V (contract / configs / environments) | every system+stack on V | lanes whose rendered scopes changed |
+| `template set` V (defaults / configs / environments) | every system+stack on V | lanes whose rendered scopes changed |
 | new `release` id | the targeted `(system, stack)` | full release build |
 
 Determinism makes this safe: re-rendering unchanged inputs yields the identical

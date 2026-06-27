@@ -16,7 +16,7 @@ No v1 stack release has been deployed yet. The `deployment.yaml` shape below is
 The framework's job is to spare a user the backend grind — not to decide where
 their software lives or how it is exposed.
 
-| Auto — the framework's job (from profile facts + contract policy) | Explicit — the installer/user chooses (profile offers candidates only) |
+| Auto — the framework's job (from profile facts + defaults policy) | Explicit — the installer/user chooses (profile offers candidates only) |
 |---|---|
 | Which externals exist → `packages.yaml` content | **Install tree location** |
 | Compiler / MPI / GPU provider wiring | **Build stage, source/build caches** |
@@ -40,12 +40,12 @@ flag it. The framework validates the choice; it never makes it. No Spack runs.
 | Which software (specs) | Package manager | `stack.yaml` specs / `package-sets/` | author (3) |
 | `kind` / compiler narrowing (optional) | Package manager | `stack.yaml` | author (3) |
 | Module exposure **mode** (front_door/direct), namespace | Package manager / stack author | `stack.yaml` `modules.*` | author (3) |
-| Supported compiler/MPI/GPU menu | Template maintainer | `contract.yaml` | curate (2) |
-| Default policy (externals posture, buildcache, release) | Template maintainer; user may override | `stack-defaults` + `stack.yaml` | curate/author |
+| Which of the profile's compilers/MPI/GPU to build (selection) | Template maintainer; user may override | `defaults.yaml` (`compilers`/`mpi`/`gpu`/`target`) + per-build override | curate/author |
+| Default policy (externals posture, buildcache, release) | Template maintainer; user may override | `defaults.yaml` + `stack.yaml` | curate/author |
 | System facts (what exists) | System owner / `cluster-inspector` | `profile.yaml` | probe (1) |
 | Externals/`packages.yaml`, provider wiring, target, module syntax | **Framework (auto)** | rendered `configs/**` | render (5) |
 | **Install tree, build stage, caches, view/module roots, `publish_root`, buildcache destinations** | **Installer** | `deployment.yaml` (or build-time flags) | Stage 0 setup / install |
-| Which Spack version (floor/pin) **and where Spack lives** | Template maintainer (floor), package manager (pin), installer (exact + location) | `stack-defaults.spack.floor`, `stack.yaml.spack.version`, `deployment.yaml.spack.root` / `$PATH` | curate/author/install |
+| Which Spack version (floor/pin) **and where Spack lives** | Template maintainer (floor), package manager (pin), installer (exact + location) | `defaults.spack.floor`, `stack.yaml.spack.version`, `deployment.yaml.spack.root` / `$PATH` | curate/author/install |
 
 In practice the package manager, the installer, and the template maintainer are
 often the **same person**. The ownership split is therefore mostly about *which

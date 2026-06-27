@@ -1,5 +1,14 @@
 # Cluster-Inspector Profile Extraction Map v1
 
+> **Provider shape.** The emitted `profile.yaml` now carries generic
+> `compiler_providers` + `mpi_providers` (each tagged `provider_family`:
+> cray-pe/platform/site/system), not `vendor_cray` + `compilers_external` + `mpi`.
+> Probing stays family-aware (the evidence boundary below is unchanged — it still
+> recognizes Cray PE, generic compilers, etc.); a transform at `merge` emits the
+> generic inventories. Where sections below say `vendor_cray` / `compilers_external`
+> / `mpi`, read them as the detection stage that feeds `compiler_providers` /
+> `mpi_providers`. Source of truth: `../schemas/profile-v1.json`.
+
 ## Purpose
 
 This document maps each v6 `profile.yaml` fact to the probe that should extract
@@ -408,7 +417,7 @@ Composer derivation rules:
   the relevant vendor compiler and toolkit facts exist.
 - Spack-built MPI capability is a stack/template decision. The inspector reports
   compilers and fabric facts; the decision to render a `mpi-openmpi` lane belongs
-  to `stack.yaml` and the template contract.
+  to `stack.yaml` and the site defaults (defaults.yaml).
 
 Section 6 acceptance:
 
