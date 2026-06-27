@@ -98,8 +98,8 @@ renders a `spack.yaml` for):
    (the conservative shared target) | explicit.
 6. vendor scope is selected per compiler lane from `defaults.provider_scopes`.
    The default template set maps ordinary providers to `vendor/linux` and maps
-   `cray-pe` to `vendor/cray`, but that is template metadata, not a hardcoded
-   renderer branch.
+   `platform_family: cray-pe` to `vendor/cray`, but that is template metadata,
+   not a hardcoded renderer branch.
 
 Lanes = selected compilers × (the MPI provider, if mpi/gpu) × (each GPU arch, if
 gpu). So `compilers: [gcc, aocc]` + `kind: mpi` = two lanes. Each lane →

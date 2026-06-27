@@ -19,7 +19,7 @@ v1 release.
 |---|---|---|
 | System facts | `cluster-inspector` can generate and verify `profile.yaml`; operator hints are expected. | Review the generated profile before render. Hand-edit only with notes that become inspector bugs or schema/design updates. |
 | Stack render | `stack-composer` renders lane workspaces and Spack scopes from the stack/profile/template inputs. | Use `validate` and inspect the rendered `configs/` and `environments/` before invoking Spack. |
-| Vendor scope selection | Automatic per compiler lane from `defaults.provider_scopes`; the default template maps ordinary providers to `vendor/linux` and `cray-pe` to `vendor/cray`. | Ensure the profile tags `provider_family` correctly; change defaults/template metadata for a new provider family instead of adding renderer branches. |
+| Vendor scope selection | Automatic per compiler lane from `defaults.provider_scopes`; the default template maps ordinary providers to `vendor/linux` and `platform_family: cray-pe` to `vendor/cray`. | Ensure the profile tags `provider_family` and `platform_family` correctly; change defaults/template metadata for a new platform family instead of adding renderer branches. |
 | Install tree / `config.yaml` | `deployment.yaml` is the render input for installer-chosen paths. The profile reports filesystem candidates only. | For the first test, fill `deployment.yaml` with the selected install tree, build stage, source cache, misc cache, view root, module root, and buildcache destination. |
 | Module exposure | Phase 9 is still open. Front-door/lane modulefiles are not generated yet. | Use temporary shell/view exposure only. Record required prereqs and MODULEPATH behavior for the module design. |
 | MPI provider policy | `mpi.source: auto` uses reported MPI provider metadata and profile order unless defaults supplies a provider-family priority list. | Start with a simple lane whose external MPI/provider behavior is already represented in the profile/template. Record any cross-compiler MPI/provider gaps. |
@@ -204,8 +204,9 @@ To inspect fragments before merging them:
 
 Manual review checklist:
 
-- `compiler_providers` carry the right `provider_family` (cray-pe entries match
-  the live CPE module tree) with correct versions, prefixes, and modules.
+- `compiler_providers` carry the right `provider_family`; platform entries
+  carry the right `platform_family` (for example, `cray-pe`) with correct
+  versions, prefixes, and modules.
 - `gpu_toolkit_modules` names the exact ROCm or CUDA modules intended as
   externals.
 - `compiler_providers` contains only the compilers intended for lanes, with
