@@ -226,16 +226,15 @@ too large or the evidence payload becomes operationally noisy. Prefer one
 reviewed `profile.yaml` as the render input so Stack Composer has one system
 fact contract.
 
-For OpenSSL, curl, and similar system packages, add a generic profile field
-before v1 once the first-system evidence confirms the exact shape. A likely
-shape is:
+For OpenSSL, curl, and similar system packages, use the generic
+`system_externals` profile field. Current pre-v1 shape:
 
 ```yaml
 system_externals:
   - name: openssl
     version: "3.0.7"
     prefix: /usr
-    provenance: system
+    provider_family: system
     variants: "+shared"
     detection:
       confidence: probed
@@ -243,15 +242,15 @@ system_externals:
   - name: curl
     version: "7.76.1"
     prefix: /usr
-    provenance: system
+    provider_family: system
     variants: "+ssl"
     detection:
       confidence: probed
       source: rpm
 ```
 
-The exact field shape should be designed from real first-system evidence. The
-important contract is:
+The field remains pre-v1 and can change from first-system evidence. The
+important contract is stable:
 
 - profile facts say what exists;
 - stack/default policy says whether those facts may be used;
@@ -296,10 +295,10 @@ If the site-facing module name and Spack package name differ, record that
 mapping explicitly in the hint/profile path instead of baking it into renderer
 special cases.
 
-The first-system tests should identify a small initial external focus set. A
-reasonable starting list is OpenSSL, curl, fabric/runtime libraries needed for
-MPI/GPU stacks, and only those vendor math/runtime libraries that Spack can
-consume as externals.
+The first-system tests should refine the initial external focus set. The
+starting list is OpenSSL, curl, fabric/runtime libraries needed for MPI/GPU
+stacks, and only those vendor math/runtime libraries that Spack can consume as
+externals.
 
 ## What this means for the first full-iteration run
 
@@ -310,7 +309,8 @@ For the first Cray and Penguin-system tests:
    libpciaccess, rdma-core, or other system externals must be represented for
    the stack to concretize cleanly.
 3. If a system package external is needed but absent from `profile.yaml`, do
-   not patch Stack Composer with host-specific probing. Bring the evidence back
-   to this design note and update the profile schema/extraction map.
+   not patch Stack Composer with host-specific probing. Add or fix the
+   `cluster-inspector` fact path so the external appears under
+   `system_externals`.
 4. Keep Stack Composer's role policy-driven: it should render or reject based
    on explicit profile facts and stack policy.
