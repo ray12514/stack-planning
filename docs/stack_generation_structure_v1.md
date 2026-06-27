@@ -39,8 +39,8 @@ identical everywhere:
 schema_version: 1
 
 # What to build, from what the profile reports. A stack may override any of these.
-compilers: all                 # all reported, or pin families: [gcc, cce]
-mpi:    { provider: openmpi, source: build }   # source: build | platform
+compilers: baseline            # baseline (gcc-or-first, lean default) | all (fan out) | [gcc, cce]
+mpi:    { provider: openmpi, source: auto }    # source: auto | build | platform
 gpu:    { archs: all }                         # all reported, or [gfx90a, sm_80]
 target: native                 # native | baseline | <explicit, e.g. x86_64_v3>
 
@@ -81,16 +81,23 @@ renders a `spack.yaml` for):
 
 1. `kind` = explicit, else inferred from specs (gpu > mpi > cpu).
 2. `compilers` = (build override or `defaults.compilers`) resolved against
-   `profile` — `all` → every reported compiler; a list → intersect with reported
-   (a requested-but-absent compiler is a clear error).
-3. `mpi` (kind mpi/gpu) = provider + source. `source: platform` uses the
-   external the profile reports; `source: build` builds it (pins the provider).
+   `profile`: `baseline` → gcc-or-first (the lean default); `all` → every reported
+   compiler; a list → intersect with reported (an absent one is a clear error).
+   For an mpi/gpu build using a **platform** MPI, a non-explicit selection
+   (`baseline`/`all`) is **auto-narrowed** to the compilers that MPI was built
+   against (its `compatibility` + flavor keys); an explicit list is honored
+   as-is (a missing platform flavor then errors, or use `source: build`).
+3. `mpi` (kind mpi/gpu) = provider + source. `source: auto` (default) uses the
+   platform MPI the profile reports — preferring a `cray-pe` one — else builds
+   the provider from source; `source: build` always builds it; `source: platform`
+   forces the platform MPI. So Cray prefers cray-mpich by default, but
+   `source: build` opens the door to building OpenMPI on a Cray machine.
 4. `gpu.archs` (kind gpu) = (override or default) resolved against the profile's
    GPU arches.
 5. `target` = `native` (the runtime node's preferred uarch) | `baseline`
    (the conservative shared target) | explicit.
-6. vendor scope is **automatic**: profile has Cray facts → `vendor/cray`, else
-   `vendor/linux`. Not a knob.
+6. vendor scope is **automatic** by provider family: a `cray-pe` compiler present
+   → `vendor/cray`, else `vendor/linux`. Not a knob.
 
 Lanes = selected compilers × (the MPI provider, if mpi/gpu) × (each GPU arch, if
 gpu). So `compilers: [gcc, aocc]` + `kind: mpi` = two lanes. Each lane →
