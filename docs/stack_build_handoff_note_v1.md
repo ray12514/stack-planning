@@ -26,8 +26,7 @@ This complements `stack_generation_structure_v1.md`, which defines the current
 declarative render model. This note governs the *downstream* build seam and the
 *upstream* source directory.
 
-The framing in older docs — "the non-helper," "the central tool," "everything
-goes through `stack-composer`" — overstates the tool. Render is one mechanical
+Render is one mechanical
 seam between source-of-truth inputs and a runnable Spack workspace. The build is
 a separate, swappable step.
 
@@ -156,10 +155,9 @@ systems and when to re-render, see `stack_generation_orchestration_note_v1.md`.
 `stack tools` is an external peer. `stack-planning` owns the rendered-workspace
 contract it consumes; it does not own `stack tools`' internals.
 
-## Provisional status and open questions
+## Open questions
 
-The handoff contract is provisional until first-system testing. Confirm with the
-coworker / `stack tools` and bring evidence back here:
+Confirm with first-system testing and bring evidence back here:
 
 1. Does `stack tools` consume the **whole tree** intact (relative `include::`),
    or want absolute include paths, a flattened single `spack.yaml`, or a

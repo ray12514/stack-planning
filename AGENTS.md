@@ -10,7 +10,7 @@ expect downstream tools to break — coordinate the change.
 ## Pre-v1 policy
 
 No stack release has been deployed or tagged as v1 yet. **Nothing in this repo
-is legacy or sacred** until a v1 release ships that real users depend on. If the
+is fixed** until a v1 release ships that real users depend on. If the
 model changes, every example, walkthrough, schema, and fixture must be updated to
 match it — proactively, in the same change, without waiting to be asked. A full
 rewrite is acceptable when the design warrants it. Until v1, do not add
@@ -21,7 +21,7 @@ design calls for it:
 - update the design and schema directly instead of preserving unused
   behavior;
 - keep all examples, fixtures, and walkthroughs consistent with the current
-  model; a stale example is a bug to fix now, not a legacy artifact to preserve;
+  model; a stale example is a bug to fix now, not an artifact to preserve;
 - fail fast when required fields are missing;
 - do not describe pre-v1 changes as migrations from deployed behavior;
 - reserve compatibility/migration sections for behavior that existed

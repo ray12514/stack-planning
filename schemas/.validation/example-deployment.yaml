@@ -1,0 +1,23 @@
+schema_version: 1
+system: example-cray
+install_tree:
+  root: /shared/stack/spack/opt
+  padded_length: 128
+build_stage:
+  default: /scratch/$user/spack-stage
+  by_node_type:
+    login: /scratch/$user/login-stage
+caches:
+  source: /shared/stack/spack/source-cache
+  misc: /shared/stack/cache/misc
+roots:
+  views: /shared/stack/views
+  modules: /shared/stack/modules
+modules:
+  publish_root: null
+buildcache:
+  destinations:
+    - name: payload
+      url: file:///shared/stack/buildcache/payload
+spack:
+  root: /opt/spack

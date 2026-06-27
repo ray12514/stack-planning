@@ -147,7 +147,7 @@ The stack design separates facts from intent:
 intent from system facts. For example, it may report that Cray MPICH exists, but
 it does not decide whether a stack should prefer platform MPI. It may report ROCm
 component externals, but it does not decide which GPU packages the stack builds.
-It also does not scaffold template sets or write template contracts; its profiles
+It also does not scaffold template sets or write template files; its profiles
 are inputs that `stack-composer` can analyze when maintainers curate stack-side
 templates.
 

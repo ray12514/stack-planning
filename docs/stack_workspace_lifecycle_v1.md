@@ -4,8 +4,8 @@ How a system, its stacks, the rendered workspaces, and the durable artifacts
 relate — and what `stack-content` holds. This closes the "one workspace per
 system" misconception: a workspace is per *stack*, and one system runs many.
 
-No v1 release deployed yet; this is provisional. If the shape is wrong, change it
-directly before v1 rather than preserving unused alpha behavior.
+No v1 release has deployed yet. If the shape is wrong, change it directly before
+v1 rather than preserving unused alpha behavior.
 
 ## Per system vs per stack
 

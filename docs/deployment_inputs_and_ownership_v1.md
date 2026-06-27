@@ -7,9 +7,9 @@ This note records two things:
    installer-chosen, site-specific values that must never be auto-derived.
 
 No v1 stack release has been deployed yet. The `deployment.yaml` shape below is
-**provisional** — design it from first-system evidence before committing a
-`deployment-v1.json` schema, the same way system-external fields are deferred in
-`pre_v1_hosting_and_external_inventory_note_v1.md`.
+the current pre-v1 schema in `schemas/deployment-v1.json`. Because this is
+pre-v1, change it directly when first-system evidence shows the shape is wrong;
+do not add compatibility paths for unused alpha shapes.
 
 ## The core principle: auto vs. explicit
 
@@ -56,7 +56,7 @@ file* a value belongs in — portable `stack.yaml` intent versus site-specific
 
 A per-system overlay holding the installer-chosen, non-portable values. It is
 kept **out of** the portable `stack.yaml` so the same stack intent renders on any
-system. Provisional shape:
+system. Current shape:
 
 ```yaml
 # systems/<system>/deployment.yaml — installer-owned; never auto-derived
@@ -133,13 +133,12 @@ part of its contract (open question in `stack_build_handoff_note_v1.md`).
 
 ## Status and open questions
 
-The shape is provisional; confirm during first-system testing, then add
-`deployment-v1.json`:
+The schema exists now; first-system testing still needs to confirm the final
+field set:
 
 1. Final `deployment.yaml` field set and which keys are required vs. defaulted.
-2. Whether `modules.publish_root` moves here permanently (it is currently in
-   `stack.yaml` `modules`); the portability split says it should, but the move
-   waits for the deployment schema.
+2. Whether `modules.publish_root` stays in deployment permanently; the
+   portability split says it belongs with installer-owned paths.
 3. Whether build-stage and caches need per-node-type granularity in practice.
 4. How site defaults seeded at Stage 0 interact with build-time overrides
    (precedence, and how the chosen values are recorded in the release manifest).

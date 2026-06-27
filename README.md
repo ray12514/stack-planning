@@ -6,7 +6,7 @@ generation project.
 This repo is the design/schema source of truth for the tool repos
 (`cluster-inspector`, `stack-composer`) and the data repo (`stack-content`).
 No v1 deployment exists yet; if the model changes, update the current docs and
-schemas directly rather than preserving old shapes.
+schemas directly.
 
 ## Current model
 
@@ -28,8 +28,10 @@ profile.yaml facts + deployment.yaml paths + defaults.yaml policy
 -> rendered Spack workspace tree
 ```
 
-There is no active `contract.yaml` / `stack-defaults.yaml` split. The active
-template-set policy file is `defaults.yaml`.
+The active template-set policy file is `defaults.yaml`.
+
+`deployment.yaml` is a first-class render input. It carries installer-owned
+paths and destinations; do not derive those from profile filesystem candidates.
 
 ## Repo layout
 

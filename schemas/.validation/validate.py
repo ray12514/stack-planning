@@ -196,6 +196,36 @@ def defaults_negatives(base: dict) -> list[tuple[str, dict, str]]:
     ]
 
 
+def deployment_negatives(base: dict) -> list[tuple[str, dict, str]]:
+    return [
+        (
+            "missing required system",
+            with_mutation(base, ["system"], _MISSING),
+            "<root>",
+        ),
+        (
+            "install tree root must be absolute",
+            with_mutation(base, ["install_tree", "root"], "relative/opt"),
+            "install_tree/root",
+        ),
+        (
+            "build stage default is required",
+            with_mutation(base, ["build_stage", "default"], _MISSING),
+            "build_stage",
+        ),
+        (
+            "module publish_root must be absolute or null",
+            with_mutation(base, ["modules", "publish_root"], "modulefiles"),
+            "modules/publish_root",
+        ),
+        (
+            "extra top-level key",
+            with_mutation(base, ["unexpected_field"], "uh oh"),
+            "<root>",
+        ),
+    ]
+
+
 def stack_negatives(base: dict) -> list[tuple[str, dict, str]]:
     return [
         (
@@ -336,6 +366,7 @@ SCHEMAS: list[tuple[str, list[str], str, NegFactory]] = [
     ("profile-v1.json",          ["example-cray.yaml", "example-linux.yaml"],          "example-cray.yaml",                     profile_negatives),
     ("package-set-v1.json",      ["example-package-set.yaml"],                          "example-package-set.yaml",              package_set_negatives),
     ("defaults-v1.json",         ["example-defaults.yaml"],                             "example-defaults.yaml",                 defaults_negatives),
+    ("deployment-v1.json",       ["example-deployment.yaml"],                           "example-deployment.yaml",               deployment_negatives),
     ("stack-v1.json",            ["example-stack-science.yaml"],                        "example-stack-science.yaml",            stack_negatives),
     ("release-manifest-v1.json", ["example-release-manifest-draft.yaml", "example-release-manifest-final.yaml"],
                                                                                         "example-release-manifest-final.yaml",   release_manifest_negatives),
