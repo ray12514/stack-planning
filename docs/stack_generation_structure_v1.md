@@ -87,16 +87,19 @@ renders a `spack.yaml` for):
    against (its `compatibility` + flavor keys); an explicit list is honored
    as-is (a missing platform flavor then errors, or use `source: build`).
 3. `mpi` (kind mpi/gpu) = provider + source. `source: auto` (default) uses the
-   platform MPI the profile reports — preferring a `cray-pe` one — else builds
-   the provider from source; `source: build` always builds it; `source: platform`
-   forces the platform MPI. So Cray prefers cray-mpich by default, but
-   `source: build` opens the door to building OpenMPI on a Cray machine.
+   first platform MPI the profile reports unless defaults supplies
+   `mpi.provider_family_priority`, else builds the provider from source;
+   `source: build` always builds it; `source: platform` forces a reported
+   platform MPI. Cray MPICH, Open MPI on Slingshot, MVAPICH, and site MPI builds
+   all use the same provider metadata path.
 4. `gpu.archs` (kind gpu) = (override or default) resolved against the profile's
    GPU arches.
 5. `target` = `native` (the runtime node's preferred uarch) | `baseline`
    (the conservative shared target) | explicit.
-6. vendor scope is **automatic** by provider family: a `cray-pe` compiler present
-   → `vendor/cray`, else `vendor/linux`. Not a knob.
+6. vendor scope is selected per compiler lane from `defaults.provider_scopes`.
+   The default template set maps ordinary providers to `vendor/linux` and maps
+   `cray-pe` to `vendor/cray`, but that is template metadata, not a hardcoded
+   renderer branch.
 
 Lanes = selected compilers × (the MPI provider, if mpi/gpu) × (each GPU arch, if
 gpu). So `compilers: [gcc, aocc]` + `kind: mpi` = two lanes. Each lane →
