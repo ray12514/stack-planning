@@ -19,7 +19,7 @@ v1 release.
 |---|---|---|
 | System facts | `cluster-inspector` can generate and verify `profile.yaml`; operator hints are expected. | Review the generated profile before render. Hand-edit only with notes that become inspector bugs or schema/design updates. |
 | Stack render | `stack-composer` renders lane workspaces and Spack scopes from the stack/profile/template inputs. | Use `validate` and inspect the rendered `configs/` and `environments/` before invoking Spack. |
-| Vendor scope selection | The template contract must include `vendor_scope_selectors`; there is no fallback. | Add the selector block to the template contract before render. |
+| Vendor scope selection | Automatic by provider family — a `cray-pe` compiler in the profile → `vendor/cray`, else `vendor/linux`. No knob. | Nothing to configure; ensure the profile tags `provider_family` correctly. |
 | Install tree / `config.yaml` | Phase 7 is still open. The profile reports filesystem candidates, but the installer chooses the final install tree in `deployment.yaml` (never auto-derived). | For the first test, render or hand-add a temporary `configs/common/config.yaml` with the selected install tree, build stage, source cache, and misc cache. Record the exact shape needed for Phase 7. |
 | Module exposure | Phase 9 is still open. Front-door/lane modulefiles are not generated yet. | Use temporary shell/view exposure only. Record required prereqs and MODULEPATH behavior for the module design. |
 | MPI provider policy | Phase 6f.2 is still open. Cray MPICH works as the current Cray default, but general `mpi.mode: auto` provider resolution is not complete. | Start with a simple lane whose external MPI/provider behavior is already represented in the profile/template. Record any cross-compiler MPI or non-Cray-provider gaps. |
@@ -73,7 +73,7 @@ truth render consumes, synced onto the target's shared filesystem.
      stacks/<stack>/stack.yaml
      package-sets/*.yaml
      package-repos/<name>/
-     templates/<set>/{contract.yaml,stack-defaults.yaml,configs/,environments/}
+     templates/<set>/{defaults.yaml,configs/,environments/}
    ```
 
 2. Decide the config delivery mode for this run:
@@ -128,11 +128,12 @@ To inspect fragments before merging them:
 
 Manual review checklist:
 
-- `vendor_cray` and CPE family fields match the live module tree.
+- `compiler_providers` carry the right `provider_family` (cray-pe entries match
+  the live CPE module tree) with correct versions, prefixes, and modules.
 - `gpu_toolkit_modules` names the exact ROCm or CUDA modules intended as
   externals.
-- `compilers_external` contains only the compilers intended for lanes, with
-  correct versions, executable paths, and module prerequisites.
+- `compiler_providers` contains only the compilers intended for lanes, with
+  correct versions, prefixes, and module prerequisites.
 - MPI externals contain the expected providers, prefixes, and module
   prerequisites.
 - Module patterns in the hints and discovery evidence match the live system.
@@ -149,9 +150,9 @@ Design references:
 
 ## Stage 2 — Compose
 
-Validate the inputs, then render a deterministic workspace. Confirm the selected
-template contract contains `vendor_scope_selectors`; missing selectors are a
-contract error.
+Validate the inputs, then render a deterministic workspace. The vendor scope is
+chosen automatically from the profile's provider families — no selector block to
+configure.
 
 ```bash
 python3 stack-composer.pyz validate \

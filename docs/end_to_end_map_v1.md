@@ -10,8 +10,8 @@ This is the consolidated overview. For depth, follow the cross-references:
 - the multi-system loop and re-render cadence → `stack_generation_orchestration_note_v1.md`;
 - the rendered tree → build-path handoff → `stack_build_handoff_note_v1.md`;
 - repository hosting and the `stack-content` layout → `pre_v1_hosting_and_external_inventory_note_v1.md`;
-- the render seam contract → v6 §"Render Step — Specification";
-- worked Spack-config detail → v6 §"Example Cray Flow" / §"Example Generic Linux HPC Flow".
+- the render model (defaults, providers, resolution) → `stack_generation_structure_v1.md`;
+- per-stack workspaces and the shared install tree → `stack_workspace_lifecycle_v1.md`.
 
 No v1 stack release has been deployed yet. This map is changeable pre-v1.
 
@@ -20,7 +20,7 @@ No v1 stack release has been deployed yet. This map is changeable pre-v1.
 | Actor / tool | Role |
 |---|---|
 | `cluster-inspector` (Go binary) | Probes one system; produces `profile.yaml`. Read-only facts; never decides policy. |
-| Template maintainer | Curates the supported vocabulary: `templates/<set>/` (contract, configs, environments). |
+| Template maintainer | Curates the supported vocabulary: `templates/<set>/` (defaults, configs, environments). |
 | Package manager | Authors stack intent: `stacks/<stack>/stack.yaml`, optional `package-sets/`. |
 | Installer | Chooses the site paths in `systems/<system>/deployment.yaml`: install tree, caches, view/module roots, `publish_root`. Often the same person as the package manager. |
 | `stack-content` (GitLab repo) | The hosted source of truth render consumes; synced to each target's shared filesystem. |
@@ -37,7 +37,7 @@ No v1 stack release has been deployed yet. This map is changeable pre-v1.
 |---|---|---|---|---|---|---|---|
 | 0 | Set up the stack directory | layout decision | Maintainer | git / GitLab | empty `stack-content` repo skeleton | render, driver | **first-time, hand-done** · P |
 | 1 | Probe each system | the live system | System owner | `cluster-inspector` | `systems/<system>/profile.yaml` | render | hand-reviewed first time; re-run on system change · P |
-| 2 | Curate template set | observed patterns | Template maintainer | `stack-composer scaffold-templates` + review | `templates/<set>/{contract,stack-defaults,configs,environments}` | render | hand-done; rare (new OS/MPI/GPU/compiler) · P |
+| 2 | Curate template set | observed patterns | Template maintainer | hand-authored, checked with `validate-template-set` | `templates/<set>/{defaults,configs,environments}` | render | hand-done; rare (new OS/MPI/GPU/compiler) · P |
 | 3 | Author stack intent | package needs | Package manager | editor | `stacks/<stack>/stack.yaml` (+ `package-sets/`) | render | hand-done; **most frequent** · C |
 | 4 | Sync source to shared FS | `stack-content` (GitLab) | Driver / CI | `git clone`/`pull` (or GitLab-direct, no sync) | `stack-content` on shared FS (or remote URLs) | render | automatable from day one · C |
 | 5 | Render | profile + stack + templates + package-sets + **`deployment.yaml`** | Driver invokes | `stack-composer render` | rendered workspace tree: `configs/**`, `environments/**/spack.yaml`, `release-manifest.yaml` | build path | automatable; re-render on any input change · C |
@@ -73,9 +73,9 @@ Output: `profile.yaml` listing `cce@17.0.1`, `gcc-native@13`, `rocmcc@6.0.0`,
 the first time**, committed to `stack-content`. Producer: `cluster-inspector`.
 Consumer: render.
 
-**Stage 2 — template set (rare).** `templates/v6/contract.yaml` declares the
-supported compiler/MPI/GPU vocabulary and scope mappings; `configs/*.j2` are the
-Spack component templates. Maintained by the template owner; changes only when
+**Stage 2 — template set (rare).** `templates/v6/defaults.yaml` is the site
+policy (selection + conventions); `configs/*.j2` are the Spack component
+templates. Maintained by the template owner; changes only when
 adding new support. Consumer: render.
 
 **Stage 3 — stack intent (frequent).** `stacks/science-stack/stack.yaml` names
@@ -105,7 +105,7 @@ stack-composer render \
 Output tree `<shared-fs>/rendered/example-cray/science-stack/2026.06/`:
 `environments/cce/mpi-craympich/spack.yaml` (and the other lanes) +
 `configs/**` + `release-manifest.yaml`. Only the lanes in
-`profile ∩ contract ∩ stack` are emitted. This tree is a **regeneratable build
+`profile ∩ defaults ∩ stack` are emitted. This tree is a **regeneratable build
 artifact** — it persists on the shared FS but is rebuilt from inputs, not
 committed. Producer: `stack-composer`. Consumer: the build path.
 
@@ -142,7 +142,7 @@ and templates sit until a system or support change forces a touch.
 
 ## Where the boundaries hold
 
-- Facts come from `cluster-inspector`; policy from contract + stack + templates;
+- Facts come from `cluster-inspector`; policy from defaults + stack + templates;
   rendering from `stack-composer`; building from a build path. No stage reaches
   into another's job (see the orchestration note's driver MUST-NOT list).
 - The rendered tree is regeneratable, not source. Back up the `stack-content`
