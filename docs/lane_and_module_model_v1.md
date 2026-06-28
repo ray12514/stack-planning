@@ -39,13 +39,14 @@ derivation wouldn't produce. A missing lane means the gap is in `profile.yaml` o
 | Kind | Purpose | Built/exposed |
 |---|---|---|
 | **foundation** | build tools + stable-ABI low-level libs (cmake, ninja, pkgconf, zlib, xz, zstd) | once per compiler; **view**-exposed (+compiler) |
-| **core** | compiler-adjacent infrastructure exposed for use | **module**-exposed |
+| **core** | compiler-adjacent infrastructure exposed for use | compiler-init **view** |
 | **serial** | MPI-*capable* package built without MPI by choice (`hdf5~mpi`) | module |
 | **mpi** | built with MPI (osu, `hdf5+mpi`) | module |
 | **gpu** | GPU backend (`+rocm`/`+cuda`), over GPU-aware MPI | module |
 
 A simple stack may use one payload lane and no separate Core. Variant-rich stacks
-use front-door selectors so a user picks exactly one compiler/MPI/GPU surface.
+use front-door compiler-init and lane modules so a user enters one compiler
+surface and then picks exactly one serial/MPI/GPU lane.
 
 ### Per-compiler Core (committed)
 
@@ -162,11 +163,12 @@ genuinely per-compiler site builds at separate prefixes get the annotation.
 
 ## Exposure and module generation
 
-Exposure rule (from `CONTEXT.md`): **foundation → view (+compiler); core/payload →
-modules.** Two exposure modes:
+Exposure rule (from `CONTEXT.md`): **lane-independent foundation/core → compiler
+view (+ compiler); lane-sensitive payload → lane modules.** Two exposure modes:
 
-- **`front_door`** (variant-rich): user loads one lane selector
-  (`ScienceStack/GCC/mpi-craympich`), then package modules from that lane's root.
+- **`front_door`** (variant-rich): user loads one compiler init module
+  (`science_init_gcc`), then one lane module (`science/mpi`), then package
+  modules from that lane's root.
 - **`direct`** (small app stacks): public package modules published directly under
   `modules.publish_root`; the direct module carries the conflict/runtime-prereq
   policy a front-door would.
@@ -205,12 +207,12 @@ init module. Version fan-out belongs behind lane modules or package-specific
 module names, not in the compiler init view.
 
 **Generation (Q4):** render emits a `modules.yaml` scope (driven by tier
-visibility — foundation=internal/build-only, core=internal-unless-public,
-payload=public — and `deployment.module_root`) plus the front-door/direct selector
-templates; the build path runs `spack -e <env> module tcl refresh` to emit the
-package modulefiles. Spack makes package modules; render makes compiler init and
-lane modules. Tcl is the portable baseline (readable by both Environment Modules
-and Lmod); Lmod specifics can layer on later.
+visibility — foundation/core selected for the compiler view, payload=public —
+and `deployment.module_root`) plus the front-door/direct module templates; the
+build path runs `spack -e <env> module tcl refresh` to emit the package
+modulefiles. Spack makes package modules; render makes compiler init and lane
+modules. Tcl is the portable baseline (readable by both Environment Modules and
+Lmod); Lmod specifics can layer on later.
 
 ### Compiler init module anatomy
 
@@ -262,7 +264,7 @@ never hand-maintained.
 ### Lane runtime module requirements
 
 Follows from how the lane's externals were provided:
-- **module-provided external lane** (Cray PE compiler + cray-mpich) → the selector
+- **module-provided external lane** (Cray PE compiler + cray-mpich) → the lane module
   requires those platform modules (`prereq`/check by default; `autoload` only if
   the site opts in). RPATH covers the stack's own binaries, not a user's fresh
   compile or the launcher's search.
@@ -271,8 +273,8 @@ Follows from how the lane's externals were provided:
 - **fully Spack-built lane** → self-contained; no platform prereqs.
 
 Verify per lane with `ldd` whether PE/site runtime libs resolve via RPATH (light
-selector) or need the external's `LD_LIBRARY_PATH` (selector must require the
-modules). Record the answer on a new lane's first build.
+lane module) or need the external's `LD_LIBRARY_PATH` (lane module must require
+the modules). Record the answer on a new lane's first build.
 
 ### Provenance in modulefiles
 
