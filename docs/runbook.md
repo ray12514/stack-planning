@@ -328,17 +328,28 @@ After install, generate package modulefiles for each lane with Spack or the
 selected build tool. The rendered front-door selector modules expect those
 package module roots to exist.
 
-The intended user flow is two-step:
+The intended user flow is a chained module hierarchy:
 
-1. Load an optional site/bootstrap module that only prepends the stack selector
-   root to `MODULEPATH`.
-2. Load exactly one rendered lane selector, for example
-   `ScienceStack/gcc/mpi-craympich`. That selector declares platform prereqs and
-   prepends that lane's package-module roots.
+1. Load the compiler init module, for example `science_init_gcc`. This
+   establishes the compiler layer, exposes the compiler-specific foundation/core
+   view, and prepends the lane-module root to `MODULEPATH`.
+2. Load exactly one rendered lane module, for example `science/mpi`. That lane
+   module declares platform prereqs and prepends only that lane's package-module
+   root.
+3. Load package modules made visible by the selected lane, such as `hdf5` or
+   `osu-micro-benchmarks`.
 
-The bootstrap module must not expose every compiler/MPI/GPU lane at once. Lane
-selectors are the isolation seam; exposing all lanes from the init module makes
-duplicate package names such as serial `hdf5` and MPI `hdf5` ambiguous.
+The compiler init module must not expose package modules from every
+compiler/MPI/GPU lane at once. It may expose only conservative foundation/core
+content that is safe across all lanes for that compiler, such as build tools and
+base libraries. Lane modules are the isolation seam; exposing all package roots
+from the init module makes duplicate package names such as serial `hdf5` and MPI
+`hdf5` ambiguous.
+
+If several versions of a foundation/core package exist in the stack, publish one
+visible version through the compiler init view. Keep extra versions as internal
+build dependencies or expose them only behind lane/package-specific module names.
+Do not let the init module create a global version fan-out.
 
 For an interim fallback, use the view paths recorded in `release-manifest.yaml`
 through a local, non-published shell helper:
@@ -363,7 +374,8 @@ Run at least these checks for every applicable lane:
 | Compiler or wrapper resolves from the intended lane | `which mpicc && mpicc --version` |
 | MPI launcher works on compute nodes | `srun -n 2 hostname` |
 | GPU runtime is visible on a GPU node | `srun rocm-smi` or `srun nvidia-smi` |
-| Selector module exists and isolates one lane | `module load ScienceStack/gcc/mpi-craympich && module avail hdf5` |
+| Compiler init exposes foundation/core and lane modules | `module load science_init_gcc && module avail science` |
+| Lane module isolates one package root | `module load science_init_gcc && module load science/mpi && module avail hdf5` |
 | Representative application runs | Use the stack's existing smoke workload. |
 
 Capture failures before applying temporary environment changes. Correct

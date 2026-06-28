@@ -171,47 +171,88 @@ modules.** Two exposure modes:
   `modules.publish_root`; the direct module carries the conflict/runtime-prereq
   policy a front-door would.
 
-In `front_door` mode, any site/init/bootstrap module is only a discovery gate: it
-prepends the selector-module root so users can see stack lanes. It must not
-prepend package-module roots for every lane. A selector module is the isolation
-seam; after the user loads one selector, only that compiler/core root and that
-lane's package-module root are visible.
+In `front_door` mode, the site/init/bootstrap module is a compiler environment
+gate. For example, `science_init_gcc` establishes the GCC compiler layer, exposes
+the compiler-specific foundation/core view, and prepends the module root where
+the available lane modules for that compiler live. It must not prepend package
+module roots for every MPI/GPU/serial lane. A lane module is the isolation seam:
+after the user loads one lane module, only that lane's package-module root is
+visible.
+
+The user-facing hierarchy is intentionally short:
+
+```text
+science_init_gcc
+  ├─ exposes the GCC foundation/core view
+  └─ exposes lane modules
+       ├─ science/serial
+       ├─ science/mpi
+       └─ science/gpu
+            └─ exposes package modules for that lane
+```
+
+Foundation/core view contents are conservative: build tools and base libraries
+that are safe for every lane under that compiler, such as `cmake`, `zlib`, `xz`,
+and `zstd`. Do not put MPI-dependent, GPU-dependent, or otherwise lane-sensitive
+packages in this view.
+
+If multiple versions of a foundation/core package are present in the stack,
+choose one visible version for the compiler init view. Prefer the version chosen
+by the foundation/core concretization for that compiler, normally the newest
+compatible version selected by the solver. Additional versions may exist as
+build dependencies or lane internals, but they should not all be exposed from the
+init module. Version fan-out belongs behind lane modules or package-specific
+module names, not in the compiler init view.
 
 **Generation (Q4):** render emits a `modules.yaml` scope (driven by tier
 visibility — foundation=internal/build-only, core=internal-unless-public,
 payload=public — and `deployment.module_root`) plus the front-door/direct selector
 templates; the build path runs `spack -e <env> module tcl refresh` to emit the
-package modulefiles. Spack makes package modules; render makes the selectors. Tcl
-is the portable baseline (readable by both Environment Modules and Lmod); Lmod
-specifics can layer on later.
+package modulefiles. Spack makes package modules; render makes compiler init and
+lane modules. Tcl is the portable baseline (readable by both Environment Modules
+and Lmod); Lmod specifics can layer on later.
 
-### Front-door module anatomy
+### Compiler init module anatomy
 
 ```tcl
 #%Module1.0
-module-whatis "ScienceStack lane: CCE 17.0.1 + cray-mpich 8.1.29 (Platform-backed MPI)"
+module-whatis "Science stack GCC compiler environment"
 
-# Conflicts — generated from the resolved lane plan; one per other front-door
-conflict ScienceStack/CCE/serial
-conflict ScienceStack/GCC/mpi-craympich
-# … every other lane …
+# Compiler/platform prereqs for this compiler layer
+prereq gcc-native/13
 
-# Platform-module prerequisites (module-provided externals) — prereq/check by default
-prereq PrgEnv-cray
-prereq cce/17.0.1
+# Foundation/core view: compiler + selected lane-independent tools/libs
+prepend-path PATH             ".../views/gcc/foundation/bin"
+prepend-path CPATH            ".../views/gcc/foundation/include"
+prepend-path LIBRARY_PATH     ".../views/gcc/foundation/lib"
+prepend-path LD_LIBRARY_PATH  ".../views/gcc/foundation/lib"
+
+# Make lane modules visible, but not lane package modules
+prepend-path MODULEPATH ".../modules/gcc/lanes"
+```
+
+### Lane module anatomy
+
+```tcl
+#%Module1.0
+module-whatis "Science stack lane: GCC + cray-mpich 8.1.29"
+
+# Conflicts — generated from the resolved lane plan; one per sibling lane
+conflict science/serial
+conflict science/mpi
+conflict science/gpu
+
+# Platform-module prerequisites for this lane
 prereq cray-mpich/8.1.29
 
 # Stack identity
 setenv STACK_RELEASE   "2026.06"
-setenv STACK_COMPILER  "CCE"
+setenv STACK_COMPILER  "GCC"
 setenv STACK_MODE      "mpi"
-setenv STACK_VIEW      ".../views/cce/mpi-craympich"
+setenv STACK_VIEW      ".../views/gcc/mpi-craympich"
 
-# Compose Core + lane (per-compiler Core, same compiler)
-prepend-path MODULEPATH ".../modules/cce/core"
-prepend-path MODULEPATH ".../modules/cce/mpi-craympich"
-# Front-door does NOT touch PATH/CPATH/LD_LIBRARY_PATH — each package module does
-# that for its own package only, from clean views.
+# Expose package modules for this lane only
+prepend-path MODULEPATH ".../modules/gcc/mpi-craympich/packages"
 ```
 
 `module swap` between lanes works; `module load` of a second lane fails loudly via
