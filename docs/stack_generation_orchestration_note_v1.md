@@ -105,7 +105,7 @@ mandate one; each site picks the mechanism. The driver MUST:
    `profile.yaml`.
 3. **Invoke `render` per target** — one system at a time; never batch profiles
    into a single call.
-4. **Hand each rendered tree to a build path** — `stack tools`, `spack-build`,
+4. **Hand each rendered tree to a build path** — `spacktools`, `spack-build`,
    Ansible, or bare Spack; see `stack_build_handoff_note_v1.md`.
 5. **Record outcomes** — keep each `release-manifest.yaml`; optionally record
    what changed for incremental runs.

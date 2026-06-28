@@ -5,7 +5,7 @@ the build half is handed off:
 
 1. `stack-composer` renders a Spack workspace **tree**; the per-lane `spack.yaml`
    environments plus the `configs/**` scopes they include are the handoff.
-2. Build and concretize are a **co-equal downstream choice** — `stack tools`
+2. Build and concretize are a **co-equal downstream choice** — `spacktools`
    (a separate build/concretize tool), the in-house `spack-build` script,
    Ansible, or bare Spack — not `stack-composer`'s job.
 3. The source content render consumes lives in a hosted **stack-content**
@@ -74,7 +74,7 @@ paths. None is "the default"; a site picks one.
 
 | Path | Use when | Owns |
 |---|---|---|
-| `stack tools` | A site already runs the coworker's build/concretize tool. | Concretize, install, cache, verify, from the rendered tree. |
+| `spacktools` | A site already runs the coworker's build/concretize tool. | Concretize, install, cache, verify, from the rendered tree. |
 | `spack-build` | Local / single-machine builds; the in-house reference script shipped with `stack-composer`. | Per-lane Spack invocation, reports, version-floor check. |
 | Ansible | Multi-host production clusters. | Per-host orchestration; may call `spack-build` or replicate its loop. |
 | Bare Spack | Manual fallback, debugging; always available with no helper installed. | The operator runs `spack concretize`/`install` by hand. |
@@ -143,23 +143,23 @@ recommendation. There may be more than one stack-content repo (per team or
 per stack family); the pattern is the same. For how render is driven across
 systems and when to re-render, see `stack_generation_orchestration_note_v1.md`.
 
-## stack tools integration boundary
+## spacktools integration boundary
 
 | Concern | Owner |
 |---|---|
 | Validate inputs, resolve intent, render the workspace tree | `stack-composer` |
 | Choose install tree / caches / view & module roots | **Installer** via `deployment.yaml` (or build-time flags); profile offers candidates only, never auto |
-| Concretize, fetch, install, smoke/verify | `stack tools` (or `spack-build` / Ansible / bare Spack) |
+| Concretize, fetch, install, smoke/verify | `spacktools` (or `spack-build` / Ansible / bare Spack) |
 | Buildcache push | The build path, per stack policy |
 
-`stack tools` is an external peer. `stack-planning` owns the rendered-workspace
-contract it consumes; it does not own `stack tools`' internals.
+`spacktools` is an external peer. `stack-planning` owns the rendered-workspace
+contract it consumes; it does not own `spacktools`' internals.
 
 ## Open questions
 
 Confirm with first-system testing and bring evidence back here:
 
-1. Does `stack tools` consume the **whole tree** intact (relative `include::`),
+1. Does `spacktools` consume the **whole tree** intact (relative `include::`),
    or want absolute include paths, a flattened single `spack.yaml`, or a
    different root?
 2. Does it honor the rendered `config.yaml` roots, or supply its own
@@ -167,18 +167,18 @@ Confirm with first-system testing and bring evidence back here:
 3. Does it fetch stack-content by **cloning GitLab** or by reading the
    **shared-FS** synced copy?
 4. Who owns **concretizer policy** (`unify`/`reuse`) and **Spack version-floor**
-   enforcement — `stack tools` or us?
-5. Does `stack tools` also cover **multi-host** orchestration (overlap with
+   enforcement — `spacktools` or us?
+5. Does `spacktools` also cover **multi-host** orchestration (overlap with
    Ansible), or single-host build only?
 6. Who owns **buildcache push** destinations?
-7. Does `stack tools` run a Spack that supports remote/URL `include::` (config
+7. Does `spacktools` run a Spack that supports remote/URL `include::` (config
    delivery mode B), or only local workspace trees?
 
 ## Definition of done for the handoff
 
 The handoff is v1-ready when:
 
-- the rendered workspace tree builds under at least `stack tools` and
+- the rendered workspace tree builds under at least `spacktools` and
   `spack-build` from the same inputs;
 - the install tree, caches, and view/module roots are resolvable either from a
   rendered `config.yaml` or a build-time override, with a clear error when

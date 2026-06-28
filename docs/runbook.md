@@ -3,7 +3,7 @@
 Alpha end-to-end sequence for the first real-hardware runs on Cray and
 Penguin systems. This is not a production deployment runbook yet. The goal is
 to exercise `cluster-inspector`, `stack-composer`, the chosen build path
-(`spack-build` or `stack tools`), and Spack on real systems, identify missing
+(`spack-build` or `spacktools`), and Spack on real systems, identify missing
 model fields or rendering gaps, and bring those findings back to the source
 repositories.
 
@@ -23,7 +23,7 @@ v1 release.
 | Install tree / `config.yaml` | `deployment.yaml` is the render input for installer-chosen paths. The profile reports filesystem candidates only. | For the first test, fill `deployment.yaml` with the selected install tree, build stage, source cache, misc cache, view root, module root, and buildcache destination. |
 | Module exposure | Phase 9 is still open. Front-door/lane modulefiles are not generated yet. | Use temporary shell/view exposure only. Record required prereqs and MODULEPATH behavior for the module design. |
 | MPI provider policy | `mpi.source: auto` uses reported MPI provider metadata and profile order unless defaults supplies a provider-family priority list. | Start with a simple lane whose external MPI/provider behavior is already represented in the profile/template. Record any cross-compiler MPI/provider gaps. |
-| Build/cache orchestration | A co-equal build path drives lanes — `stack tools`, `spack-build`, Ansible, or bare Spack; production cache policy may be owned by other site tools. | Pick one build path. With `spack-build`, use `--skip-push` unless this test is explicitly exercising cache publication. |
+| Build/cache orchestration | A co-equal build path drives lanes — `spacktools`, `spack-build`, Ansible, or bare Spack; production cache policy may be owned by other site tools. | Pick one build path. With `spack-build`, use `--skip-push` unless this test is explicitly exercising cache publication. |
 
 Because no v1 deployment exists yet, do not preserve compatibility with
 previous alpha contract shapes. If a field or layout is wrong, change the
@@ -290,9 +290,9 @@ from `deployment.yaml`. Record which mode this run used.
 
 ## Stage 3 — Build
 
-Build is a **co-equal choice** of build path — `stack tools`, `spack-build`,
+Build is a **co-equal choice** of build path — `spacktools`, `spack-build`,
 Ansible, or bare Spack. Pick the one this site will operate. The example below
-uses the in-house `spack-build`; to hand off to `stack tools` instead, give it
+uses the in-house `spack-build`; to hand off to `spacktools` instead, give it
 the rendered workspace tree (or the remote-direct config URLs) and let it run
 concretize + install. See `stack_build_handoff_note_v1.md`.
 

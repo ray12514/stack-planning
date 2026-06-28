@@ -8,6 +8,23 @@ The matching prose lives in `../docs/stack_generation_structure_v1.md`,
 No v1 release has shipped. Until then, update these v1 schemas directly when the
 model changes; do not add compatibility paths for unused alpha shapes.
 
+## Source of truth & sync
+
+This directory is the **single source of truth**. Consumers keep their own copies
+for self-contained runtime and sync **from here**:
+
+- **stack-composer** bundles all 6 at `src/stack_composer/schemas/` — refresh with
+  `scripts/sync-schema.sh` (auto-run by `scripts/build-pyz.sh` when stack-planning
+  is adjacent). Guarded by `tests/test_schema_drift.py`.
+- **cluster-inspector** embeds `profile-v1.json` at
+  `internal/resources/profile_schema.json` — refresh with `make sync-schema`.
+  Guarded by `internal/resources/schema_drift_test.go`.
+
+**Bump workflow:** edit the schema here → run each consumer's sync → run the drift
+guards (they fail if a copy is stale; in CI, check out stack-planning adjacent so
+they run instead of skipping). Future state once the repos move to the GitLab
+group: publish a versioned schema artifact that consumers pin.
+
 ## Files
 
 | Schema | Purpose |

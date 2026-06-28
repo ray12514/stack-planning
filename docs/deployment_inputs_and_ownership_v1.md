@@ -128,7 +128,7 @@ Two different locations, easily confused:
 `stack-composer` needs neither — render is Spack-free; Spack location only
 matters once a build path starts. See v6 § Three-Layer Version Model and
 § Acquiring And Installing Spack for the floor/pin/root split and the
-site-module vs per-version-clone patterns. How `stack tools` locates Spack is
+site-module vs per-version-clone patterns. How `spacktools` locates Spack is
 part of its contract (open question in `stack_build_handoff_note_v1.md`).
 
 ## Status and open questions

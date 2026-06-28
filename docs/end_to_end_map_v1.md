@@ -26,7 +26,7 @@ No v1 stack release has been deployed yet. This map is changeable pre-v1.
 | `stack-content` (GitLab repo) | The hosted source of truth render consumes; synced to each target's shared filesystem. |
 | Driver (Make / CI / Ansible / shell) | Thin, external. Loops render over targets and hands trees to a build path. Owns no policy. See orchestration note. |
 | `stack-composer` (Python `.pyz`) | Validates inputs, resolves intent, renders the workspace tree. Never calls Spack. |
-| Build path | One of: `stack tools`, `spack-build`, Ansible, bare Spack. Concretizes + installs the rendered tree. |
+| Build path | One of: `spacktools`, `spack-build`, Ansible, bare Spack. Concretizes + installs the rendered tree. |
 | Spack | The concretizer/installer the build path drives. |
 
 ## The flow (master table)
@@ -41,7 +41,7 @@ No v1 stack release has been deployed yet. This map is changeable pre-v1.
 | 3 | Author stack intent | package needs | Package manager | editor | `stacks/<stack>/stack.yaml` (+ `package-sets/`) | render | hand-done; **most frequent** · C |
 | 4 | Sync source to shared FS | `stack-content` (GitLab) | Driver / CI | `git clone`/`pull` (or GitLab-direct, no sync) | `stack-content` on shared FS (or remote URLs) | render | automatable from day one · C |
 | 5 | Render | profile + stack + templates + package-sets + **`deployment.yaml`** | Driver invokes | `stack-composer render` | rendered workspace tree: `configs/**`, `environments/**/spack.yaml`, `release-manifest.yaml` | build path | automatable; re-render on any input change · C |
-| 6 | Build + concretize | rendered workspace tree | Site | a build path (`stack tools` / `spack-build` / Ansible / bare Spack) | install tree, `spack.lock` per lane, buildcache | Spack, users | first run validated by hand; then automatable · C |
+| 6 | Build + concretize | rendered workspace tree | Site | a build path (`spacktools` / `spack-build` / Ansible / bare Spack) | install tree, `spack.lock` per lane, buildcache | Spack, users | first run validated by hand; then automatable · C |
 | 7 | Expose | installed lanes + manifest | Site / publish | `stack-composer publish-manifest` + module/view emission | modules, views, final manifest, `current` symlink | users | per release · C |
 | 8 | Validate | installed lanes | Operator | smoke tests | pass/fail evidence | release record | per release · C |
 
@@ -116,7 +116,7 @@ from inputs, not committed. Producer: `stack-composer`. Consumer: the build path
 # in-house local path
 spack-build --workspace <shared-fs>/rendered/example-cray/science-stack/2026.06 \
   --spack-root "$SPACK_ROOT"
-# or hand the same tree (or its GitLab-direct URLs) to `stack tools`,
+# or hand the same tree (or its GitLab-direct URLs) to `spacktools`,
 # or drive it from Ansible, or run bare `spack -e <env> install`.
 ```
 
