@@ -134,6 +134,15 @@ def profile_negatives(base: dict) -> list[tuple[str, dict, str]]:
             "system_externals/0/detection",
         ),
         (
+            "mpi_provider with neither prefix nor flavors",
+            with_mutation(
+                base,
+                ["mpi_providers", 0],
+                {"name": "cray-mpich", "version": "8.1.30", "provider_family": "platform"},
+            ),
+            "mpi_providers/0",
+        ),
+        (
             "extra top-level key",
             with_mutation(base, ["unexpected_field"], "uh oh"),
             "<root>",
