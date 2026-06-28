@@ -37,8 +37,20 @@ Exposure rule: **foundation → view (+ compiler); core → modules.**
 - **Lane** — one rendered build target: a single (compiler × optional MPI
   provider × optional GPU arch) combination at a chosen CPU target. The unit a
   Spack environment is rendered and built for.
+- **Toolchain** — a compiler-matched MPI binding: the pairing that pins which
+  MPI build (flavor) a given compiler resolves to, so an abstract spec
+  (`hdf5+mpi`) materializes as a concrete build bound to the right compiler +
+  MPI. Originates from Spack spec mechanics. Canonical case: Cray `cray-mpich`'s
+  per-compiler (per-PrgEnv) builds, where each compiler must land on its matching
+  MPI prefix. It is the per-lane (compiler, MPI) binding viewed from the spec
+  side; how it is realized (per-compiler `%compiler` externals, or a named
+  `toolchains.yaml` decoration) is an implementation choice, not the concept.
 - **Provider family** — where a compiler or MPI comes from: `platform` (a vendor
   programming environment such as Cray PE), `site` (site-built), or `system` (OS
   package).
 - **Platform family** — the specific platform a `platform` provider belongs to
   (e.g. `cray-pe`); detail beneath `provider_family: platform`.
+- **Programming environment (CPE) version** — on Cray, the (compiler, MPI)
+  toolchain is bound per CPE release: choosing a CPE version selects a coherent
+  compiler + its matched `cray-mpich`. A profile may report several CPE versions;
+  a build selects one (default: the latest).
