@@ -11,9 +11,10 @@ two *base* tiers (foundation, core) beneath three *payload* tiers (serial, mpi,
 gpu).
 
 - **Foundation** — base libraries and build substrate, off the MPI/GPU axis,
-  built once and shared across stacks. The substrate every lane sits on. (e.g.
-  zlib, xz, zstd.)
-- **Core** — base packages and tooling exposed for direct use. (e.g. cmake.)
+  built once per compiler and shared across lanes. The substrate every lane sits
+  on. (e.g. zlib, xz, zstd.)
+- **Core** — lane-independent tools and packages safe to expose at the compiler
+  layer. (e.g. cmake.)
 - **Serial** — an MPI-*capable* package built **without** MPI by deliberate
   choice. The defining trait is the choice to omit MPI, not the absence of MPI
   support. (e.g. `hdf5~mpi`.)
@@ -25,12 +26,14 @@ gpu).
 
 How a tier is made available to a user who enters a lane.
 
-- **View** — a merged filesystem tree presented to the lane. How **foundation**
-  packages, together with the compiler, are made available. No modulefiles.
-- **Module** — a generated modulefile the user loads. How **core** packages are
-  made available (and the payload tiers likewise).
+- **View** — a merged filesystem tree presented to a compiler environment or
+  lane. How **foundation** packages, selected **core** tools, and the compiler
+  are made available. No package modulefiles.
+- **Module** — a generated modulefile the user loads. How lane choices and
+  payload tiers are made available.
 
-Exposure rule: **foundation → view (+ compiler); core → modules.**
+Exposure rule: **lane-independent foundation/core → compiler view (+ compiler);
+lane-sensitive payload → lane modules.**
 
 ## Other terms
 
