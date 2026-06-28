@@ -171,6 +171,12 @@ modules.** Two exposure modes:
   `modules.publish_root`; the direct module carries the conflict/runtime-prereq
   policy a front-door would.
 
+In `front_door` mode, any site/init/bootstrap module is only a discovery gate: it
+prepends the selector-module root so users can see stack lanes. It must not
+prepend package-module roots for every lane. A selector module is the isolation
+seam; after the user loads one selector, only that compiler/core root and that
+lane's package-module root are visible.
+
 **Generation (Q4):** render emits a `modules.yaml` scope (driven by tier
 visibility — foundation=internal/build-only, core=internal-unless-public,
 payload=public — and `deployment.module_root`) plus the front-door/direct selector

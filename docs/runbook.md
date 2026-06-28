@@ -328,6 +328,18 @@ After install, generate package modulefiles for each lane with Spack or the
 selected build tool. The rendered front-door selector modules expect those
 package module roots to exist.
 
+The intended user flow is two-step:
+
+1. Load an optional site/bootstrap module that only prepends the stack selector
+   root to `MODULEPATH`.
+2. Load exactly one rendered lane selector, for example
+   `ScienceStack/gcc/mpi-craympich`. That selector declares platform prereqs and
+   prepends that lane's package-module roots.
+
+The bootstrap module must not expose every compiler/MPI/GPU lane at once. Lane
+selectors are the isolation seam; exposing all lanes from the init module makes
+duplicate package names such as serial `hdf5` and MPI `hdf5` ambiguous.
+
 For an interim fallback, use the view paths recorded in `release-manifest.yaml`
 through a local, non-published shell helper:
 
@@ -351,6 +363,7 @@ Run at least these checks for every applicable lane:
 | Compiler or wrapper resolves from the intended lane | `which mpicc && mpicc --version` |
 | MPI launcher works on compute nodes | `srun -n 2 hostname` |
 | GPU runtime is visible on a GPU node | `srun rocm-smi` or `srun nvidia-smi` |
+| Selector module exists and isolates one lane | `module load ScienceStack/gcc/mpi-craympich && module avail hdf5` |
 | Representative application runs | Use the stack's existing smoke workload. |
 
 Capture failures before applying temporary environment changes. Correct
