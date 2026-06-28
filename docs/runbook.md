@@ -231,6 +231,14 @@ Validate the inputs, then render a deterministic workspace. The vendor scope is
 chosen automatically from the profile's provider families — no selector block to
 configure.
 
+**Targets on multi-partition CPU systems.** A cpu/mpi build resolves its CPU
+lane against the first runtime CPU node type only (`node_types[0]`), at that
+node's `native` uarch; GPU builds fan out across every GPU node, but CPU builds
+do not yet fan out across distinct CPU uarchs. On a system with several CPU
+partitions of differing uarch, set `target: baseline` so the single build is
+portable across all of them — `target: native` would tune only to the first
+partition and risk illegal-instruction faults on the others.
+
 ```bash
 python3 stack-composer.pyz validate \
   --profile ./profile.yaml \
