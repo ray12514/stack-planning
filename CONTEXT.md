@@ -57,3 +57,8 @@ lane-sensitive payload → lane modules.**
   toolchain is bound per CPE release: choosing a CPE version selects a coherent
   compiler + its matched `cray-mpich`. A profile may report several CPE versions;
   a build selects one (default: the latest).
+- **Manual config catalog** — a maintainer-generated set of complete Spack
+  configuration YAML files for one system, derived from `profile.yaml` facts and
+  site policy for manual/package-manager use. Users write their own `spack.yaml`
+  and include catalog files; this is separate from the managed stack workspace
+  render, where Stack Composer writes the full environment.
