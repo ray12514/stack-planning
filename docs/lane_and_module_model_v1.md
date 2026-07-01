@@ -143,6 +143,22 @@ On a single CPE this pins the current compiler/MPI pair. Across CPE versions,
 tag providers with `cpe_version` and bind on matching version (deferred; run #1
 = latest CPE only).
 
+**Toolchain naming and same-name multi-version MPI (generic Linux).** Toolchain
+names stay unversioned (`gcc_craympich`, `gcc_openmpi`) while a provider name
+maps to exactly one version on the system — the versions are pinned inside the
+toolchain entries, and Spack's own examples use unversioned names. When a
+profile reports the *same provider name at more than one version* (two openmpi
+installs on a generic Linux box — a real case Cray never hits, since one CPE
+carries one pairing), the name alone would collide as a YAML key and one
+version would silently vanish. So: (1) each version's toolchain key carries its
+version (`aocc_openmpi_4.1.6`, `aocc_openmpi_5.0.3`) so both pairings render;
+(2) a build that resolves to an ambiguous provider name must set `mpi.version`
+in `stack.yaml` — unpinned ambiguity is a hard render error, never a silent
+first-match pick or a silent skip; (3) build-sourced (Spack-built) MPI lanes
+get a toolchain too, pinning the provider but not the version
+(`%mpi=openmpi`) — the scope's `packages.yaml` `mpi:` requirement keeps the
+lane's provider singular while Spack resolves the version.
+
 **Externals carry no `%compiler`** — an external is a pre-existing binary the stack
 didn't build. The **only** exception is Cray PE per-flavor `cray-mpich`, where
 `%compiler` names which real binary the spec refers to (the per-flavor `prefix:`
