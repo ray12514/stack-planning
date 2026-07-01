@@ -129,19 +129,29 @@ cray-mpich@8.1.29 %gcc    -> /opt/cray/pe/mpich/8.1.29/ofi/gnu/13.3
 cray-mpich@8.1.29 %rocmcc -> /opt/cray/pe/mpich/8.1.29/ofi/amd/6.0
 ```
 
-**Realization in the current model:** each lane is a per-compiler environment, and
-the `cray-mpich` scope emits each flavor as a per-compiler external
-(`cray-mpich@v %<compiler>` at its flavor prefix). Spack's native `%compiler`
-matching binds the lane's compiler to its flavor — no separate `toolchains.yaml`
-or `%name` spec decoration. On a single CPE this is sufficient; across CPE
-versions, tag providers with `cpe_version` and bind on matching version (deferred;
-run #1 = latest CPE only).
+**Realization in the current model:** each lane is a per-compiler environment.
+The MPI provider scope emits two related Spack config files:
+
+- `packages.yaml` declares the concrete MPI externals, including per-compiler
+  flavor specs such as `cray-mpich@v %gcc` when the underlying binary really is
+  compiler-specific.
+- `toolchains.yaml` declares named toolchains such as `gcc_craympich`; applicable
+  root specs are decorated with `%gcc_craympich` so Spack applies the compiler
+  and MPI binding atomically.
+
+On a single CPE this pins the current compiler/MPI pair. Across CPE versions,
+tag providers with `cpe_version` and bind on matching version (deferred; run #1
+= latest CPE only).
 
 **Externals carry no `%compiler`** — an external is a pre-existing binary the stack
 didn't build. The **only** exception is Cray PE per-flavor `cray-mpich`, where
 `%compiler` names which real binary the spec refers to (the per-flavor `prefix:`
 makes it observable). A site MPI built once and reused has no `%compiler`; only
 genuinely per-compiler site builds at separate prefixes get the annotation.
+
+Do not replace toolchain binding with `packages.all.require: ["%gcc"]`. That
+over-constrains non-compiler system externals. Compiler/MPI lane binding belongs
+in `toolchains.yaml` plus the root spec's `%<toolchain_name>` decoration.
 
 ## Externalization
 

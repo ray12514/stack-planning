@@ -45,9 +45,10 @@ lane-sensitive payload → lane modules.**
   (`hdf5+mpi`) materializes as a concrete build bound to the right compiler +
   MPI. Originates from Spack spec mechanics. Canonical case: Cray `cray-mpich`'s
   per-compiler (per-PrgEnv) builds, where each compiler must land on its matching
-  MPI prefix. It is the per-lane (compiler, MPI) binding viewed from the spec
-  side; how it is realized (per-compiler `%compiler` externals, or a named
-  `toolchains.yaml` decoration) is an implementation choice, not the concept.
+  MPI prefix. In managed renders, Stack Composer realizes this as real Spack
+  `toolchains.yaml` entries and decorates applicable root specs with
+  `%<toolchain_name>`; the MPI provider scope still declares the matching
+  externals in `packages.yaml`.
 - **Provider family** — where a compiler or MPI comes from: `platform` (a vendor
   programming environment such as Cray PE), `site` (site-built), or `system` (OS
   package).
