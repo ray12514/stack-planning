@@ -25,6 +25,33 @@ system.
 No additional contract layer is required. Site policy lives in `defaults.yaml`;
 render mechanics live in templates; Spack already models compiler/MPI selection.
 
+## Template sets are output contracts, not system forks
+
+`templates/<set>/` names the render output contract. It is not a place to fork
+policy per system.
+
+Keep one active template set unless the generated output shape must be supported
+side-by-side. Normal changes should be ordinary version-controlled edits to the
+active set, not new template directories.
+
+Create a new template set only for a real contract break, such as:
+
+- an old production stack must keep the old workspace layout while a new one
+  uses a new layout;
+- a future Spack version requires materially different config syntax or include
+  behavior;
+- a separate product output, such as the future manual config catalog, diverges
+  enough that sharing the managed-workspace templates becomes confusing.
+
+Do **not** create separate template sets for Cray vs. Linux, Blueback vs. another
+system, ROCm vs. CUDA, or a new compiler/MPI provider. Those differences belong
+in `profile.yaml`, `deployment.yaml`, `defaults.yaml`, provider scopes, and
+config templates inside the active set.
+
+Pre-v1, `templates/v6` is the current active working set and can be changed
+directly. Before the first stable release, rename or freeze it as a clearer
+contract name such as `templates/hpc-v1` if the model has stabilized.
+
 ## defaults.yaml — site policy, one file, write as policy not lists
 
 `defaults.yaml` is **one per site** (lives in `templates/<set>/`), merged into
