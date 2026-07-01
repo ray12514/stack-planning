@@ -135,29 +135,27 @@ The MPI provider scope emits two related Spack config files:
 - `packages.yaml` declares the concrete MPI externals, including per-compiler
   flavor specs such as `cray-mpich@v %gcc` when the underlying binary really is
   compiler-specific.
-- `toolchains.yaml` declares named toolchains such as `gcc_craympich`; applicable
-  root specs are decorated with `%gcc_craympich` so Spack applies the compiler
-  and MPI binding atomically.
+- `toolchains.yaml` declares named toolchains such as
+  `gcc1330_craympich8129`; applicable root specs are decorated with
+  `%gcc1330_craympich8129` so Spack applies the compiler and MPI binding
+  atomically.
 
 On a single CPE this pins the current compiler/MPI pair. Across CPE versions,
 tag providers with `cpe_version` and bind on matching version (deferred; run #1
 = latest CPE only).
 
 **Toolchain naming and same-name multi-version MPI (generic Linux).** Toolchain
-names stay unversioned (`gcc_craympich`, `gcc_openmpi`) while a provider name
-maps to exactly one version on the system — the versions are pinned inside the
-toolchain entries, and Spack's own examples use unversioned names. When a
-profile reports the *same provider name at more than one version* (two openmpi
-installs on a generic Linux box — a real case Cray never hits, since one CPE
-carries one pairing), the name alone would collide as a YAML key and one
-version would silently vanish. So: (1) each version's toolchain key carries its
-version (`aocc_openmpi_4.1.6`, `aocc_openmpi_5.0.3`) so both pairings render;
-(2) a build that resolves to an ambiguous provider name must set `mpi.version`
-in `stack.yaml` — unpinned ambiguity is a hard render error, never a silent
-first-match pick or a silent skip; (3) build-sourced (Spack-built) MPI lanes
-get a toolchain too, pinning the provider but not the version
-(`%mpi=openmpi`) — the scope's `packages.yaml` `mpi:` requirement keeps the
-lane's provider singular while Spack resolves the version.
+names are Spack-spec-token-safe slugs: package names and versions are folded to
+letters/numbers only because the name is referenced as `%<toolchain_name>` in
+root specs. When versions are known, the key includes both compiler and MPI
+versions, e.g. `aocc420_openmpi503` or `gcc1330_craympich8129`. This avoids two
+classes of collision: multiple compiler versions for one family, and multiple
+MPI versions for one provider. A build that resolves to an ambiguous provider
+name must set `mpi.version` in `stack.yaml` — unpinned ambiguity is a hard render
+error, never a silent first-match pick or a silent skip. Build-sourced
+(Spack-built) MPI lanes get a toolchain too, pinning the provider but not the
+MPI version (`%mpi=openmpi`) — the scope's `packages.yaml` `mpi:` requirement
+keeps the lane's provider singular while Spack resolves the version.
 
 **Externals carry no `%compiler`** — an external is a pre-existing binary the stack
 didn't build. The **only** exception is Cray PE per-flavor `cray-mpich`, where

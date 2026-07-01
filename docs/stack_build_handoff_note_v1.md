@@ -58,7 +58,7 @@ spack:
     - ../../../configs/mpi/cray-mpich
     - ../../../configs/target/zen3
   specs:
-    - hdf5@1.14.5+mpi+fortran %cce_craympich
+    - hdf5@1.14.5+mpi+fortran %cce1701_craympich8129
 ```
 
 Contract consequence: a lone `spack.yaml` is **not** self-contained. The build

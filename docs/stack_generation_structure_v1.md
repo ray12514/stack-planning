@@ -136,8 +136,9 @@ gpu). So `compilers: [gcc, aocc]` + `kind: mpi` = two lanes. Each lane →
 
 For managed mpi/gpu lanes, Stack Composer also renders real Spack
 `toolchains.yaml` files in the selected MPI provider scope and decorates root
-specs with the matching `%<toolchain_name>` (for example `%gcc_craympich`). This
-is what binds the lane's compiler to the MPI flavor built for that compiler.
+specs with the matching `%<toolchain_name>` (for example
+`%gcc1330_craympich8129`). This is what binds the lane's compiler to the MPI
+flavor built for that compiler.
 Manual users may ignore the generated lane and author explicit Spack specs or
 include the rendered config scopes directly; Stack Composer should still show
 the available compiler/MPI pairings from `profile.yaml`.
