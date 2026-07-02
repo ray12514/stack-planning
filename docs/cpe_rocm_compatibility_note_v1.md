@@ -55,3 +55,8 @@ CPE-locked pairing logic on NVIDIA systems.
   ROCm 7-era CPE. The known-good Kokkos baseline was the prior CPE, so the
   oracle diff is structural (flavor paths, toolchain binding), not
   version-exact.
+- **GTL packaging direction**: for the first smoke run, an explicit GTL
+  `LD_PRELOAD` workaround is acceptable if required. Pre-v1, move toward a
+  package-repo-backed Cray runtime model instead of embedding GTL/PALS/PMI
+  special cases in Stack Composer. See
+  `cray_runtime_package_repo_note_v1.md`.

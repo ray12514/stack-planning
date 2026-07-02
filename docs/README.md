@@ -18,6 +18,7 @@ Human-readable contracts for the stack-planning system. The JSON Schemas in
 | `deployment_inputs_and_ownership_v1.md` | Auto-vs-explicit ownership and the `deployment.yaml` overlay; the install tree is never auto-derived. |
 | `manual_config_catalog_note_v1.md` | Follow-up manual-user product: render complete reusable Spack config YAML files from profile facts without generating a managed environment. |
 | `pre_v1_hosting_and_external_inventory_note_v1.md` | Four-repo GitLab layout, the stack-content repo, and the (realized) provider-family generalization. |
+| `cray_runtime_package_repo_note_v1.md` | Follow-up Cray runtime package-repo direction: GTL, PMI/PALS, libfabric/CXI, and removing LD_PRELOAD workarounds. |
 | `cluster_inspector_stack_profile_design_v1.md` | `cluster-inspector` boundary, CLI, packaging. |
 | `cluster_inspector_profile_extraction_map_v1.md` | Field-by-field extraction map for `profile.yaml` (provider inventories). |
 | `../schemas/README.md` | The schemas (`profile`, `defaults`, `stack`, `package-set`, `release-manifest`). |

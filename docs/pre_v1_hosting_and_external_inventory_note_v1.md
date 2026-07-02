@@ -181,6 +181,28 @@ Do not add more Cray-only render branches without checking whether the same
 information is really a compiler, MPI, GPU toolkit, fabric, or system external
 provider fact.
 
+## Duplicate provider facts
+
+Duplicate providers are primarily a `cluster-inspector` / profile-quality issue,
+not a Stack Composer probing problem.
+
+The intended ownership split is:
+
+- `cluster-inspector` should merge observations that describe the same provider
+  instance. Same name/version/prefix/module evidence should become one profile
+  entry with combined evidence, not several externals.
+- If two entries share `name@version` but have different prefixes, modules, or
+  provenance, the profile should keep both entries or mark the ambiguity with
+  enough evidence for policy to choose. They are not automatically equivalent.
+- `stack-composer` should never silently choose between two non-equivalent
+  providers that satisfy the same compiler/MPI request. It should either consume
+  a unique provider fact, apply explicit stack/content policy, or fail before
+  Spack concretization with a clear ambiguity issue.
+
+This avoids pushing host-probing heuristics into Stack Composer. Stack Composer
+can validate and select from `profile.yaml`; it should not go back to the host
+to decide which provider is "real."
+
 ## Current ROCm/GPU toolkit behavior
 
 ROCm is already modeled closer to the desired shape than OpenSSL/curl:
