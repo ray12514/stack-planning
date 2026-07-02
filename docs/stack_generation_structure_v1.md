@@ -65,7 +65,7 @@ identical everywhere:
 schema_version: 1
 
 # What to build, from what the profile reports. A stack may override any of these.
-compilers: baseline            # baseline (gcc-or-first, lean default) | all (fan out) | [gcc, cce]
+compilers: baseline            # baseline (gcc-or-first) | all | [gcc, cce] | [aocc@4.2.0]
 mpi:    { provider: openmpi, source: auto }    # source: auto | build | platform
 gpu:    { archs: all }                         # all reported, or [gfx90a, sm_80]
 target: native                 # native | baseline | <explicit, e.g. x86_64_v3>
@@ -79,7 +79,9 @@ release:    { save_lockfiles: true, save_manifest: true }
 ```
 
 `compilers: all` resolves to `{cce, gcc, …}` on a Cray and `{gcc, aocc}` on
-Penguin — same file, same rule, different menu.
+Penguin — same file, same rule, different menu. If the profile reports multiple
+versions of one compiler family, a bare selection such as `aocc` is rejected;
+select the provider exactly, for example `aocc@4.2.0`.
 
 ## Selecting compilers/MPI/GPU is a default + an override, never a new file
 
@@ -109,6 +111,9 @@ renders a `spack.yaml` for):
 2. `compilers` = (build override or `defaults.compilers`) resolved against
    `profile`: `baseline` → gcc-or-first (the lean default); `all` → every reported
    compiler; a list → intersect with reported (an absent one is a clear error).
+   A list item may be a bare family (`gcc`) or an exact provider
+   (`aocc@4.2.0`). If a bare family matches multiple profile providers, render
+   fails with an ambiguity error rather than picking the first one.
    For an mpi/gpu build using a **platform** MPI, a non-explicit selection
    (`baseline`/`all`) is **auto-narrowed** to the compilers that MPI was built
    against (its `compatibility` + flavor keys); an explicit list is honored
@@ -129,8 +134,8 @@ renders a `spack.yaml` for):
    not a hardcoded renderer branch.
 
 Lanes = selected compilers × (the MPI provider, if mpi/gpu) × (each GPU arch, if
-gpu). So `compilers: [gcc, aocc]` + `kind: mpi` = two lanes. Each lane →
-`environments/<compiler>/<lane>/spack.yaml` that `include::`s the scopes it needs
+gpu). So `compilers: [gcc, aocc@4.2.0]` + `kind: mpi` = two lanes. Each lane →
+`environments/<compiler-axis>/<lane>/spack.yaml` that `include::`s the scopes it needs
 (`common`, `os/<family>`, `target/<uarch>`, vendor, `mpi/<provider>`,
 `gpu/<toolkit>`). Everything inside a lane is Spack's job — we do not re-model it.
 

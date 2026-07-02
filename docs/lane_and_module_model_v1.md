@@ -25,7 +25,10 @@ A **lane** is one rendered build target: a single (compiler × optional MPI
 provider × optional GPU arch) at a chosen CPU target. Each lane is a normal,
 independently-concretized Spack environment with its **own `spack.yaml`,
 lockfile, view, and module root** — e.g. `gcc/core`, `cce/mpi-craympich`,
-`gcc/gpu-craympich-gfx942`.
+`gcc/gpu-craympich-gfx942`. If the profile has multiple versions of one
+compiler family, an exact compiler selection such as `aocc@4.2.0` gets a
+versioned lane axis such as `aocc420` so environment paths and toolchain names
+do not collide.
 
 **Lanes are derived, not enumerated.** The renderer computes the lane set by
 resolving `profile ∩ defaults ∩ per-build override` (compilers × MPI provider ×
