@@ -96,6 +96,13 @@ in Spack core consumes `gtl_lib`; a dependent package must call
 search (2026-07-03) found exactly one consumer: LAMMPS. Kokkos, OSU, and HDF5
 do not opt in, so no spec spelling makes GTL link for them via upstream alone.
 
+Even LAMMPS's opt-in only fires when the *whole chain* is decorated: the
+LAMMPS spec itself must be `+rocm`/`+cuda` (GPU support expressed only on a
+`kokkos` dependency does not trigger it), and the `cray-mpich` external spec
+must carry `+rocm amdgpu_target=...` for `gtl_lib` to resolve anything.
+Otherwise it degrades silently — build succeeds, GTL never links (observed
+firsthand on a real Cray LAMMPS+Kokkos/gfx942 build, ~2026-04).
+
 Timeline evidence that upstream will not generalize this soon: the mechanism
 landed 2025-02-12 as one effort (spack/spack #45830 "adding *partial* GTL
 support" + #46090 "lammps: use the Cray GTL", same day); since then a PR to
