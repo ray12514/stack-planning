@@ -95,6 +95,14 @@ in Spack core consumes `gtl_lib`; a dependent package must call
 `spec["cray-mpich"].package.gtl_lib` in its own `flag_handler`. A repo-wide
 search (2026-07-03) found exactly one consumer: LAMMPS. Kokkos, OSU, and HDF5
 do not opt in, so no spec spelling makes GTL link for them via upstream alone.
+
+Timeline evidence that upstream will not generalize this soon: the mechanism
+landed 2025-02-12 as one effort (spack/spack #45830 "adding *partial* GTL
+support" + #46090 "lammps: use the Cray GTL", same day); since then a PR to
+opt OSU micro-benchmarks in (spack-packages #1164) went stale and closed
+unmerged (2026-05), and a PR to attach GTL by default when the GPU variant is
+set (spack-packages #1444) was closed unmerged (2025-09). One consumer in ~17
+months, default-attach rejected.
 Externals are opaque to Spack — no post-install patchelf is possible on
 `/opt/cray` binaries — which is why universal attachment needs the
 CSCS-style *buildable* repackaging (patchelf `--add-needed` at install time)
