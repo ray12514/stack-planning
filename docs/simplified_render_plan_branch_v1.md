@@ -199,13 +199,13 @@ rg -n '\{[%#]|if |elif |for ' templates tests/fixtures/template-sets || true
 
 For branch notes, record:
 
-| Metric | Baseline | Branch | Notes |
+| Metric | Baseline (main, 2026-07-03) | Branch (2026-07-03) | Notes |
 |---|---:|---:|---|
-| Python LOC touched | | | `git diff --stat` |
-| Jinja template files | | | should decrease or become dumb printers |
-| Jinja conditional/loop sites | | | policy-bearing sites should decrease |
-| Render reports emitted | | | should increase: `render-plan.yaml` first |
-| Blueback render/concretize status | | | compare to `main` |
+| Python LOC touched | 0 | +1000/−88 (18 files) | `git diff --stat main...HEAD`, stack-composer |
+| Jinja template files | 24 (274 lines) | 24 (274 lines) | unchanged so far — slice 1 is additive by design |
+| Jinja conditional/loop sites | 45 | 45 | `grep -rEn '\{%-? *(if|elif|for) '` over fixture templates; should decrease in later slices |
+| Render reports emitted | 0 | 1 (`reports/render-plan.yaml`) | |
+| Blueback render/concretize status | pending run | pending run | fill in after the next Blueback session |
 
 ## First vertical slice
 
