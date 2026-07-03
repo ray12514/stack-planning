@@ -126,6 +126,32 @@ Current branch rule:
   can be rendered as fabric userspace externals; Cray runtime packages remain
   observed-but-not-rendered until the stack owns the package definitions.
 
+## Platform release plan
+
+Cluster Inspector should report broad platform inventory. On a Cray system this
+means it may emit multiple `cray-mpich` provider versions, multiple LibSci
+generations, and multiple GTL generations when the module tree exposes them.
+That is intentional: discovery records facts, not stack intent.
+
+Stack Composer owns the render-time selection. The simplified branch starts
+with one conservative default:
+
+- platform-owned system externals such as `cray-libsci` render only the latest
+  observed package generation;
+- older observed generations are preserved in `reports/render-plan.yaml` under
+  `platform_plan.ignored_system_externals`;
+- the selected generation is preserved under
+  `platform_plan.selected_system_externals`;
+- future production policy may replace the default `latest` selector with an
+  explicit CPE/platform release table in content policy, without changing the
+  profile schema.
+
+The public profile interface remains generic. Do not add a Cray-only top-level
+`cpe_versions` contract unless testing proves package version alone is
+insufficient to select a coherent platform release. Multiple Cray MPICH versions
+should be represented as multiple `mpi_providers` entries, each with its own
+per-compiler `flavors` map.
+
 ## External classification
 
 Discovered facts are not automatically consumed. The resolver should classify
