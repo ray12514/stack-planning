@@ -113,6 +113,19 @@ The plan should be able to explain:
 Stackinator's `network.yaml` model is useful prior art, but the emitted Spack
 mechanism should use Spack-native toolchains where supported.
 
+Current branch rule:
+
+- `cluster-inspector` may report Cray PMI, PALS, and GTL as
+  `fabric.userspace` facts when it observes concrete evidence.
+- `stack-composer` reports those facts in `reports/render-plan.yaml` under the
+  network plan.
+- `stack-composer` does not render `cray-gtl`, `cray-pmi`, or `cray-pals` as
+  Spack package externals by default. Those package names require an explicit
+  package-repo policy, likely modeled after CSCS `alps-cluster-config`.
+- The default common Spack scope remains conservative: `libfabric` and `ucx`
+  can be rendered as fabric userspace externals; Cray runtime packages remain
+  observed-but-not-rendered until the stack owns the package definitions.
+
 ## External classification
 
 Discovered facts are not automatically consumed. The resolver should classify
