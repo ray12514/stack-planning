@@ -82,6 +82,33 @@ This keeps Stack Composer generic. The renderer should not learn the internals
 of GTL/PALS/PMI. It should learn only enough to include a repo and render
 policy-backed Spack config.
 
+## Upstream Spack status (checked 2026-07-03)
+
+Upstream `spack-packages` `cray_mpich` (builtin, external-only,
+`has_code = False`) already models GTL *location*: the external spec can carry
+`+cuda cuda_arch=NN` / `+rocm amdgpu_target=gfxNNN`, and a `gtl_lib` property
+resolves `libmpi_gtl_{cuda,hsa}` under the PE product tree and returns the
+needed `ldflags`/`ldlibs`.
+
+**It does not attach GTL automatically, by design.** Nothing in the package or
+in Spack core consumes `gtl_lib`; a dependent package must call
+`spec["cray-mpich"].package.gtl_lib` in its own `flag_handler`. A repo-wide
+search (2026-07-03) found exactly one consumer: LAMMPS. Kokkos, OSU, and HDF5
+do not opt in, so no spec spelling makes GTL link for them via upstream alone.
+Externals are opaque to Spack — no post-install patchelf is possible on
+`/opt/cray` binaries — which is why universal attachment needs the
+CSCS-style *buildable* repackaging (patchelf `--add-needed` at install time)
+this note proposes.
+
+Consequences:
+
+- Rendered GPU-lane `cray-mpich` externals should carry the GPU variant and
+  arch (`+rocm amdgpu_target=gfx942`) so upstream's `gtl_lib` machinery and any
+  opt-in consumer work correctly. Cheap, upstream-aligned, fits the network
+  plan; the lane already knows its arch.
+- The package-repo direction stands: upstream answers "where is GTL", not
+  "link it into everything".
+
 ## Minimum viable path
 
 1. Keep the Blueback smoke path moving with an explicit documented GTL
