@@ -82,6 +82,37 @@ Selection order (composer, at plan time):
 Everything the render emits comes from this one resolved set. Nothing else is
 rendered.
 
+### GPU runtime ↔ MPI mapping (policy on evidence)
+
+Which ROCm/CUDA pairs with which cray-mpich is **policy**, not pure inventory —
+but it sits on discoverable evidence. Keep the two separate:
+
+- **Evidence (inspector, facts):** per cray-mpich version, the GPU runtime its
+  GTL was built against — the amd flavor baseline (`ofi/amd/7.0`) and the
+  `PE_MPICH_GTL_DIR/LIBS_amd_*` module vars. Report this alongside the collapsed
+  ROCm inventory.
+- **Authority (curated matrix, policy):** what is *supported* — e.g.
+  `cray-mpich 9.1.0 → ROCm ">=7.0"`, `8.1.29 → ROCm 6`, and the "ROCm 6 no
+  longer supported on 26.03" cutoffs. Not on the filesystem; distilled from
+  `cpe_rocm_compatibility_note_v1.md`. Lives as a machine-readable
+  compatibility-matrix data file owned by content/template policy,
+  site-extensible.
+
+Composer, during coherent-set selection:
+
+1. Pick cray-mpich version (latest / `mpi.version`).
+2. Resolve its supported GPU-runtime major from the matrix (authority), using
+   the product-tree GTL evidence as cross-check / fallback when the matrix lacks
+   an entry (warn, don't silently guess, for managed production).
+3. Select the matching ROCm/CUDA from the collapsed inventory.
+4. **Hard-error** if no matching runtime is installed, or if a requested runtime
+   is outside the supported range (the compatibility note's validation rules).
+
+Anchoring is MPI → GPU-runtime (the cray-mpich version is the CPE anchor). The
+inventory shows all ROCm versions collapsed; policy maps the pairing; the
+composer selects one. Run #1 needs a trivial matrix (`9.1.0 → ROCm 7`); it grows
+per CPE.
+
 ### Why default-latest-with-opt-in, not inspector pre-filtering
 
 You asked whether the inspector should just report the latest CPE. Recommend
