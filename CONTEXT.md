@@ -58,6 +58,13 @@ lane-sensitive payload → lane modules.**
   toolchain is bound per CPE release: choosing a CPE version selects a coherent
   compiler + its matched `cray-mpich`. A profile may report several CPE versions;
   a build selects one (default: the latest).
+- **Compiler baseline** — the minimum compiler family/version advertised by a
+  platform MPI flavor. For Cray MPICH, an `ofi/gnu/12.3` flavor should be read
+  as "GNU-family compiler baseline 12.3", not necessarily "the lane compiler
+  must be exactly gcc 12.3".
+- **Platform runtime set** — a coherent vendor runtime selection used by a lane:
+  CPE release, compiler family, MPI provider/version/flavor, GPU toolkit, GTL,
+  libfabric, LibSci, PMI/PALS, and related CrayPE components selected together.
 - **Manual config catalog** — a maintainer-generated set of complete Spack
   configuration YAML files for one system, derived from `profile.yaml` facts and
   site policy for manual/package-manager use. Users write their own `spack.yaml`
