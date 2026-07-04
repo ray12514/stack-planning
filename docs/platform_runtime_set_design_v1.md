@@ -1,10 +1,28 @@
 # Platform Runtime Set — Design v1
 
-Status: proposed 2026-07-04. Written after a day of Blueback render thrash to
-stop patching a catalog that should not exist. Builds on
-`cpe_rocm_compatibility_note_v1.md` (policy matrix, family_min_version),
-`cray_runtime_package_repo_note_v1.md` (GTL/runtime packaging),
-`lane_and_module_model_v1.md`, and `manual_config_catalog_note_v1.md`.
+Status: proposed 2026-07-04, refined after review the same day. Written after a
+day of Blueback render thrash to stop patching a catalog that should not exist.
+Builds on `cpe_rocm_compatibility_note_v1.md` (policy matrix,
+family_min_version), `cray_runtime_package_repo_note_v1.md` (GTL/runtime
+packaging), `lane_and_module_model_v1.md`, and `manual_config_catalog_note_v1.md`.
+
+## Decisions from review (2026-07-04)
+
+1. **family_min_version is correct** and is how the Cray PE actually works:
+   loading a `PrgEnv-*` gives you a compiler; the flavor baseline is a *floor*,
+   and any same-family compiler at or above it is interchangeable. The only
+   guard needed is on an explicit user pin: **reject a pinned compiler below the
+   flavor baseline** for that image. No `cpe_version` tag needed to make
+   compiler selection correct.
+2. **More inspector work is acceptable, and wanted** — specifically to
+   *collapse* the inventory (see "Collapsed inventory model" below). The
+   inventory today is too spread out.
+3. **Generic Linux keeps the existing per-provider model** with the
+   `mpi.version` ambiguity rule; the coherent-set logic here is Cray-specific.
+4. **No libsci/GTL packaging for run #1.** GTL is part of Cray MPICH but must be
+   opted into to link; that needs our own package repo or a spec-level opt-in
+   (`cray_runtime_package_repo_note_v1.md`), which is later work. Run #1
+   validates compiler + cray-mpich + ROCm selection only.
 
 ## The problem we keep hitting
 
@@ -100,17 +118,85 @@ For a managed Cray render, the workspace contains **exactly one runtime set**:
 This bounds the render. The combinatorial problems cannot occur because the
 combinations are never emitted.
 
-## Inventory-quality rules (inspector)
+## Collapsed inventory model (inspector)
 
-1. **Softlink/duplicate dedup.** Group compiler providers by `(name, version)`;
-   resolve prefixes with symlink evaluation; if several remain, prefer the
-   platform/CPE entry (`provider_family: platform`, `platform_family: cray-pe`)
-   and keep one canonical prefix. Report once. (Directly fixes the current
-   `multiple externals for gcc@14.3.0` error.)
-2. **CPE tagging.** Where derivable from the module set / product tree, tag
-   cray-mpich versions (and compilers, where unambiguous) with `cpe_version`.
-   Advisory: selection still works version-anchored without it, but tags make
-   the render plan legible and enable future multi-CPE fan-out.
+The inventory is sloppy today because it is *spread out*: `cray-mpich` is six
+flat entries, `gcc@14.3.0` is listed three times (softlinks), ROCm 6 and 7 are
+separate packages. The model should be **one logical entry per package, with its
+versions and locations nested underneath** — "this package exists, supports
+these versions, at these prefixes, for these compilers." One entry, collapsed,
+still showing the full support surface.
+
+Today (flat, one entry per version × prefix):
+
+```yaml
+mpi_providers:
+- {name: cray-mpich, version: 8.1.27, flavors: {...}}
+- {name: cray-mpich, version: 8.1.29, flavors: {...}}
+- ... (six entries)
+compiler_providers:
+- {name: gcc, version: 14.3.0, prefix: /opt/cray/pe/gcc-native/14}
+- {name: gcc, version: 14.3.0, prefix: /opt/cray/pe/gcc/14.3.0}   # softlink dup
+```
+
+Collapsed (one entry per package, versions nested):
+
+```yaml
+mpi_providers:
+- name: cray-mpich
+  provider_family: platform
+  platform_family: cray-pe
+  versions:
+    - version: 9.1.0
+      cpe_version: "26.03"          # advisory tag
+      flavors:                      # keyed by compiler FAMILY, baseline a field
+        gcc:    {baseline: "12.3", prefix: .../ofi/gnu/12.3, modules: [...]}
+        rocmcc: {baseline: "7.0",  prefix: .../ofi/amd/7.0,  modules: [...]}
+    - version: 8.1.29
+      cpe_version: "24.07"
+      flavors: {...}
+
+compiler_providers:
+- name: gcc
+  provider_family: platform
+  platform_family: cray-pe
+  versions:
+    - version: 14.3.0
+      canonical_prefix: /opt/cray/pe/gcc-native/14
+      aliases: [/opt/cray/pe/gcc/14.3.0]     # collapsed softlinks
+      modules: [PrgEnv-gnu, gcc-native/14]
+
+gpu_toolkits:
+- name: rocm
+  versions:
+    - {version: "7.0.0", prefix: /p/app/rocm/rocm-7.0.0, modules: [rocm/7.0.0]}
+    - {version: "6.0.0", prefix: /p/app/rocm/rocm-6.0.0, modules: [rocm/6.0.0]}
+```
+
+Rules this encodes:
+
+1. **Collapse by logical package.** One `cray-mpich`, one `gcc`, one `rocm` —
+   versions nested. The human view (and `stack-composer show`) reads this
+   directly; no more scrolling a spread-out list.
+2. **Softlink/duplicate dedup.** Each `(name, version)` appears once, with a
+   `canonical_prefix` (symlink-resolved) and its `aliases`. Fixes the current
+   `multiple externals for gcc@14.3.0` error at the source.
+3. **Flavor key is the compiler family, baseline is a field.** `gcc` with
+   `baseline: "12.3"`, not the composite `gcc@12.3` key that caused the
+   baseline-vs-exact confusion.
+4. **Multi-version is kept, not discarded.** ROCm 6 and 7 both listed (one
+   `rocm` entry) — because when multiple cray-mpich versions exist, their
+   compatible ROCm majors differ, and the render's coherent-set selection needs
+   both present to match one to the chosen MPI. The inventory shows everything,
+   collapsed; the composer selects one.
+5. **CPE tagging** (`cpe_version`) advisory: selection works version-anchored
+   without it, but it makes the render plan legible and enables multi-CPE
+   fan-out later.
+
+This normalization is the "redesign" — it changes the profile schema (canonical
+in `stack-planning/schemas`, mirrored in the inspector), the inspector's output,
+the composer's consumption, and the fixtures. It can land as one coordinated
+change or staged (compilers first, then mpi/gpu).
 
 ## Scope boundary
 
@@ -137,18 +223,30 @@ pull the managed render back toward rendering everything.
    render emits exactly one version's set, one compiler per family, clean
    toolchains.
 
-## Open questions for review
+## Implementation sequencing (once accepted)
 
-1. **Is "newest compiler satisfying the flavor baseline" always the CPE
-   compiler?** On a clean CPE it should be, but a newer non-CPE gcc installed
-   outside the PE could beat it. Acceptable as default + opt-in, or do we need
-   the inspector's `cpe_version` tag to be authoritative for compiler selection?
-2. **Selection key: cray-mpich version (proposed) vs. explicit CPE version.**
-   Anchoring on cray-mpich needs no cpe-module probing and reuses existing
-   fields. Explicit CPE version is conceptually cleaner but needs the inspector
-   to resolve CPE→members. Proposed: cray-mpich anchor now, cpe tag as advisory.
-3. **Non-Cray systems.** This is Cray-specific (CPE coherence). Generic Linux
-   keeps the existing per-provider model with the `mpi.version` ambiguity rule.
-   Confirm no regression to the generic path.
-4. **libsci/fabric matching** depth for run #1 — is validating the cray-mpich
-   version enough, or do we render libsci/GTL from the same set now?
+Because the collapse is a schema change, stage it to avoid a big-bang:
+
+1. **Inspector: collapse + dedup compilers first** (smallest, highest-value —
+   fixes the `multiple gcc@14.3.0` error). One `gcc` entry, versions nested,
+   softlinks collapsed to `canonical_prefix` + `aliases`.
+2. **Schema: collapsed `mpi_providers` + `gpu_toolkits`** (nested versions;
+   family-keyed flavors with `baseline`). Canonical in `stack-planning/schemas`,
+   mirror to inspector.
+3. **Composer: consume collapsed inventory + select one runtime set.** Pick
+   cray-mpich version (latest / `mpi.version`); resolve compilers via
+   family_min_version; match ROCm major; render only that set — one version's
+   externals + toolchains, one compiler per family. Reject a pinned compiler
+   below the flavor baseline.
+4. **Blueback-shaped fixture + tests**: six versions, softlinked compiler,
+   newer-than-baseline compilers → assert exactly one coherent set renders.
+
+Run #1 stops at step 3's ROCm match — no libsci/GTL packaging.
+
+## Confirmed decisions
+
+All four review questions are resolved in "Decisions from review" above:
+family_min_version is correct (guard: reject pins below baseline); more inspector
+work (collapse) is wanted; generic Linux path unchanged; no libsci/GTL for
+run #1. Selection stays cray-mpich-version-anchored with `cpe_version` as an
+advisory tag.
