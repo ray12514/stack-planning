@@ -265,15 +265,19 @@ The next slices should reduce policy-bearing template logic:
 3. Add a fixture that represents a generic Linux system with multiple compiler
    and MPI providers. The same plan layer must select or reject providers
    without Cray-specific assumptions leaking into generic logic.
-   **Open finding to address here:** `selected_mpi_providers` (render/scopes.py)
-   only applies its latest-version filtering when a provider is `cray-pe`. A
-   generic Linux system with two versions of one MPI provider would therefore
-   render both as externals and reproduce the "multiple externals for one
-   name@version-family" ambiguity Cray hit — the lane-level `mpi.version`
-   ambiguity hard-error forces a pin, but the pin does not currently filter the
-   rendered externals on the generic path. The generic fixture should assert one
-   coherent selection renders, and the filter should key on "lane-selected
-   version(s)" for all platform providers, not only `cray-pe`.
+   **Checked (2026-07-05): the Cray-only `selected_mpi_providers` version filter
+   is correct, not a leak.** Cray PE flavors of one cray-mpich version share a
+   single product-tree prefix, so multiple flavors must collapse to the
+   lane-selected version or Spack sees duplicate externals. Non-Cray providers
+   at *different* versions (openmpi@4.1.6 vs @4.1.7) are distinguishable by Spack
+   and render as a version-qualified catalog with version-qualified toolchain
+   names (`aocc420_openmpi416` vs `aocc420_openmpi503`) — no ambiguity, covered
+   by `test_rendered_generic_linux_workspace_contains_site_mpi_without_cray` and
+   `test_mpi_version_pin_disambiguates_and_versions_toolchain_names`. The
+   "multiple externals" ambiguity only affects duplicate *same* name@version
+   (the softlinked-compiler case, fixed by inspector dedup). A dedicated generic
+   multi-provider render fixture is still worth adding for confidence, but there
+   is no filter change to make.
 4. After managed render stays green, implement the manual config catalog as a
    separate command/output contract that reuses the same resolved plan data.
 5. Run the next real-system test on a generic Linux cluster after the
