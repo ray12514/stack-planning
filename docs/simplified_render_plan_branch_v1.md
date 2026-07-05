@@ -251,11 +251,29 @@ The next slices should reduce policy-bearing template logic:
 1. Define a small internal interface for resolved platform runtime selection:
    selected MPI provider, selected compiler flavor, selected GPU toolkit, and
    selected network/runtime facts.
+   **Status (2026-07-05): done for the render side.** All four selection axes
+   are resolved once into the render context and templates only print:
+   `mpi_plan` (render/network.py), `gpu_plan` (render/gpu.py), `common_plan`
+   (render/common.py), `compiler_plan` (render/compilers.py), alongside the
+   existing `platform_plan` and `module_plan`. The only remaining template
+   globals are formatting helpers (`to_yaml`, `path_join`, `spack_spec`);
+   templates can no longer compute selection policy. Each plan has a guard test
+   asserting it equals the global it replaced, so rendered output is unchanged.
 2. Move Cray MPICH, ROCm, LibSci, fabric, and runtime selection into that plan
-   layer. The templates should only print plan fields.
+   layer. The templates should only print plan fields. **Done** (see slice 1
+   status).
 3. Add a fixture that represents a generic Linux system with multiple compiler
    and MPI providers. The same plan layer must select or reject providers
    without Cray-specific assumptions leaking into generic logic.
+   **Open finding to address here:** `selected_mpi_providers` (render/scopes.py)
+   only applies its latest-version filtering when a provider is `cray-pe`. A
+   generic Linux system with two versions of one MPI provider would therefore
+   render both as externals and reproduce the "multiple externals for one
+   name@version-family" ambiguity Cray hit — the lane-level `mpi.version`
+   ambiguity hard-error forces a pin, but the pin does not currently filter the
+   rendered externals on the generic path. The generic fixture should assert one
+   coherent selection renders, and the filter should key on "lane-selected
+   version(s)" for all platform providers, not only `cray-pe`.
 4. After managed render stays green, implement the manual config catalog as a
    separate command/output contract that reuses the same resolved plan data.
 5. Run the next real-system test on a generic Linux cluster after the
