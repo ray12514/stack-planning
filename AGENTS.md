@@ -59,6 +59,17 @@ design calls for it:
 - Do not project every transitive dependency into one flat public view. Foundation/Core view semantics must handle version collisions and shared library name conflicts explicitly.
 - Read `docs/foundation_core_view_semantics_note_v1.md` before changing foundation lanes, Core lanes, views, module visibility, lockfile composition, buildcache reuse, or foundation package pins.
 
+## Commit hygiene
+
+All commits must be authored and committed as:
+
+- `Ravon Venters <ray12514@gmail.com>`
+
+Do not add assistant/tool attribution to commit messages, trailers, file
+headers, generated docs, or comments. Do not include automated co-author
+trailers, generated-by footers, assistant signatures, or similar tool stamps.
+If a tool proposes one, remove it before committing.
+
 ## How to validate
 
 Every change touching `schemas/` must leave the harness exit `0`:
