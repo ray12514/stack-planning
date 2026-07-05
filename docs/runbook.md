@@ -168,8 +168,63 @@ Design references: `pre_v1_hosting_and_external_inventory_note_v1.md` and
 
 ## Stage 1 — Probe
 
-Produce a reviewed `profile.yaml` from the login node. Select a runner and role
-for every node type used by the stack.
+Produce a reviewed `profile.yaml` from the login node plus representative
+compute/build nodes. The fastest first pass is the manual fragment flow: run
+the system probe on the login node, SSH or allocate into each representative
+node type, run `probe-node` there with `--runner this`, then merge the fragments
+back on the login node. This avoids scheduler-runner debugging while validating
+the actual profile contract.
+
+Use the one-shot `profile` command only after the manual fragment path is proven
+on that site.
+
+### Manual fragment workflow
+
+On the login node:
+
+```bash
+./cluster-inspector probe-system \
+  --system <system-name> \
+  --hints ./inspector-hints.yaml \
+  --output system.frag.yaml
+
+./cluster-inspector probe-node \
+  --node-type login --role both --runner this --output login.frag.yaml
+```
+
+Then log into or allocate a representative compute/runtime node and run:
+
+```bash
+./cluster-inspector probe-node \
+  --node-type compute --role runtime --runner this --output compute.frag.yaml
+```
+
+If build nodes differ from runtime nodes, log into or allocate a representative
+build node and run:
+
+```bash
+./cluster-inspector probe-node \
+  --node-type build --role build_host --runner this --output build.frag.yaml
+```
+
+Copy node fragments back beside `system.frag.yaml`, then merge on the login
+node. If the same node type is both runtime and build host, pass only the
+combined fragment once.
+
+```bash
+./cluster-inspector merge \
+  --system-fragment system.frag.yaml \
+  --node login.frag.yaml \
+  --node compute.frag.yaml \
+  --node build.frag.yaml \
+  --output profile.yaml
+./cluster-inspector verify profile.yaml
+```
+
+### Scheduler-runner workflow
+
+After the manual path works, the same profile can be collected from the login
+node by selecting a runner and role for every node type used by the stack:
 
 ```bash
 ./cluster-inspector profile \
@@ -179,28 +234,6 @@ for every node type used by the stack.
   --node-type build=srun:role=build_host \
   --hints ./inspector-hints.yaml \
   --output profile.yaml
-```
-
-To inspect fragments before merging them:
-
-```bash
-./cluster-inspector probe-system \
-  --system <system-name> \
-  --hints ./inspector-hints.yaml \
-  --output system.frag.yaml
-./cluster-inspector probe-node \
-  --node-type login --role both --runner this --output login.frag.yaml
-./cluster-inspector probe-node \
-  --node-type compute --role runtime --runner srun --output compute.frag.yaml
-./cluster-inspector probe-node \
-  --node-type build --role build_host --runner srun --output build.frag.yaml
-./cluster-inspector merge \
-  --system-fragment system.frag.yaml \
-  --node login.frag.yaml \
-  --node compute.frag.yaml \
-  --node build.frag.yaml \
-  --output profile.yaml
-./cluster-inspector verify profile.yaml
 ```
 
 Manual review checklist:
@@ -322,6 +355,17 @@ Monitor concretizer diagnostics, buildcache hits, source builds, install
 prefixes, and lane reports. An unsatisfiable lane is usually an input,
 template, or profile mismatch; preserve the complete solver output before
 changing inputs or attributing the failure to Spack.
+
+`spack-build` writes one log per lane step under the report directory. It does
+not currently stream full Spack output to the terminal. To watch a long build
+without changing behavior, tail the active lane log from another shell:
+
+```bash
+tail -f reports/<compiler>/<lane>/install.log
+```
+
+Adding a live tee/color mode is a build-script enhancement; keep it separate
+from profile/render correctness changes.
 
 ## Stage 4 — Module exposure
 
