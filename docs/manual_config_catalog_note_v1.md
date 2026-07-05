@@ -129,7 +129,7 @@ for the system, independent of one `stack.yaml`.
 
 ## Open policy questions
 
-These should be resolved after Blueback managed render is green:
+These should be resolved before publishing a catalog:
 
 1. Should catalog externals be strict (`buildable: false`) or advisory
    (`externals` available but user can still build alternatives)?
@@ -143,11 +143,21 @@ These should be resolved after Blueback managed render is green:
 
 ## Recommended timing
 
-Do not implement this until the Blueback managed-stack path has passed:
+The Blueback managed-stack blueprint path passed on 2026-07-05:
 
 ```text
 cluster-inspector -> profile.yaml -> stack-composer render -> build/concretize
 ```
 
-After that, implement the catalog as a separate command and output contract,
-using the proven Blueback profile as the first fixture.
+The catalog can now begin as a separate command and output contract, using the
+proven Blueback profile as the first fixture. The first implementation should
+reuse the same resolved plan data used by managed render instead of duplicating
+MPI, GPU, fabric, or system-external selection in catalog-specific templates.
+
+Recommended first slice:
+
+1. Add a catalog plan report that lists what would be published for Blueback.
+2. Emit complete Spack config scopes for one selected platform runtime set.
+3. Add one example manual `spack.yaml` that includes those scopes.
+4. Validate the example with the same Spack version floor used for the managed
+   smoke path.

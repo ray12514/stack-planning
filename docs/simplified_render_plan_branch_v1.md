@@ -2,10 +2,10 @@
 
 Recorded 2026-07-02. Branch: `codex/simplified-render-plan`.
 
-This branch preserves the current Blueback render path as the control while
-introducing a cleaner internal seam for the next renderer shape. The goal is not
-to change user workflow first. The goal is to make render decisions explicit,
-testable, and comparable before removing template logic.
+This branch uses the current Blueback render path as the control while
+introducing a cleaner internal seam for the next renderer shape. The first goal
+is not a user workflow change. The first goal is to make render decisions
+explicit, testable, and comparable before removing template logic.
 
 ## Control and experiment
 
@@ -138,9 +138,9 @@ with one conservative default:
 
 - platform-owned system externals such as `cray-libsci` render only the latest
   observed package generation;
-- older observed generations are preserved in `reports/render-plan.yaml` under
+- older observed generations are recorded in `reports/render-plan.yaml` under
   `platform_plan.ignored_system_externals`;
-- the selected generation is preserved under
+- the selected generation is recorded under
   `platform_plan.selected_system_externals`;
 - future production policy may replace the default `latest` selector with an
   explicit CPE/platform release table in content policy, without changing the
@@ -205,11 +205,40 @@ For branch notes, record:
 | Jinja template files | 24 (274 lines) | 24 (274 lines) | unchanged so far — slice 1 is additive by design |
 | Jinja conditional/loop sites | 45 | 45 | `grep -rEn '\{%-? *(if|elif|for) '` over fixture templates; should decrease in later slices |
 | Render reports emitted | 0 | 1 (`reports/render-plan.yaml`) | |
-| Blueback render/concretize status | pending run | pending run | fill in after the next Blueback session |
+| Blueback render/concretize status | pending run | real-system smoke path passed | Blueback reached the managed-stack blueprint path on 2026-07-05; Cray MPICH library verify warning recorded as external-runtime follow-up |
+
+## Blueback smoke result (2026-07-05)
+
+The branch produced a working first real-system Blueback smoke path:
+
+```text
+cluster-inspector -> profile.yaml -> stack-composer validate/render -> spack-build
+```
+
+The run proved the current seam is useful enough to continue the simplification
+work:
+
+- Stack Composer selected one coherent Blueback platform runtime set for render:
+  latest `PrgEnv-gnu`, `cray-mpich` 9.1.0, ROCm 7.0.0, `gfx942`.
+- Cray MPICH rendering stopped emitting every discovered Cray MPICH flavor into
+  the active lane. The active package external is a plain provider spec, and
+  the compiler/MPI binding is represented in `toolchains.yaml`.
+- ROCm HIP external rendering uses the ROCm toolkit root proven by `bin/hipcc`;
+  it no longer invents `$ROCM_ROOT/hip` as a package prefix.
+- Cray GTL, PMI, and PALS are visible as observed runtime facts in the render
+  plan but are not written as package externals without an explicit site
+  package-repo policy.
+- The remaining library verify warning around external runtime libraries
+  such as XPM/hugepages is not a render-selection failure. It is a package
+  modeling decision for a later runtime-policy slice.
+
+This result changes the branch status: Blueback is no longer blocking the
+policy-driven renderer work. The next work should simplify the implementation
+that produced the successful run.
 
 ## First vertical slice
 
-The first vertical slice is additive:
+The first vertical slice is complete:
 
 1. Emit `reports/render-plan.yaml` for the current render.
 2. Include lane decisions and current front-door module exposure in the plan.
@@ -217,8 +246,20 @@ The first vertical slice is additive:
 4. Add a simple code-size/template-count comparison command to the runbook or
    branch notes.
 
-Only after this should the branch migrate one Blueback lane to reduced template
-logic.
+The next slices should reduce policy-bearing template logic:
+
+1. Define a small internal interface for resolved platform runtime selection:
+   selected MPI provider, selected compiler flavor, selected GPU toolkit, and
+   selected network/runtime facts.
+2. Move Cray MPICH, ROCm, LibSci, fabric, and runtime selection into that plan
+   layer. The templates should only print plan fields.
+3. Add a fixture that represents a generic Linux system with multiple compiler
+   and MPI providers. The same plan layer must select or reject providers
+   without Cray-specific assumptions leaking into generic logic.
+4. After managed render stays green, implement the manual config catalog as a
+   separate command/output contract that reuses the same resolved plan data.
+5. Run the next real-system test on a generic Linux cluster after the
+   policy/template seam has at least one generic fixture.
 
 ## Repository boundary recommendation
 
