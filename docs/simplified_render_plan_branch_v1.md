@@ -283,6 +283,46 @@ The next slices should reduce policy-bearing template logic:
 5. Run the next real-system test on a generic Linux cluster after the
    policy/template seam has at least one generic fixture.
 
+## Pre-merge review (2026-07-05)
+
+A pre-merge correctness review of the branch (both code repos, main...HEAD).
+All tests pass; no crashes. Fixed and deferred items below.
+
+**Fixed before merge:**
+
+- cluster-inspector `newestCrayFabricUserspaceModules`: compared version
+  strings lexically (`"2.9" > "2.10"` true); now compares numerically.
+- cluster-inspector `crayPECompilerCandidateNames`: dropped the
+  `ignored_module_contexts` filter; now applies `isIgnoredModuleContext`.
+
+**Deferred (documented, low-risk / needs evidence):**
+
+- **stack-composer flavor-selection consistency (latent).** `mpi_flavor_for_lane`
+  (module prereq, dict-order first match) and `mpi_provider_externals` (external,
+  sorted + dedup) select the cray-mpich flavor *directory* independently. If one
+  cray-mpich version ever exposes two same-family baseline dirs (e.g.
+  `ofi/gnu/12.3` and `ofi/gnu/14.0`), the loaded module and the rendered external
+  could point to different builds. Does **not** trigger on Blueback (9.1.0 has a
+  single gnu dir). Note: this is only about the MPI build directory — the lane
+  *compiler* is always the newest satisfying (gcc@14.3.0), which is correct.
+  Open question before fixing: when multiple baseline dirs exist, which build is
+  right for a given compiler? Needs Cray docs / a real multi-baseline system;
+  do not guess. Fix = one shared flavor-selection helper both paths call, once
+  the selection rule is known.
+- **stack-composer versioned-compiler ambiguity.** `resolve_compiler_refs` raises
+  `compiler_ambiguous` for bare names but silently first-picks for a versioned
+  request (`gcc@12.3` matching both `gcc@12.3.0` and `gcc@12.3.1`). Apply the
+  same ambiguity check to versioned requests.
+- **cluster-inspector `normalizeCrayProductVersion`.** "Insert a dot before the
+  last char" mangles undotted versions outside 2-3 digits (`"12"->"1.2"`). Use a
+  more robust parse or restrict to the known digit patterns.
+- **cluster-inspector `applyVerifiedCrayMPICH`.** `continue` on a filesystem
+  match skips module-verification fallback for a partial product tree; and
+  `setCrayMPICH` overwrites a flavor's `Modules` slot instead of unioning
+  (provenance loss). Add per-missing-flavor fallback and union modules.
+- Stale docstring on `mpi_compatible_compilers` (says "plus flavor keys"; it is
+  flavors-only now, which is the correct behavior).
+
 ## Repository boundary recommendation
 
 Do not merge repositories during this branch. The branch is testing the renderer
