@@ -122,7 +122,9 @@ Minimum target layout:
 
 For a connected login node, create the test root and clone the current alpha
 repos. Keep all four repos as siblings under one working root so the commands
-can be reused across systems:
+can be reused across systems. Use HTTPS clone URLs on HPC systems unless SSH
+keys are already configured there; the SSH-style `git@github.com:...` form will
+fail with `Permission denied (publickey)` on many login nodes.
 
 ```bash
 export WORK_ROOT="$HOME/STACK_TESTING"
@@ -131,10 +133,10 @@ export STACK_BRANCH="codex/simplified-render-plan"
 mkdir -p "$WORK_ROOT"
 cd "$WORK_ROOT"
 
-git clone <cluster-inspector-url> "$WORK_ROOT/cluster-inspector"
-git clone <stack-composer-url> "$WORK_ROOT/stack-composer"
-git clone <stack-content-url> "$WORK_ROOT/stack-content"
-git clone <stack-planning-url> "$WORK_ROOT/stack-planning"   # optional, for docs
+git clone https://github.com/ray12514/cluster-inspector.git "$WORK_ROOT/cluster-inspector"
+git clone https://github.com/ray12514/stack-composer.git "$WORK_ROOT/stack-composer"
+git clone https://github.com/ray12514/stack-content.git "$WORK_ROOT/stack-content"
+git clone https://github.com/ray12514/stack-planning.git "$WORK_ROOT/stack-planning"   # optional, for docs
 
 for repo in cluster-inspector stack-composer stack-content stack-planning; do
   git -C "$WORK_ROOT/$repo" fetch origin
