@@ -120,17 +120,33 @@ Minimum target layout:
   reports/                  # build/probe reports; not committed unless curated
 ```
 
-For a connected login node, clone the current alpha repos:
+For a connected login node, create the test root and clone the current alpha
+repos. Keep all four repos as siblings under one working root so the commands
+can be reused across systems:
 
 ```bash
-mkdir -p <work-root>
-cd <work-root>
+export WORK_ROOT="$HOME/STACK_TESTING"
+export STACK_BRANCH="codex/simplified-render-plan"
 
-git clone <cluster-inspector-url> cluster-inspector
-git clone <stack-composer-url> stack-composer
-git clone <stack-content-url> stack-content
-git clone <stack-planning-url> stack-planning   # optional, for docs
+mkdir -p "$WORK_ROOT"
+cd "$WORK_ROOT"
+
+git clone <cluster-inspector-url> "$WORK_ROOT/cluster-inspector"
+git clone <stack-composer-url> "$WORK_ROOT/stack-composer"
+git clone <stack-content-url> "$WORK_ROOT/stack-content"
+git clone <stack-planning-url> "$WORK_ROOT/stack-planning"   # optional, for docs
+
+for repo in cluster-inspector stack-composer stack-content stack-planning; do
+  git -C "$WORK_ROOT/$repo" fetch origin
+  git -C "$WORK_ROOT/$repo" switch "$STACK_BRANCH"
+  git -C "$WORK_ROOT/$repo" pull --ff-only
+done
 ```
+
+Use `git -C "$WORK_ROOT/<repo>" ...` when operating from the runbook. Do not
+rely on Git discovering the repository from the current directory; on HPC
+systems, home, project, and scratch paths may cross filesystem boundaries and
+Git discovery can stop before it finds the intended `.git` directory.
 
 For a restricted login node, clone/build on a connected machine, then copy the
 release binary, `stack-composer.pyz`, `spack-build`, and `stack-content` tree to
