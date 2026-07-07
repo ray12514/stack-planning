@@ -11,6 +11,7 @@ compilers: all
 mpi:
   provider: openmpi
   source: auto        # use the platform MPI if the profile reports one, else build openmpi
+  version_policy: newest  # two site openmpi versions resolve to the highest, not an error
 gpu:
   archs: all
 target: native
