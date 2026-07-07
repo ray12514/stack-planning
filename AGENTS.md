@@ -169,3 +169,14 @@ fact, a contract resolver name, a build class, or a scope path. If
 after that read it's still a genuine new concept, write the change as a
 v6 amendment first, then update the schemas, then update the
 implementations — never the other way around.
+
+## Model and agent usage
+
+Conserve usage credits when working in this repo:
+
+- Use a cheaper, faster model or agent for research, fact-gathering, code
+  search, and claim verification.
+- Reserve the strongest available model for implementation, design judgment,
+  and hard debugging.
+- Do not start queued or speculative work until the owner green-lights the
+  spend.
