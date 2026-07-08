@@ -56,6 +56,19 @@ a routine regression, not a one-off. The orchestration loop lives outside
 stack-composer (see stack_generation_orchestration_note_v1.md); the render
 side just needs the fixtures checked in.
 
+## 4. Lane-less modulefile render into user space (design first)
+
+Asked 2026-07-07: a mode that considers no lanes at all — just renders a
+modulefile into a user-chosen location (e.g. `~/privatemodules`), pointing at
+an existing built stack. Does not exist today: modulefiles are entirely
+lane-driven (`build_front_door_module_plan` derives init/lane modules from
+rendered lanes), module roots are installer-owned via `deployment.yaml`, and
+zero renderable builds is a hard `no-rendered-lanes` error. Design questions:
+what the input is (a rendered workspace? a release manifest? bare
+prefix+name), whether it is a new `stack-composer` subcommand or a template
+mode, and how it respects the deployment-ownership rule when the target is
+explicitly user space.
+
 ## Known blockers being worked in parallel
 
 - Raider CUDA externals: gpu lane rendered without cuda toolkit externals
