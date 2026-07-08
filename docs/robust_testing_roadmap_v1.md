@@ -56,6 +56,11 @@ a routine regression, not a one-off. The orchestration loop lives outside
 stack-composer (see stack_generation_orchestration_note_v1.md); the render
 side just needs the fixtures checked in.
 
+Add a second pass once `baseline_module_sets_v1.md` is implemented: repeat the
+generic Linux and Cray smoke stacks with `defaults.compilers: system-default`
+and `mpi.provider: system-default`, using both observed and file-declared
+baseline module sets.
+
 ## 4. Lane-less modulefile render into user space (design first)
 
 Asked 2026-07-07: a mode that considers no lanes at all — just renders a

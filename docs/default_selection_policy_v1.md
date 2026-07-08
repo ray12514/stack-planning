@@ -20,6 +20,12 @@ The reference baseline both template sets ship: **gcc-family compilers**
 of the preferred MPI provider** (cray-mpich on Cray platforms, openmpi on
 generic Linux, falling back to any reported MPI implementation).
 
+This is intentionally separate from a future **system-default** policy based
+on Cluster Inspector `baseline_module_sets`; see
+`baseline_module_sets_v1.md`. `baseline` stays portable and policy-derived,
+while `system-default` will mean "consume the site-declared or observed
+baseline module set from the profile."
+
 ## MPI selection (`defaults.yaml` → `mpi_selection`)
 
 - `provider` — preferred provider name. When the profile reports it, it wins
@@ -63,5 +69,7 @@ is needed for the gcc-everywhere reference default.
 
 - No compatibility-matrix-driven GPU/MPI coupling here (tracked separately,
   see `cpe_rocm_compatibility_note_v1.md`).
+- No baseline-module-set ingestion here (tracked in
+  `baseline_module_sets_v1.md`).
 - No stack-authoring surface changes: `stack.yaml` stays spec-native; all of
   this lives in `defaults.yaml`.
