@@ -4,22 +4,29 @@
 
 Design note / hardening target. This records intended semantics that are not fully settled in the current implementation.
 
+## Provenance
+
+The foundation/Core split below was settled in the original v6 master design
+(`docs/spack_stack_generation_design_v6.md`, deleted in `9ca9f6e`; recover with
+`git show 9ca9f6e^:docs/spack_stack_generation_design_v6.md`). Earlier
+revisions of this note drifted from it — Core tools were described as
+"internal unless explicitly public" and foundation was pushed into an internal
+build view. Restored 2026-07-08 to the settled semantics: **foundation is
+ambient in the user-facing view; Core tools are the loadable layer.** The
+ALCF Polaris Spack PE (spack-pe-base / spack-pe-gnu) independently converges
+on the same structure and corroborates the model.
+
 ## Context
 
 The stack model already separates package intent by lane kind. Serial, MPI, and GPU lanes are for packages that require those build surfaces. MPI-capable libraries and applications such as HDF5, NetCDF, PNetCDF, TAU, and GPU-enabled packages do not belong in a shared foundation or Core layer merely because many lanes depend on them.
 
 The unresolved question is narrower: how should the stack expose, reuse, and constrain low-level build tools and ABI-stable dependencies that can be shared across compiler/MPI/GPU lanes?
 
-Examples include:
+Examples include two distinct groups that this note must not blur:
 
 ```text
-cmake
-ninja
-pkgconf
-zlib
-xz
-zstd
-bzip2
+Core tools (user-loadable):     cmake, ninja, pkgconf, git, python, miniforge
+Foundation libraries (ambient): zlib, xz, zstd, bzip2
 ```
 
 These packages may be built once with a baseline compiler and baseline CPU target, then used as build tools or low-level dependencies by many payload lanes.
@@ -28,7 +35,15 @@ These packages may be built once with a baseline compiler and baseline CPU targe
 
 ### Foundation layer
 
-The foundation layer is the lowest shared layer. It is optimized for portability and reuse, not for target-specific performance.
+The foundation layer is the lowest shared layer: **ABI-stable libraries that
+are ambient in the user-facing view** — per the v6 master design, "the user's
+compiler picks them up without an explicit choice." They are single-version
+per release generation, pinned with `require:` lines in the common scope,
+because the user-link path (a fresh compile, where RPATH has not happened yet)
+must be unambiguous. The membership discriminator is v6's rule: *does a user
+`-l` this directly* — not "is it low-level." OpenSSL, for example, stays a
+private RPATH-isolated transitive dependency and needs no pin. Foundation is
+optimized for portability and reuse, not for target-specific performance.
 
 A foundation package should generally be:
 
@@ -40,7 +55,20 @@ A foundation package should generally be:
 
 ### Core lane
 
-A Core lane is compiler-adjacent stack infrastructure. In the committed v1 model, each compiler's Core is a normal, independently concretized environment and carries the foundation roots directly. Reuse between Core and payload lanes happens through the foundation buildcache, not by including another lane's lockfile.
+A Core lane is compiler-adjacent stack infrastructure holding the **loadable
+tool layer**: build and user tools such as cmake, ninja, pkgconf, git, and the
+miniforge/python user environment (the v6 `core-foundation` package set).
+Core tools are user-facing — users load them (as modules or via the lane
+view's front door) the way ALCF users `module load cmake` from spack-pe-base.
+Core stays single-version ("there is no user reason to expose multiple
+CMakes") and builds at the portable baseline target, not the payload target.
+In the committed v1 model, each compiler's Core is a normal, independently
+concretized environment and carries the foundation roots directly. Reuse
+between Core and payload lanes happens through the foundation buildcache, not
+by including another lane's lockfile. The eventual direction (recorded from
+the start, alongside the per-compiler model) is one **shared, compiler-agnostic
+Core** built with a generic GCC — sequence that with multi-CPE fan-out, where
+per-lane tool rebuilds start multiplying.
 
 The design records two possible deployment shapes, but only Option B is committed for v1:
 
@@ -64,19 +92,26 @@ The separate foundation lane is a future, evidence-gated optimization. If it is 
 
 ## Visibility policy
 
-Foundation packages should usually not be exposed as ordinary user-facing package modules.
+The two layers have opposite exposure shapes, and neither is "internal":
 
-They may exist in a build-time view or internal runtime view so that build environments can find tools such as `cmake`, `ninja`, or `pkgconf`, but they should not automatically appear as public modules next to application-facing packages unless a stack policy explicitly marks them public.
+- **Foundation libraries are ambient**: projected into the user-facing lane
+  view so a user's own compile links them without an explicit choice. They do
+  **not** get per-package modules — a module implies a choice, and foundation
+  is exactly the layer where there is no choice (single pinned version).
+- **Core tools are loadable**: exposed for users to pick up explicitly
+  (module-exposed or front-door view), like any user-facing tool.
 
 Recommended default:
 
 ```text
-foundation package visibility: internal/build-only
-core package visibility: internal unless explicitly public
+foundation package visibility: ambient in the lane view; never per-package modules
+core package visibility: user-loadable (module or front-door view)
 payload package visibility: public according to stack/module policy
 ```
 
-This avoids confusing users with implementation-detail modules while still letting Spack, build scripts, and package maintainers use those tools.
+This gives users the tools they reach for by name, gives their compiles the
+ambient single-version link surface, and avoids per-package module sprawl for
+libraries nobody "loads."
 
 ## View collision problem
 
