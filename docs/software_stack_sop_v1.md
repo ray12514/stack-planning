@@ -1,81 +1,89 @@
-# Standard Operating Procedure — Software Stack Lifecycle
+# Standard Operating Procedure: Software Stack Lifecycle
 
-Status: draft v2 for management review, 2026-07-09. This document describes
-the process by which computing systems are onboarded, software stacks are
-designed, built, and published, and how app managers and users work with the
-results. Every step in the process produces a plain, reviewable file that a
-person can author, inspect, or correct by hand. Sections marked **[proposed]**
-describe procedure not yet formally adopted and are presented for approval.
+| Document control | |
+|---|---|
+| Version | Draft 2 |
+| Date | 2026-07-09 |
+| Owner | CSE stack team |
+| Status | For management review |
+| Review cycle | To be set at adoption |
+
+This document describes how computing systems are onboarded, how software
+stacks are designed, built, and published, and how app managers and users
+work with the results. Every step produces a plain, reviewable file that a
+person can author, inspect, or correct by hand.
 
 ## 1. The process at a glance
 
 | # | Step | What exists afterward | Who owns it |
 |---|---|---|---|
-| 1 | Record the system's facts | the **fact sheet** — compilers, MPIs and their compiler pairings, GPU toolkits, network fabric, filesystems, module system | app manager for that system |
-| 2 | Choose the site paths | the **deployment overlay** — install tree, cache locations, module and view roots; always chosen, never derived | installer |
-| 3 | Declare the software | the **stack file** and reusable **package sets** — what to build, at which versions | app manager (curated stack) |
-| 4 | Derive the work tree | the **work tree** — complete build configuration: config scopes plus one build environment per lane | derived mechanically from 1–3 |
+| 1 | Record the system's facts | the **fact sheet**: compilers, MPIs and their compiler pairings, GPU toolkits, network fabric, filesystems, module system | app manager for that system |
+| 2 | Choose the site paths | the **deployment overlay**: install tree, cache locations, module and view roots. Always chosen, never derived. | installer |
+| 3 | Declare the software | the **stack file** and reusable **package sets**: what to build, at which versions | app manager (curated stack) |
+| 4 | Derive the work tree | the **work tree**: complete build configuration, config scopes plus one build environment per lane | derived from steps 1 to 3 |
 | 5 | Build | installed software, one **lockfile** per lane, build-cache entries | app manager |
-| 6 | Publish | **modules and views** users see, and the **release manifest** | app manager + release approver |
+| 6 | Publish | the **modules and views** users see, and the **release manifest** | app manager and release approver |
 | 7 | Verify | validation evidence attached to the release | app manager |
 
-The continuous loop: when the **system** changes, only step 1 is redone; when
-the **software list** changes, only step 3; when **site paths** change, only
-step 2. Whatever changed, the work tree is re-derived and only the affected
-lanes rebuild. Nothing downstream is ever edited in place.
+The continuous loop: when the system changes, only step 1 is redone. When
+the software list changes, only step 3. When site paths change, only step 2.
+Whatever changed, the work tree is re-derived and only the affected lanes
+rebuild. Nothing downstream is edited in place.
 
 ## 2. Vocabulary
 
-- **Fact sheet** — the per-system record of what the machine provides.
-  Contains platform reality only; never software intent.
-- **Deployment overlay** — the per-system record of where things go.
-- **Stack file / package set** — the record of what software is wanted.
-  Contains intent only; never system facts.
-- **Lane** — one independently built target: a compiler, optionally paired
-  with an MPI, optionally targeting a GPU architecture. Each lane has its own
-  build environment, lockfile, view, and modules. Lanes never mix compilers.
-- **Scope** — a directory of build configuration a lane pulls in by
+- **Fact sheet**: the per-system record of what the machine provides. It
+  contains platform reality only, never software intent.
+- **Deployment overlay**: the per-system record of where things go.
+- **Stack file / package set**: the record of what software is wanted. It
+  contains intent only, never system facts.
+- **Lane**: one independently built target. A compiler, optionally paired
+  with an MPI, optionally targeting a GPU architecture. Each lane has its
+  own build environment, lockfile, view, and modules. Lanes never mix
+  compilers.
+- **Scope**: a directory of build configuration a lane pulls in by
   reference (common policy, OS externals, CPU target, MPI pairing, GPU
   toolkit). Scopes are shared; lanes include only what they need.
-- **Work tree** — the derived directory holding all scopes and one build
-  environment per lane. Regeneratable at any time; never hand-patched; every
-  value in it traceable to the fact sheet, overlay, or stack file that set it.
-- **Release** — one built, verified, tagged copy of the stack. A `current`
+- **Work tree**: the derived directory holding all scopes and one build
+  environment per lane. It can be regenerated at any time, it is never
+  patched by hand, and every value in it can be traced to the fact sheet,
+  overlay, or stack file that set it.
+- **Release**: one built, verified, tagged copy of the stack. A `current`
   pointer names the active release; promotion moves the pointer.
-- **Platform catalog** — a published, per-system, per-release set of
-  ready-to-include build configuration (the system's compilers, MPIs, GPU
-  toolkits as pinned externals) with a manifest naming the recommended
-  choices. This is the piece any app manager can use without joining the
-  curated stack process at all.
+- **Platform catalog**: a published, per-system, per-release set of
+  ready-to-include build configuration (the system's compilers, MPIs, and
+  GPU toolkits as pinned externals) with a manifest naming the recommended
+  choices. Any app manager can use it without joining the curated stack
+  process.
 
 ## 3. Onboarding a new system
 
 1. The app manager records the fact sheet: which compilers exist and where,
    which MPI builds pair with which compilers, GPU toolkits and
-   architectures, fabric, filesystems, module system. It is a plain YAML
-   file checked against a published schema.
+   architectures, fabric, filesystems, and the module system. It is a plain
+   YAML file checked against a published schema.
 2. The installer records the deployment overlay: install tree, cache paths,
-   module and view roots. These are decisions, not discoveries — the fact
+   module and view roots. These are decisions, not discoveries. The fact
    sheet lists candidates; a person chooses.
-3. **[proposed] Review and sign-off:** both files enter the repo of record
-   through a reviewed change (pull request). A second app manager — or the
-   stack lead where there is only one — confirms the facts against the
-   machine and approves. No downstream step consumes an unreviewed fact
-   sheet.
+3. Review and sign-off: both files enter the repo of record through a
+   reviewed change (pull request). A second app manager, or the stack lead
+   where there is only one, confirms the facts against the machine and
+   approves. No downstream step consumes an unreviewed fact sheet.
 4. The platform catalog for the system is generated from the approved fact
    sheet and published alongside it, versioned by release.
 
-If a fact later proves wrong, the correction is made to the fact sheet and
+If a fact later proves wrong, the correction goes into the fact sheet and
 everything downstream is re-derived. Generated files are never patched to
-work around a wrong fact — that is the single most important discipline in
-this process.
+work around a wrong fact. This rule keeps every file in the process
+trustworthy.
 
 ## 4. How the curated stack (CSE) is built
 
-The stack file lists the software; the work tree derived from it contains
-one build environment per lane — for example, on a Cray system with two
-compiler surfaces: a Serial, an MPI, and a GPU lane under each of GCC and
-CCE. Each lane is ordinary Spack input, built with ordinary Spack commands:
+The stack file lists the software. The work tree derived from it contains
+one build environment per lane. For example, a Cray system with two
+compiler surfaces has a Serial, an MPI, and a GPU lane under each of GCC
+and CCE. Each lane is ordinary Spack input, built with ordinary Spack
+commands:
 
 ```
 spack -e environments/gcc/mpi concretize
@@ -83,19 +91,19 @@ spack -e environments/gcc/mpi install
 ```
 
 Checkpoint at concretize: the system's own compilers, MPI, and GPU toolkits
-must appear as pinned externals being **used** — if the build tool starts
-downloading something the machine already provides, the inputs were wrong;
-stop and fix the fact sheet, never the derived files.
+must appear as pinned externals being used. If the build tool starts
+downloading something the machine already provides, the inputs were wrong.
+Stop and fix the fact sheet; do not fix the derived files.
 
 Publishing regenerates views and modules, pushes build caches, and records
-the release manifest and per-lane lockfiles — the three artifacts that make
-a release reproducible.
+the release manifest and per-lane lockfiles. Those three artifacts (manifest,
+lockfiles, caches) are what make a release reproducible.
 
-**[proposed] Promotion gate:** a release becomes `current` only after (a)
-the validation report is clean, (b) a user-level smoke test passes — load a
-compiler surface, load one lane, compile and run a small MPI program — and
-(c) the stack lead approves. The approval and evidence are recorded in the
-release manifest. Rollback is moving the pointer back.
+Promotion gate: a release becomes `current` only after (a) the validation
+report is clean, (b) a user-level smoke test passes (load a compiler
+surface, load one lane, compile and run a small MPI program), and (c) the
+stack lead approves. The approval and evidence are recorded in the release
+manifest. Rollback is moving the pointer back.
 
 ## 5. How an independent app manager builds
 
@@ -106,7 +114,7 @@ any coordination:
 1. Pull the system's platform catalog. Its manifest names the recommended
    compiler, MPI, and GPU configuration; the README shows the include block.
 2. Write an ordinary Spack environment by hand, including the catalog's
-   scopes so the build links the system's blessed compilers and MPI:
+   scopes so the build links the system's supported compilers and MPI:
 
    ```yaml
    spack:
@@ -119,44 +127,47 @@ any coordination:
        - mytool@2.0
    ```
 
-3. Build, then write a modulefile per version and place it in **their own
-   shared directory already on the system's module path**. The package is
-   immediately available to users through the path they already had.
-   Nothing about the curated stack changes.
+3. Build, then write a modulefile per version and place it in their own
+   shared directory that is already on the system's module path. The
+   package is immediately available to users through the path they already
+   had. Nothing about the curated stack changes.
 
-This ladder is intentional: an app manager can operate fully by hand
-forever, adopt the curated process for some software later, or never — the
-catalog exists precisely so software built outside the stack still matches
-the machine.
+An app manager can operate fully by hand indefinitely, or adopt parts of
+the curated process later. The catalog exists so that software built
+outside the stack still matches the machine.
 
 ## 6. What users experience
 
 Three commands, no build-system knowledge:
 
 ```
-module load CSE/GCC        # compiler surface: core tools appear,
-                           # foundation libraries are simply present
+module load CSE/GCC        # compiler surface: core tools appear, and
+                           # foundation libraries are available to link
 module load MPI            # exactly one lane: Serial, MPI, or GPU
 module load hdf5/1.14.6    # the package, at the version they choose
 ```
 
-Loading a second, conflicting lane fails loudly rather than silently mixing
-environments. `module whatis` on any package reports where it came from —
-built by the stack, provided by the platform, or provided by the site.
+Loading a second, conflicting lane fails with an explicit error rather than
+silently mixing environments. `module whatis` on any package reports where
+it came from: built by the stack, provided by the platform, or provided by
+the site.
 
-## 7. [proposed] Requests and issues
+## 7. Requests and issues
 
-- A user reporting a broken module or requesting a package/version raises
-  it through the site's normal support channel; the system's app manager
-  owns triage.
-- A wrong behavior traced to a wrong system fact is fixed in the fact sheet
-  and re-derived (§3); one traced to the software list is fixed in the
-  stack file (§4); an independent app manager's package is theirs (§5).
+- A user reporting a broken module or requesting a package or version
+  raises it through the site's normal support channel. The system's app
+  manager owns triage.
+- A problem traced to a wrong system fact is fixed in the fact sheet and
+  re-derived (section 3). One traced to the software list is fixed in the
+  stack file (section 4). An independent app manager's package is handled
+  by its owner (section 5).
 
-## 8. What "good" looks like
+## 8. What good looks like
 
-- Fact sheet and overlay reviewed and approved before anything consumes them.
-- Every value in the work tree traceable to one of the three input files.
+- The fact sheet and overlay are reviewed and approved before anything
+  consumes them.
+- Every value in the work tree can be traced to one of the three input
+  files.
 - Concretization uses the machine's externals; nothing the machine already
   provides is downloaded.
 - A release promotes only with clean validation, a passing user-level smoke
@@ -165,8 +176,8 @@ built by the stack, provided by the platform, or provided by the site.
 
 ## 9. Open items for later revisions
 
-Not yet defined anywhere and deliberately out of scope for v1: system and
+Not yet defined and deliberately out of scope for this draft: system and
 release decommissioning; security re-validation cadence after CVEs in
 system-provided libraries; cross-system version-consistency audits; the
-package deprecation/removal flow; onboarding checklist for a new app
-manager (person, not system).
+package deprecation and removal flow; the onboarding checklist for a new
+app manager (the person, not the system).
