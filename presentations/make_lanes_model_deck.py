@@ -1,127 +1,316 @@
-"""Generate the CSE lanes-model stakeholder deck (editable, text-first)."""
+"""Generate the CSE lanes-model stakeholder deck — designed slides, 16:9."""
+from lxml import etree
 from pptx import Presentation
-from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+from pptx.oxml.ns import qn
+from pptx.util import Emu, Inches, Pt
+
+# palette
+BG = RGBColor(0x0F, 0x17, 0x2A)        # slate-900
+PANEL = RGBColor(0x1E, 0x29, 0x3B)     # slate-800
+PANEL2 = RGBColor(0x2A, 0x37, 0x4D)
+TEXT = RGBColor(0xE2, 0xE8, 0xF0)      # slate-200
+MUTED = RGBColor(0x94, 0xA3, 0xB8)     # slate-400
+WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+TEAL = RGBColor(0x14, 0xB8, 0xA6)      # core
+AMBER = RGBColor(0xF5, 0x9E, 0x0B)     # serial
+BLUE = RGBColor(0x3B, 0x82, 0xF6)      # mpi
+VIOLET = RGBColor(0x8B, 0x5C, 0xF6)    # gpu
+GRAY = RGBColor(0x64, 0x74, 0x8B)      # foundation
+GREEN = RGBColor(0x22, 0xC55E >> 8 & 0xFF if False else 0xC5, 0x5E)  # 22C55E
 
 prs = Presentation()
-TITLE, BODY = prs.slide_layouts[0], prs.slide_layouts[1]
+prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+BLANK = prs.slide_layouts[6]
 
 
-def add(title, bullets, layout=BODY):
-    slide = prs.slides.add_slide(layout)
-    slide.shapes.title.text = title
-    tf = slide.placeholders[1].text_frame
-    tf.word_wrap = True
+def slide():
+    s = prs.slides.add_slide(BLANK)
+    r = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
+    r.fill.solid(); r.fill.fore_color.rgb = BG; r.line.fill.background()
+    r.shadow.inherit = False
+    return s
+
+
+def txt(s, x, y, w, h, lines, size=18, color=TEXT, bold=False, align=PP_ALIGN.LEFT,
+        anchor=MSO_ANCHOR.TOP, font=None):
+    box = s.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+    tf = box.text_frame; tf.word_wrap = True; tf.vertical_anchor = anchor
+    if isinstance(lines, str):
+        lines = [(size, color, bold, lines)]
     first = True
-    for level, text in bullets:
+    for sz, col, bd, textline in lines:
         p = tf.paragraphs[0] if first else tf.add_paragraph()
         first = False
-        p.text = text
-        p.level = level
-        p.font.size = Pt(20 if level == 0 else 16)
-    return slide
+        p.text = textline; p.alignment = align
+        p.font.size = Pt(sz); p.font.color.rgb = col; p.font.bold = bd
+        p.font.name = font or "Avenir Next"
+    return box
 
 
-# 1 — title
-s = prs.slides.add_slide(TITLE)
-s.shapes.title.text = "CSE Software Stack: The Lanes Model"
-s.placeholders[1].text = "How we got here, what others do, and where we're going\nJuly 2026 — working draft"
+def box(s, x, y, w, h, fill, line=None, radius=True):
+    shp = s.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE if radius else MSO_SHAPE.RECTANGLE,
+        Inches(x), Inches(y), Inches(w), Inches(h))
+    shp.fill.solid(); shp.fill.fore_color.rgb = fill
+    shp.shadow.inherit = False
+    if line:
+        shp.line.color.rgb = line; shp.line.width = Pt(1.5)
+    else:
+        shp.line.fill.background()
+    return shp
 
-# 2 — CSE today
-add("Where CSE is today", [
-    (0, "One entry module: CSEinit"),
-    (1, "Two modes: standard (preloads MPI etc.) and noloads"),
-    (1, "Two flavors: GCC-backed and Intel-backed"),
-    (1, "Loading extends MODULEPATH and exposes compilers + packages"),
-    (0, "What works: the entry-module pattern, multiple compiler surfaces"),
-    (0, "What strains:"),
-    (1, "Flat exposure — every package visible at once, conflicts by convention"),
-    (1, "Hand-curated per system; a major upgrade means rebuilding everything"),
-    (1, "No isolation between MPI/GPU build surfaces"),
+
+def boxtxt(s, x, y, w, h, fill, lines, line=None, align=PP_ALIGN.CENTER):
+    shp = box(s, x, y, w, h, fill, line)
+    tf = shp.text_frame; tf.word_wrap = True; tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    tf.margin_left = tf.margin_right = Inches(0.12)
+    if isinstance(lines, str):
+        lines = [(14, WHITE, True, lines)]
+    first = True
+    for sz, col, bd, textline in lines:
+        p = tf.paragraphs[0] if first else tf.add_paragraph()
+        first = False
+        p.text = textline; p.alignment = align
+        p.font.size = Pt(sz); p.font.color.rgb = col; p.font.bold = bd
+        p.font.name = "Avenir Next"
+    return shp
+
+
+def arrow(s, x1, y1, x2, y2, color=MUTED, w=2.5):
+    c = s.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(x1), Inches(y1),
+                               Inches(x2), Inches(y2))
+    c.line.color.rgb = color; c.line.width = Pt(w)
+    c.shadow.inherit = False
+    ln = c.line._get_or_add_ln()
+    tail = etree.SubElement(ln, qn('a:tailEnd'))
+    tail.set('type', 'triangle'); tail.set('w', 'med'); tail.set('len', 'med')
+    return c
+
+
+def header(s, title, kicker=None):
+    if kicker:
+        txt(s, 0.6, 0.28, 12, 0.4, [(13, TEAL, True, kicker.upper())])
+    txt(s, 0.6, 0.62, 12.1, 0.8, [(30, WHITE, True, title)])
+    box(s, 0.62, 1.42, 1.6, 0.045, TEAL, radius=False)
+
+
+def chip(s, x, y, w, label, color=PANEL2, tcolor=TEXT, h=0.42, size=12):
+    boxtxt(s, x, y, w, h, color, [(size, tcolor, False, label)])
+
+
+# ---------------------------------------------------------------- 1 · title
+s = slide()
+box(s, 0, 6.9, 13.333, 0.6, PANEL, radius=False)
+txt(s, 0.9, 2.2, 11.5, 1.2, [(46, WHITE, True, "The CSE Software Stack")])
+box(s, 0.95, 3.35, 2.4, 0.06, TEAL, radius=False)
+txt(s, 0.9, 3.6, 11.5, 1.4, [
+    (22, TEXT, False, "One clean build surface per compiler, MPI, and GPU — the lanes model"),
+    (15, MUTED, False, "How we got here, what the community runs, and where we're going"),
+])
+txt(s, 0.9, 6.95, 11.5, 0.5, [(12, MUTED, False, "July 2026  ·  working draft")])
+# lane ribbon accent
+for i, c in enumerate((TEAL, AMBER, BLUE, VIOLET)):
+    box(s, 8.9 + i * 0.95, 2.35, 0.75, 0.75, c)
+
+# ------------------------------------------------- 2 · today vs the model
+s = slide()
+header(s, "From one flat surface to lanes", "Where we are · where we're going")
+# left panel — today
+box(s, 0.6, 1.75, 5.85, 5.15, PANEL)
+txt(s, 0.85, 1.95, 5.4, 0.5, [(17, WHITE, True, "Today — CSEinit")])
+txt(s, 0.85, 2.42, 5.4, 0.4, [(12.5, MUTED, False,
+    "GCC- and Intel-backed flavors · standard / noloads · extends MODULEPATH")])
+names = ["hdf5/1.14.6", "hdf5/1.10", "openmpi", "boost", "netcdf", "fftw",
+         "python", "mkl", "gsl", "tau", "cmake", "openblas"]
+for i, n in enumerate(names):
+    chip(s, 0.9 + (i % 3) * 1.78, 3.0 + (i // 3) * 0.56, 1.62, n)
+txt(s, 0.85, 5.45, 5.4, 1.3, [
+    (13.5, AMBER, True, "Everything visible at once."),
+    (12.5, MUTED, False, "Conflicts avoided by convention · MPI/GPU surfaces not isolated ·"),
+    (12.5, MUTED, False, "hand-curated per system — upgrades mean rebuilding everything"),
+])
+# right panel — lanes
+box(s, 6.85, 1.75, 5.85, 5.15, PANEL)
+txt(s, 7.1, 1.95, 5.4, 0.5, [(17, WHITE, True, "The lanes model")])
+boxtxt(s, 7.4, 2.55, 4.75, 0.5, PANEL2, [(13, TEXT, True, "module load cse/gcc")])
+arrow(s, 9.775, 3.05, 9.775, 3.35)
+boxtxt(s, 7.4, 3.35, 2.3, 0.62, TEAL, [(12.5, WHITE, True, "Core — automatic")])
+boxtxt(s, 9.85, 3.35, 2.3, 0.62, GRAY, [(12.5, WHITE, True, "Foundation — in view")])
+arrow(s, 9.775, 3.97, 9.775, 4.27)
+txt(s, 7.4, 4.27, 4.9, 0.35, [(11.5, MUTED, True, "CHOOSE EXACTLY ONE")], align=PP_ALIGN.CENTER)
+boxtxt(s, 7.4, 4.62, 1.5, 0.6, AMBER, [(12.5, WHITE, True, "serial")])
+boxtxt(s, 9.0, 4.62, 1.5, 0.6, BLUE, [(12.5, WHITE, True, "mpi")])
+boxtxt(s, 10.6, 4.62, 1.55, 0.6, VIOLET, [(12.5, WHITE, True, "gpu")])
+txt(s, 7.1, 5.45, 5.4, 1.3, [
+    (13.5, TEAL, True, "You see exactly one lane."),
+    (12.5, MUTED, False, "No contamination, no accidental MPI/GPU linkage ·"),
+    (12.5, MUTED, False, "versions inside a lane stay a one-at-a-time module choice"),
 ])
 
-# 3 — what others do
-add("What the community runs in production", [
-    (0, "NASA JSC Flight Sciences Lab (HPSF 2026)"),
-    (1, "Lmod hierarchy: Core → Compiler → MPI; 1,000+ packages, 4 compiler suites, 3 MPIs"),
-    (1, "“Users see modules, not spack… Users never run a spack command”"),
-    (1, "Six ordered environments: compilers → base → mpis → hpc-libs → hpc-apps"),
-    (0, "ALCF Polaris Spack PE"),
-    (1, "spack-pe-base (system GCC, PE-agnostic) + spack-pe-gnu (PrgEnv lane)"),
-    (1, "Meta-module gates MODULEPATH — packages appear after the stack loads"),
-    (0, "Spack project / community (Kitware, E4S, HPSF)"),
-    (1, "Incremental concretization: Foundation → GPU/MPI/Python columns → integrations"),
-    (1, "Environment chaining + build caches as load-bearing infrastructure"),
+# ------------------------------------------------- 3 · community validation
+s = slide()
+header(s, "The shape everyone converges on", "Validation · production prior art")
+cards = [
+    ("NASA JSC  ·  Flight Sciences Lab", BLUE,
+     "1,000+ packages · 4 compiler suites · 3 MPIs",
+     ["Lmod hierarchy: Core → Compiler → MPI",
+      "compiler_mixing: false — lanes stay isolated",
+      "“Users never run a spack command.”"]),
+    ("ALCF  ·  Polaris Spack PE", VIOLET,
+     "spack-pe-base + spack-pe-gnu",
+     ["Base built once with system GCC, PE-agnostic",
+      "Meta-module gates MODULEPATH",
+      "Packages appear only after the stack loads"]),
+    ("Spack project  ·  E4S / HPSF", TEAL,
+     "Incremental concretization",
+     ["Foundation → GPU/MPI/Python → integrations",
+      "Flat 270-spec environments hang the solver",
+      "Build caches are load-bearing, not optional"]),
+]
+for i, (org, color, stat, lines) in enumerate(cards):
+    x = 0.6 + i * 4.18
+    box(s, x, 1.75, 3.95, 4.35, PANEL)
+    box(s, x, 1.75, 3.95, 0.09, color, radius=False)
+    txt(s, x + 0.25, 2.0, 3.5, 0.55, [(14.5, WHITE, True, org)])
+    txt(s, x + 0.25, 2.62, 3.5, 0.75, [(16, color, True, stat)])
+    txt(s, x + 0.25, 3.5, 3.5, 2.4,
+        [(12.5, TEXT, False, ln) for ln in lines])
+boxtxt(s, 0.6, 6.35, 12.13, 0.62, PANEL2, [(14, WHITE, True,
+    "Base built once  →  isolated per-compiler/MPI fan-out  →  modules are the user contract")])
+
+# ------------------------------------------------- 4 · how it's built (schematic)
+s = slide()
+header(s, "How a stack is built", "Schematic · generated, not hand-curated")
+stages = [
+    ("PROBE", "cluster-inspector\nreads the system", TEAL),
+    ("POLICY", "one small site\ndefaults file", TEAL),
+    ("RENDER", "stack-composer\nemits every lane", TEAL),
+    ("BUILD", "Spack · lanes build\nin parallel", TEAL),
+    ("PUBLISH", "modules · views\nbuild caches", TEAL),
+]
+for i, (t, d, c) in enumerate(stages):
+    x = 0.6 + i * 2.52
+    boxtxt(s, x, 1.8, 2.25, 1.05, PANEL,
+           [(15, WHITE, True, t)] + [(11, MUTED, False, ln) for ln in d.split("\n")],
+           line=c)
+    if i < 4:
+        arrow(s, x + 2.27, 2.32, x + 2.5, 2.32, TEAL)
+boxtxt(s, 2.35, 3.4, 8.6, 0.75, PANEL2, [
+    (14.5, WHITE, True, "Core + Foundation — built once per compiler surface, portable target"),
+    (11.5, MUTED, False, "cmake · python · miniforge   |   zlib · xz · zstd (single pinned version)"),
+])
+lanes = [("serial", AMBER, "hdf5~mpi · fftw~mpi · boost"),
+         ("mpi-craympich", BLUE, "hdf5+mpi · netcdf · tau"),
+         ("gpu-craympich-gfx942", VIOLET, "kokkos — arch from the probe")]
+for i, (name, color, content) in enumerate(lanes):
+    x = 1.5 + i * 3.6
+    arrow(s, 6.65, 4.15, x + 1.65, 4.75, color)
+    boxtxt(s, x, 4.75, 3.3, 0.95, color,
+           [(14.5, WHITE, True, name), (11, WHITE, False, content)])
+txt(s, 0.6, 6.15, 12.1, 0.9, [
+    (14, TEAL, True, "A new system is a probe + a render — not months of curation."),
+    (12.5, MUTED, False,
+     "The same pipeline produced a Cray EX (MI300A · ROCm) stack and an NVIDIA A100 Linux stack, unchanged."),
 ])
 
-# 4 — lessons / validation
-add("The lessons that chose our route", [
-    (0, "Flat environments don't scale"),
-    (1, "NASA: 270+ root specs in one environment hung the concretizer → split into ordered environments"),
-    (0, "Never mix compilers within a build surface"),
-    (1, "NASA enforces compiler_mixing: false; mixed-Fortran apps must stay in one PrgEnv (mpi.mod)"),
-    (0, "Build the common base once, portable target, reuse everywhere"),
-    (0, "Users get modules and views — the package manager stays invisible"),
-    (0, "Build caches turn 12-hour rebuilds into 2–3 hours (NASA)"),
-    (0, "Every one of these is a first-class rule in the lanes model — by design, not by rediscovery"),
+# ------------------------------------------------- 5 · user flow (schematic)
+s = slide()
+header(s, "What a user experiences", "Schematic · the front door")
+cx = 6.666
+boxtxt(s, cx - 2.5, 1.8, 5.0, 0.62, PANEL2,
+       [(16, WHITE, True, "$ module load cse/gcc")])
+arrow(s, cx, 2.42, cx, 2.82)
+boxtxt(s, cx - 4.3, 2.82, 4.1, 1.0, TEAL, [
+    (14.5, WHITE, True, "Core — loads automatically"),
+    (11.5, WHITE, False, "cmake · python · miniforge · gsl"),
+])
+boxtxt(s, cx + 0.2, 2.82, 4.1, 1.0, GRAY, [
+    (14.5, WHITE, True, "Foundation — ambient in the view"),
+    (11.5, WHITE, False, "zlib · xz · zstd — one pinned version"),
+])
+arrow(s, cx, 3.82, cx, 4.32)
+txt(s, cx - 2.5, 4.32, 5.0, 0.38, [(12.5, MUTED, True, "CHOOSE EXACTLY ONE LANE")],
+    align=PP_ALIGN.CENTER)
+for i, (name, color, content) in enumerate([
+        ("serial", AMBER, "hdf5~mpi 1.14.6 / 1.14.5 · fftw · boost"),
+        ("mpi-craympich", BLUE, "hdf5+mpi · netcdf · tau"),
+        ("gpu-craympich-gfx942", VIOLET, "kokkos +rocm gfx942")]):
+    x = 0.75 + i * 4.0
+    boxtxt(s, x, 4.75, 3.8, 1.0, color,
+           [(15, WHITE, True, name), (11.5, WHITE, False, content)])
+boxtxt(s, 0.75, 6.1, 11.85, 0.85, PANEL, [
+    (13.5, WHITE, True, "Only the chosen lane is visible — no contamination, no accidental MPI/GPU linkage."),
+    (12, MUTED, False, "Two HDF5 versions in a lane? The same one-at-a-time module choice users already know."),
 ])
 
-# 5 — the lanes model UX
-add("The lanes model — what a user does", [
-    (0, "1.  module load cse/<compiler>   (the compiler surface: system default or GCC)"),
-    (1, "Core loads automatically: cmake, python, miniforge — the tool layer"),
-    (1, "Foundation libraries (zlib, xz, zstd) arrive ambient in the view, one pinned version"),
-    (0, "2.  Pick exactly one lane"),
-    (1, "serial   |   mpi-craympich   |   gpu-craympich-gfx942"),
-    (0, "3.  You see only that lane's packages"),
-    (1, "No cross-lane contamination; no accidental MPI/GPU linkage"),
-    (1, "Multiple versions inside a lane stay a familiar one-at-a-time module choice (hdf5/1.14.6 vs 1.14.5)"),
-])
+# ------------------------------------------------- 6 · lane vocabulary
+s = slide()
+header(s, "Lane vocabulary", "Names carry facts, not contents")
+vocab = [
+    ("core", TEAL, "No MPI implementation exists for it, or it is a compiler-agnostic building block.",
+     "gsl · python · miniforge · cmake"),
+    ("serial", AMBER, "MPI-capable — deliberately built without MPI for users who want it plain.",
+     "hdf5~mpi · fftw~mpi"),
+    ("mpi-<impl>", BLUE, "Built against the named MPI implementation.",
+     "mpi-craympich · mpi-openmpi"),
+    ("gpu-<impl>-<arch>", VIOLET, "GPU backend over GPU-aware MPI, targeted at the probed architecture.",
+     "gpu-craympich-gfx942"),
+]
+for i, (name, color, desc, ex) in enumerate(vocab):
+    x = 0.6 + i * 3.22
+    box(s, x, 1.8, 3.0, 4.2, PANEL)
+    box(s, x, 1.8, 3.0, 0.75, color)
+    txt(s, x + 0.15, 1.92, 2.7, 0.55, [(17, WHITE, True, name)], align=PP_ALIGN.CENTER)
+    txt(s, x + 0.22, 2.75, 2.6, 2.0, [(12.5, TEXT, False, desc)])
+    txt(s, x + 0.22, 4.9, 2.6, 0.9, [(11.5, MUTED, False, ex)])
+boxtxt(s, 0.6, 6.3, 12.13, 0.62, PANEL2, [(14, WHITE, True,
+    "The GPU lane is called gpu-craympich-gfx942 — never gpu-kokkos. Kokkos is what it carries today.")])
 
-# 6 — lane vocabulary
-add("Lane vocabulary", [
-    (0, "core — packages with no MPI implementation at all (GSL) plus compiler-agnostic building blocks (Python, Miniforge, CMake); loadable"),
-    (0, "serial — MPI-capable packages deliberately built without MPI (hdf5~mpi)"),
-    (0, "mpi-<impl> — built against the named MPI (mpi-craympich, mpi-openmpi)"),
-    (0, "gpu-<impl>-<arch> — GPU backend over GPU-aware MPI (gpu-craympich-gfx942)"),
-    (0, "Names carry facts, not contents: the lane is called gpu-…, never gpu-kokkos"),
-    (0, "Same vocabulary on every system — Cray or generic Linux"),
-])
+# ------------------------------------------------- 7 · pilot scope
+s = slide()
+header(s, "Pilot scope", "Two compiler surfaces · one Cray system first")
+for i, (surf, note) in enumerate([
+        ("cse/<system-default>", "whatever the machine blesses as its baseline"),
+        ("cse/gcc", "the portable reference surface")]):
+    x = 0.6 + i * 6.25
+    box(s, x, 1.8, 5.9, 2.9, PANEL)
+    txt(s, x + 0.25, 1.98, 5.4, 0.5, [(16, WHITE, True, surf)])
+    txt(s, x + 0.25, 2.5, 5.4, 0.4, [(12, MUTED, False, note)])
+    boxtxt(s, x + 0.3, 3.0, 2.55, 0.55, TEAL, [(12, WHITE, True, "core (automatic)")])
+    boxtxt(s, x + 3.0, 3.0, 2.55, 0.55, GRAY, [(12, WHITE, True, "foundation (view)")])
+    boxtxt(s, x + 0.3, 3.72, 1.65, 0.62, AMBER, [(12, WHITE, True, "serial")])
+    boxtxt(s, x + 2.1, 3.72, 1.65, 0.62, BLUE, [(12, WHITE, True, "mpi")])
+    boxtxt(s, x + 3.9, 3.72, 1.65, 0.62, VIOLET, [(12, WHITE, True, "gpu")])
+txt(s, 0.6, 4.95, 12, 0.4, [(13, WHITE, True, "Representative roster — evolving, ~two versions each")])
+roster = ["HDF5", "NetCDF-C", "NetCDF-Fortran", "NetCDF-C++", "FFTW", "OpenBLAS",
+          "Boost", "GSL", "TAU", "Kokkos", "CMake", "Python", "Miniforge"]
+for i, n in enumerate(roster):
+    chip(s, 0.6 + (i % 7) * 1.78, 5.4 + (i // 7) * 0.56, 1.62, n)
+txt(s, 0.6, 6.65, 12.1, 0.5, [(12, MUTED, False,
+    "Multi-version by policy: unify:false lanes · single-version pinned foundation · conflicts stay a module choice")])
 
-# 7 — pilot scope
-add("Pilot scope", [
-    (0, "Two compiler surfaces to start"),
-    (1, "The system baseline (what the machine ships as default) and GCC"),
-    (0, "One Cray system first, then a generic Linux cluster (already probed)"),
-    (0, "Representative package roster (evolving; ~two versions each)"),
-    (1, "Science: HDF5, NetCDF (C/Fortran/C++), FFTW, OpenBLAS, Boost, GSL, TAU"),
-    (1, "GPU: Kokkos (pilot GPU lane content)"),
-    (1, "Core: CMake, Python, Miniforge"),
-    (0, "Multi-version by policy: unify:false lanes + single-version pinned foundation"),
-])
-
-# 8 — the differentiator
-add("What's different: generated, not hand-curated", [
-    (0, "NASA and ALCF hand-maintain their stacks per machine"),
-    (0, "CSE generates the same shape from facts + policy:"),
-    (1, "cluster-inspector probes the system → verified facts (compilers, MPIs, GPUs, fabric)"),
-    (1, "site policy defaults (one small file) → which compiler family, which MPI, newest-version rules"),
-    (1, "stack-composer renders every lane's configs — templates never contain policy"),
-    (1, "Spack builds; modules and views are published to users"),
-    (0, "A new system is a probe + a render — not months of curation"),
-    (0, "Same pipeline handled a Cray EX (MI300A/ROCm) and an NVIDIA A100 Linux cluster unchanged"),
-])
-
-# 9 — status and next
-add("Status and next steps", [
-    (0, "Done"),
-    (1, "End-to-end Cray smoke: probe → render → concretize → build (PrgEnv-gnu + cray-mpich + ROCm)"),
-    (1, "Second system validated the generic-Linux path and hardened the prober"),
-    (1, "Science stack (4 lanes, two-version roster) renders clean today"),
-    (0, "Next"),
-    (1, "Build out the science lanes on the Cray system; verify the module/view user flow"),
-    (1, "Add the second compiler surface; then the NVIDIA system in parallel"),
-    (1, "Release process: build caches, lockfiles, release manifest"),
-])
+# ------------------------------------------------- 8 · status / next
+s = slide()
+header(s, "Status and next steps", "Where the pipeline is today")
+box(s, 0.6, 1.8, 5.95, 4.9, PANEL)
+txt(s, 0.9, 2.0, 5.4, 0.5, [(17, GREEN, True, "Done")])
+done = ["End-to-end Cray smoke: probe → render → concretize → build (PrgEnv-gnu · cray-mpich · ROCm)",
+        "Second system validated the generic-Linux path and hardened the prober",
+        "Science stack — four lanes, two-version roster — renders clean today"]
+for i, d in enumerate(done):
+    txt(s, 0.9, 2.6 + i * 1.15, 0.4, 0.5, [(16, GREEN, True, "✓")])
+    txt(s, 1.35, 2.6 + i * 1.15, 4.95, 1.1, [(13, TEXT, False, d)])
+box(s, 6.85, 1.8, 5.85, 4.9, PANEL)
+txt(s, 7.15, 2.0, 5.3, 0.5, [(17, AMBER, True, "Next")])
+nxt = ["Build the science lanes on the Cray system; verify the module/view front door",
+       "Add the second compiler surface, then the NVIDIA system in parallel",
+       "Release process: build caches, lockfiles, release manifest"]
+for i, d in enumerate(nxt):
+    txt(s, 7.15, 2.6 + i * 1.15, 0.4, 0.5, [(16, AMBER, True, "→")])
+    txt(s, 7.6, 2.6 + i * 1.15, 4.85, 1.1, [(13, TEXT, False, d)])
 
 out = "/private/tmp/claude-501/-Users-ravonventers-Development-stack-composer/a23f38af-bedd-4b94-9c54-985d109b5350/scratchpad/cse_lanes_model.pptx"
 prs.save(out)
