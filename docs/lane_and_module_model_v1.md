@@ -60,6 +60,14 @@ A simple stack may use one payload lane and no separate Core. Variant-rich stack
 use front-door compiler-init and lane modules so a user enters one compiler
 surface and then picks exactly one serial/MPI/GPU lane.
 
+**Lane naming convention (2026-07-08):** the rendered lane name is
+`{build-name}[-{mpi-provider}][-{gpu-arch}]`, so the user-facing vocabulary is
+the build name plus the facts that distinguish the lane: `core`, `serial`,
+`mpi-craympich`, `gpu-craympich-gfx942`. Name a build after its kind (`gpu`,
+not `gpu-kokkos`) unless a stack fans out several builds of the same kind —
+package content is what a lane *carries*, never what it is *called*. This is
+the presentation-facing vocabulary; keep it boring and stable.
+
 ### Per-compiler Core (committed)
 
 Every compiler owns its own Core environment/view/module root (`gcc/core`,
