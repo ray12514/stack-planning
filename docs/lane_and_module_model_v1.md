@@ -42,10 +42,19 @@ derivation wouldn't produce. A missing lane means the gap is in `profile.yaml` o
 | Kind | Purpose | Built/exposed |
 |---|---|---|
 | **foundation** | build tools + stable-ABI low-level libs (cmake, ninja, pkgconf, zlib, xz, zstd) | once per compiler; **view**-exposed (+compiler) |
-| **core** | compiler-adjacent infrastructure exposed for use | compiler-init **view** |
+| **core** | only-serial-by-nature packages (`gsl` — no MPI implementation exists) plus compiler-agnostic building blocks (`python`, `miniforge`, `cmake`) | compiler-init **view**; tools loadable |
 | **serial** | MPI-*capable* package built without MPI by choice (`hdf5~mpi`) | module |
 | **mpi** | built with MPI (osu, `hdf5+mpi`) | module |
 | **gpu** | GPU backend (`+rocm`/`+cuda`), over GPU-aware MPI | module |
+
+Placement rules (2026-07-08): serial means the package *could* build against
+MPI and the stack deliberately offers the MPI-less build too; a package with no
+MPI implementation at all is core, not serial. Edge cases are decided by the
+second core criterion (compiler-agnostic): `openblas` has no MPI but is
+compiler/performance-sensitive, so it stays payload-serial; `gnuplot` is
+flagged for team review. Open team question, recorded not decided: MPI built
+for one rank can subsume a serial build, so the serial tier could in principle
+collapse into MPI — CSE keeps the explicit serial tier for now.
 
 A simple stack may use one payload lane and no separate Core. Variant-rich stacks
 use front-door compiler-init and lane modules so a user enters one compiler
