@@ -7,23 +7,29 @@ internals (those live in the design docs listed at the end).
 
 ## 1. Purpose and audience
 
-Audience: a site package manager who maintains HPC software for users and is
-**not** expected to know Spack internals, stack-composer, or cluster-inspector.
+Audience: a site package manager who maintains HPC software for users. No
+knowledge of our tooling is required or expected — this procedure is written
+in terms of the **artifacts**, all of which are plain, readable, versioned
+files. (The tools that generate each artifact are listed in the appendix;
+every artifact can also be produced or corrected by hand.)
 
 What you operate:
 
-1. A **site catalog repo** (`stack-content`) — the static repo of record.
-   It holds, per system: the probed `profile.yaml`, the installer-chosen
-   `deployment.yaml`, and runbook notes; plus the shared stacks, package
-   sets, and templates every site uses.
-2. A **rendered workspace** per stack — plain YAML the tools generate.
-   Everything you build from is a readable file you can inspect.
-3. A **static platform catalog** per system and release — include-ready
-   Spack config scopes generated from the profile alone (`stack-composer
-   render-static`). This is what you pull for **manual builds**: no stack,
-   no lanes, just the system's compilers, MPIs, and GPU toolkits as pinned
-   externals, with a `manifest.yaml` that names the recommended
-   compiler/MPI/GPU picks and a README with a copy-paste include block.
+1. The **site catalog repo** — the static repo of record. It holds, per
+   system: the **system fact sheet** (`profile.yaml` — compilers, MPIs, GPU
+   toolkits, fabric, filesystems, as observed on the machine), the
+   installer-chosen `deployment.yaml`, the **platform configuration
+   catalog** (below), and runbook notes; plus the shared stacks, package
+   sets, and templates.
+2. A **curated stack workspace** per stack — the generated build
+   configuration for the CSE lanes. Everything you build from is a readable
+   file you can inspect.
+3. The **platform configuration catalog** per system and release —
+   include-ready Spack configuration derived from the fact sheet alone: the
+   system's compilers, MPIs, and GPU toolkits as pinned externals, a
+   `manifest.yaml` naming the recommended compiler/MPI/GPU picks, and a
+   README with a copy-paste include block. This is what **any** package
+   manager — CSE or not — pulls to build correctly on the machine.
 4. The **published surface** users see: `CSE/<Compiler>/<Lane>` modules and
    views. Users never run a spack command.
 
@@ -41,9 +47,11 @@ ever derives them** (see deployment_inputs_and_ownership_v1.md).
 
 ## 3. Flow A — onboard a new system (once per system)
 
-1. Copy the `cluster-inspector` binary to a login node (single static
-   binary; no installs, no network, no Spack required).
-2. Probe and merge (non-login shells; the tool handles module hygiene):
+1. Gather the system facts. The supported way is the **system probe** — a
+   single static binary we provide (no installs, no network, no Spack
+   required); the fact sheet is plain YAML, so it can equally be authored or
+   corrected by hand and checked with the same verify step.
+2. Probe and merge (non-login shells; the probe handles module hygiene):
 
    ```bash
    ./cluster-inspector probe-system --system "$NAME" --output system.frag.yaml
@@ -139,21 +147,22 @@ need is under `systems/<name>/static/<release>/`:
 3. Concretize and install as usual. Same tripwire as Flow B: externals must
    be **used**, never fetched.
 
-### 5a. Publishing a one-off package into the existing module tree
+### 5a. One-off packages by non-CSE package managers
 
-The most common request: build one package and make it visible where users
-already look — no new lane, no new surface.
+The most common case: a package manager who is **not part of CSE** needs to
+provide one package (often at several versions) to their users. They have
+their own environments and their own module conventions — CSE's lanes and
+module tree are ours, not theirs. The catalog is still their friend:
 
-1. Build it in a throwaway environment using the static catalog scopes
-   (step 2 above), so it links the blessed compiler/MPI/externals.
-2. Generate its modulefile and place it in the **already-exposed** module
-   tree for the matching surface (the path `CSE/<Compiler>` already
-   prepends), so it appears to users on their next `module avail` with zero
-   announcement overhead.
-3. Record what was added in the system's runbook notes. One-off modules are
-   site-owned: the next stack release neither removes nor manages them, but
-   a name collision with a curated lane package is yours to resolve —
-   prefer a distinct version suffix.
+1. Build the package in their own environment, including the catalog scopes
+   (step 2 above) so it links the system's blessed compilers, MPI, and
+   externals instead of guessing at prefixes.
+2. Generate its modulefile(s) — one per version if several — and place them
+   in **their own shared directory that is already on the system's
+   `MODULEPATH`**. This is entirely outside the CSE tree; users see the new
+   package on the next `module avail` through the path they already had.
+3. Nothing about CSE changes and nothing needs coordination with us — the
+   catalog exists precisely so builds outside CSE still match the machine.
 
 ## 6. Flow D — publish and release
 
@@ -167,11 +176,12 @@ already look — no new lane, no new surface.
 4. Smoke-verify as a user would: `module load CSE/GCC`, load one lane,
    compile a hello-world against HDF5, `srun`/`mpirun` a ring test.
 
-From the user's perspective the entire procedure is two commands:
-`module load CSE/<Compiler>`, then load exactly one of
-`Serial · MPI · GPU`. Core tools appear automatically; foundation
-libraries are simply there when they link. That simplicity is the
-product — every flow above exists to keep those two commands honest.
+From the user's perspective the entire procedure is three commands:
+`module load CSE/<Compiler>`, then exactly one lane
+(`Serial · MPI · GPU`), then the package they want
+(`module load hdf5/1.14.6`). Core tools appear with the surface;
+foundation libraries are simply there when they link. That simplicity is
+the product — every flow above exists to keep those three commands honest.
 
 ## 7. Flow E — when things change
 
@@ -193,7 +203,20 @@ product — every flow above exists to keep those two commands honest.
 - Post-publish: a fresh shell can `module load CSE/<Compiler>`, see exactly
   one lane's packages after loading it, and link zlib without choosing it.
 
-## 9. Pointers (the detail behind each step)
+## 9. Appendix — which tool produces which artifact
+
+Operators work with artifacts; these names only matter when something needs
+fixing at the source:
+
+| Artifact | Produced by |
+|---|---|
+| System fact sheet (`profile.yaml`) | the system probe (`cluster-inspector`) — or by hand |
+| Curated stack workspace | the renderer (`stack-composer render`) |
+| Platform configuration catalog | the renderer (`stack-composer render-static`) |
+| Built packages, lockfiles | Spack, driven by the rendered files |
+| Modules and views | generated with the workspace; published at release |
+
+## 10. Pointers (the detail behind each step)
 
 - End-to-end map and stage-by-stage commands: `end_to_end_map_v1.md`
 - Who owns which input: `deployment_inputs_and_ownership_v1.md`
