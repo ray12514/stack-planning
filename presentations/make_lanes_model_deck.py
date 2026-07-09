@@ -128,15 +128,15 @@ txt(s, 0.85, 5.45, 5.4, 1.3, [
 ])
 box(s, 6.85, 1.75, 5.85, 5.15, PANEL)
 txt(s, 7.1, 1.95, 5.4, 0.5, [(17, INK, True, "The lanes model")])
-boxtxt(s, 7.4, 2.55, 4.75, 0.5, WHITE, [(13, INK, True, "module load cse/gcc")], line=PANEL2)
+boxtxt(s, 7.4, 2.55, 4.75, 0.5, WHITE, [(13, INK, True, "module load CSE/GCC")], line=PANEL2)
 arrow(s, 9.775, 3.05, 9.775, 3.35, TEAL)
 boxtxt(s, 7.4, 3.35, 2.3, 0.62, TEAL, [(12.5, WHITE, True, "Core — automatic")])
 boxtxt(s, 9.85, 3.35, 2.3, 0.62, GRAY, [(12.5, WHITE, True, "Foundation — in view")])
 arrow(s, 9.775, 3.97, 9.775, 4.27, TEAL)
 txt(s, 7.4, 4.27, 4.9, 0.35, [(11.5, MUTED, True, "CHOOSE EXACTLY ONE")], align=PP_ALIGN.CENTER)
-boxtxt(s, 7.4, 4.62, 1.5, 0.6, AMBER, [(12.5, WHITE, True, "serial")])
-boxtxt(s, 9.0, 4.62, 1.5, 0.6, BLUE, [(12.5, WHITE, True, "mpi")])
-boxtxt(s, 10.6, 4.62, 1.55, 0.6, VIOLET, [(12.5, WHITE, True, "gpu")])
+boxtxt(s, 7.4, 4.62, 1.5, 0.6, AMBER, [(12.5, WHITE, True, "Serial")])
+boxtxt(s, 9.0, 4.62, 1.5, 0.6, BLUE, [(12.5, WHITE, True, "MPI")])
+boxtxt(s, 10.6, 4.62, 1.55, 0.6, VIOLET, [(12.5, WHITE, True, "GPU")])
 txt(s, 7.1, 5.45, 5.4, 1.3, [
     (13.5, TEAL, True, "You see exactly one lane."),
     (12.5, MUTED, False, "No contamination, no accidental MPI/GPU linkage ·"),
@@ -193,9 +193,9 @@ boxtxt(s, 2.35, 3.4, 8.6, 0.75, WHITE, [
     (14.5, INK, True, "Core + Foundation — built once per compiler surface, portable target"),
     (11.5, MUTED, False, "cmake · python · miniforge   |   zlib · xz · zstd (single pinned version)"),
 ], line=TEAL)
-lanes = [("serial", AMBER, "hdf5~mpi · fftw~mpi · boost"),
-         ("mpi-craympich", BLUE, "hdf5+mpi · netcdf · tau"),
-         ("gpu-craympich-gfx942", VIOLET, "kokkos — arch from the probe")]
+lanes = [("Serial", AMBER, "hdf5~mpi · fftw~mpi · boost"),
+         ("MPI", BLUE, "Cray MPICH · hdf5+mpi · netcdf · tau"),
+         ("GPU", VIOLET, "kokkos · rocm — arch from the probe")]
 for i, (name, color, content) in enumerate(lanes):
     x = 1.5 + i * 3.6
     arrow(s, 6.65, 4.15, x + 1.65, 4.75, color)
@@ -212,7 +212,7 @@ s = slide()
 header(s, "What a user experiences", "Schematic · the front door")
 cx = 6.666
 boxtxt(s, cx - 2.5, 1.8, 5.0, 0.62, WHITE,
-       [(16, INK, True, "$ module load cse/gcc")], line=PANEL2)
+       [(16, INK, True, "$ module load CSE/GCC")], line=PANEL2)
 arrow(s, cx, 2.42, cx, 2.82, TEAL)
 boxtxt(s, cx - 4.3, 2.82, 4.1, 1.0, TEAL, [
     (14.5, WHITE, True, "Core — loads automatically"),
@@ -226,9 +226,9 @@ arrow(s, cx, 3.82, cx, 4.32, TEAL)
 txt(s, cx - 2.5, 4.32, 5.0, 0.38, [(12.5, MUTED, True, "CHOOSE EXACTLY ONE LANE")],
     align=PP_ALIGN.CENTER)
 for i, (name, color, content) in enumerate([
-        ("serial", AMBER, "hdf5~mpi 1.14.6 / 1.14.5 · fftw · boost"),
-        ("mpi-craympich", BLUE, "hdf5+mpi · netcdf · tau"),
-        ("gpu-craympich-gfx942", VIOLET, "kokkos +rocm gfx942")]):
+        ("Serial", AMBER, "hdf5~mpi 1.14.6 / 1.14.5 · fftw · boost"),
+        ("MPI", BLUE, "Cray MPICH · hdf5+mpi · netcdf · tau"),
+        ("GPU", VIOLET, "kokkos +rocm gfx942")]):
     x = 0.75 + i * 4.0
     boxtxt(s, x, 4.75, 3.8, 1.0, color,
            [(15, WHITE, True, name), (11.5, WHITE, False, content)])
@@ -241,14 +241,14 @@ boxtxt(s, 0.75, 6.1, 11.85, 0.85, PANEL, [
 s = slide()
 header(s, "Lane vocabulary", "Names carry facts, not contents")
 vocab = [
-    ("core", TEAL, "No MPI implementation exists for it, or it is a compiler-agnostic building block.",
+    ("Core", TEAL, "No MPI implementation exists for it, or it is a compiler-agnostic building block. Loads with the surface.",
      "gsl · python · miniforge · cmake"),
-    ("serial", AMBER, "MPI-capable — deliberately built without MPI for users who want it plain.",
+    ("Serial", AMBER, "MPI-capable — deliberately built without MPI for users who want it plain.",
      "hdf5~mpi · fftw~mpi"),
-    ("mpi-<impl>", BLUE, "Built against the named MPI implementation.",
-     "mpi-craympich · mpi-openmpi"),
-    ("gpu-<impl>-<arch>", VIOLET, "GPU backend over GPU-aware MPI, targeted at the probed architecture.",
-     "gpu-craympich-gfx942"),
+    ("MPI", BLUE, "Built against the system MPI. Qualified only when the system offers more than one.",
+     "MPI  ·  or MPI-openmpi / MPI-mpich"),
+    ("GPU", VIOLET, "GPU backend over GPU-aware MPI. Qualified by MPI or arch only when the system is ambiguous.",
+     "GPU  ·  or GPU-gfx90a / GPU-gfx942"),
 ]
 for i, (name, color, desc, ex) in enumerate(vocab):
     x = 0.6 + i * 3.22
@@ -258,23 +258,23 @@ for i, (name, color, desc, ex) in enumerate(vocab):
     txt(s, x + 0.22, 2.75, 2.6, 1.7, [(12.5, TEXT, False, desc)])
     txt(s, x + 0.22, 4.55, 2.6, 0.7, [(11.5, MUTED, False, ex)])
 boxtxt(s, 0.6, 5.75, 12.13, 0.62, PANEL2, [(14, INK, True,
-    "The GPU lane is called gpu-craympich-gfx942 — never gpu-kokkos. Kokkos is what it carries today.")])
+    "Modules: CSE/<Compiler>/<Lane> — named by facts, qualified only when ambiguous, never by contents (GPU, not GPU-kokkos).")])
 
 # ------------------------------------------------- 7 · pilot scope
 s = slide()
 header(s, "Pilot scope", "Two compiler surfaces · one Cray system first")
 for i, (surf, note) in enumerate([
-        ("cse/<system-default>", "whatever the machine blesses as its baseline"),
-        ("cse/gcc", "the portable reference surface")]):
+        ("CSE/<SystemDefault>", "whatever the machine blesses as its baseline"),
+        ("CSE/GCC", "the portable reference surface")]):
     x = 0.6 + i * 6.25
     box(s, x, 1.8, 5.9, 2.9, PANEL)
     txt(s, x + 0.25, 1.98, 5.4, 0.5, [(16, INK, True, surf)])
     txt(s, x + 0.25, 2.5, 5.4, 0.4, [(12, MUTED, False, note)])
-    boxtxt(s, x + 0.3, 3.0, 2.55, 0.55, TEAL, [(12, WHITE, True, "core (automatic)")])
-    boxtxt(s, x + 3.0, 3.0, 2.55, 0.55, GRAY, [(12, WHITE, True, "foundation (view)")])
-    boxtxt(s, x + 0.3, 3.72, 1.65, 0.62, AMBER, [(12, WHITE, True, "serial")])
-    boxtxt(s, x + 2.1, 3.72, 1.65, 0.62, BLUE, [(12, WHITE, True, "mpi")])
-    boxtxt(s, x + 3.9, 3.72, 1.65, 0.62, VIOLET, [(12, WHITE, True, "gpu")])
+    boxtxt(s, x + 0.3, 3.0, 2.55, 0.55, TEAL, [(12, WHITE, True, "Core (automatic)")])
+    boxtxt(s, x + 3.0, 3.0, 2.55, 0.55, GRAY, [(12, WHITE, True, "Foundation (view)")])
+    boxtxt(s, x + 0.3, 3.72, 1.65, 0.62, AMBER, [(12, WHITE, True, "Serial")])
+    boxtxt(s, x + 2.1, 3.72, 1.65, 0.62, BLUE, [(12, WHITE, True, "MPI")])
+    boxtxt(s, x + 3.9, 3.72, 1.65, 0.62, VIOLET, [(12, WHITE, True, "GPU")])
 txt(s, 0.6, 4.95, 12, 0.4, [(13, INK, True, "Representative roster — evolving, ~two versions each")])
 roster = ["HDF5", "NetCDF-C", "NetCDF-Fortran", "NetCDF-C++", "FFTW", "OpenBLAS",
           "Boost", "GSL", "TAU", "Kokkos", "CMake", "Python", "Miniforge"]

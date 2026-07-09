@@ -60,13 +60,26 @@ A simple stack may use one payload lane and no separate Core. Variant-rich stack
 use front-door compiler-init and lane modules so a user enters one compiler
 surface and then picks exactly one serial/MPI/GPU lane.
 
-**Lane naming convention (2026-07-08):** the rendered lane name is
-`{build-name}[-{mpi-provider}][-{gpu-arch}]`, so the user-facing vocabulary is
-the build name plus the facts that distinguish the lane: `core`, `serial`,
-`mpi-craympich`, `gpu-craympich-gfx942`. Name a build after its kind (`gpu`,
-not `gpu-kokkos`) unless a stack fans out several builds of the same kind —
-package content is what a lane *carries*, never what it is *called*. This is
-the presentation-facing vocabulary; keep it boring and stable.
+**Lane naming convention (2026-07-09, supersedes the 07-08 note):** two
+naming layers, one rule.
+
+- **Internal lane ids** (rendered environment directories, lockfiles,
+  manifests) always carry the full facts:
+  `{build-name}[-{mpi-provider}][-{gpu-arch}]`, e.g.
+  `gpu-craympich-gfx942`. Machines and oracle diffs want everything spelled
+  out; these never reach users.
+- **Public module names** are `CSE/<Compiler>/<Lane>` with capitalized lane
+  names — `CSE/GCC/Serial`, `CSE/GCC/MPI`, `CSE/GCC/GPU` — and are
+  **qualified only when the system is ambiguous**: two MPI implementations →
+  `MPI-openmpi` / `MPI-mpich` (and a GPU lane per MPI, since GPU codes ride
+  one); two GPU architectures → `GPU-gfx90a` / `GPU-gfx942` (Blueback's
+  MI250X + MI300A case). One implementation → unqualified. The remaining
+  facts (exact MPI version, fabric, GPU-awareness) live in `module whatis`
+  / `module help` metadata, not in the name. This is the same
+  qualify-only-when-ambiguous principle toolchain names already follow.
+- Never name a lane by its contents (`GPU`, not `GPU-kokkos`); name a build
+  after its kind unless a stack fans out several builds of one kind.
+- `Core` loads with the compiler surface; it is not a chooseable lane.
 
 ### Per-compiler Core (committed)
 
