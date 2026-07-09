@@ -18,7 +18,13 @@ What you operate:
    sets, and templates every site uses.
 2. A **rendered workspace** per stack — plain YAML the tools generate.
    Everything you build from is a readable file you can inspect.
-3. The **published surface** users see: `CSE/<Compiler>/<Lane>` modules and
+3. A **static platform catalog** per system and release — include-ready
+   Spack config scopes generated from the profile alone (`stack-composer
+   render-static`). This is what you pull for **manual builds**: no stack,
+   no lanes, just the system's compilers, MPIs, and GPU toolkits as pinned
+   externals, with a `manifest.yaml` that names the recommended
+   compiler/MPI/GPU picks and a README with a copy-paste include block.
+4. The **published surface** users see: `CSE/<Compiler>/<Lane>` modules and
    views. Users never run a spack command.
 
 ## 2. Roles
@@ -56,6 +62,17 @@ ever derives them** (see deployment_inputs_and_ownership_v1.md).
    candidates; you choose.
 5. Commit both under `systems/<name>/` in the catalog repo and open a PR.
    The system now exists for every flow below, and for every other operator.
+6. Generate the system's static platform catalog and commit it alongside
+   (the standing drill for every machine: probe, then render, then
+   render-static):
+
+   ```bash
+   stack-composer render-static --profile systems/<name>/profile.yaml \
+       --templates templates --output-root systems --release 2026.07 \
+       --rendered-at <utc-timestamp> --source-repo <catalog-url> \
+       --source-commit <sha>
+   # writes systems/<name>/static/2026.07/{scopes/,manifest.yaml,README.md,reports/}
+   ```
 
 ## 4. Flow B — render, inspect, build (the routine)
 
@@ -92,24 +109,51 @@ ever derives them** (see deployment_inputs_and_ownership_v1.md).
    system already has means the render was wrong — stop and report it;
    never patch the rendered files by hand.
 
-## 5. Flow C — manual builds (Tier 0: no lanes, just the configs)
+## 5. Flow C — manual builds from the static catalog (no lanes)
 
-The rendered `configs/` scopes are standalone. A package manager (or power
-user) can hand-author a minimal environment that reuses them:
+This is the expected day-to-day flow for a package manager building
+something outside the curated stacks. Pull the catalog repo; everything you
+need is under `systems/<name>/static/<release>/`:
 
-```yaml
-spack:
-  include::
-    - /path/to/workspace/configs/common
-    - /path/to/workspace/configs/mpi/cray-mpich
-  specs:
-    - hdf5+mpi %gcc1430_craympich910
-```
+1. Read `README.md` — it contains the recommended include block verbatim.
+   `manifest.yaml` lists every available scope (each compiler at each
+   version, each MPI per compiler flavor, each GPU toolkit generation) and
+   the **recommendations**: which compiler, MPI, and GPU scope the site
+   policy picks for this system. `reports/static-plan.yaml` records what was
+   rendered and what was deliberately not, so nothing is a mystery.
+2. Author a minimal environment from the recommendation:
 
-The toolchain names (`%gcc1430_craympich910`) are listed by
-`stack-composer show` and defined in the included scope's
-`toolchains.yaml`. This is the supported escape hatch for one-off builds:
-same pinned externals, same compiler/MPI pairing, no lane machinery.
+   ```yaml
+   spack:
+     include:
+       - <catalog>/scopes/common
+       - <catalog>/scopes/compilers/gcc/14.3.0
+       - <catalog>/scopes/mpi/cray-mpich/9.1.0/gcc-14.3.0
+     specs:
+       - hdf5 +mpi %gcc-14.3.0_craympich-9.1.0
+   ```
+
+   Every scope carries `buildable: false` pinned externals and the matching
+   toolchain definitions, so a manual build gets the same compiler/MPI
+   pairing discipline as the curated lanes — with none of the machinery.
+3. Concretize and install as usual. Same tripwire as Flow B: externals must
+   be **used**, never fetched.
+
+### 5a. Publishing a one-off package into the existing module tree
+
+The most common request: build one package and make it visible where users
+already look — no new lane, no new surface.
+
+1. Build it in a throwaway environment using the static catalog scopes
+   (step 2 above), so it links the blessed compiler/MPI/externals.
+2. Generate its modulefile and place it in the **already-exposed** module
+   tree for the matching surface (the path `CSE/<Compiler>` already
+   prepends), so it appears to users on their next `module avail` with zero
+   announcement overhead.
+3. Record what was added in the system's runbook notes. One-off modules are
+   site-owned: the next stack release neither removes nor manages them, but
+   a name collision with a curated lane package is yours to resolve —
+   prefer a distinct version suffix.
 
 ## 6. Flow D — publish and release
 
@@ -122,6 +166,12 @@ same pinned externals, same compiler/MPI pairing, no lane machinery.
 3. Record lockfiles and the release manifest; promote the release tag.
 4. Smoke-verify as a user would: `module load CSE/GCC`, load one lane,
    compile a hello-world against HDF5, `srun`/`mpirun` a ring test.
+
+From the user's perspective the entire procedure is two commands:
+`module load CSE/<Compiler>`, then load exactly one of
+`Serial · MPI · GPU`. Core tools appear automatically; foundation
+libraries are simply there when they link. That simplicity is the
+product — every flow above exists to keep those two commands honest.
 
 ## 7. Flow E — when things change
 
