@@ -170,6 +170,8 @@ the site.
   files.
 - Concretization uses the machine's externals; nothing the machine already
   provides is downloaded.
+- The serial lane's lockfile contains no MPI node: lane purity is checked
+  in the concretized lock, never assumed from the render.
 - A release promotes only with clean validation, a passing user-level smoke
   test, and recorded approval.
 - A fresh user shell reaches any published package in three module commands.
