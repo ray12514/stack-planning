@@ -68,8 +68,9 @@ naming layers, one rule.
   `{build-name}[-{mpi-provider}][-{gpu-arch}]`, e.g.
   `gpu-craympich-gfx942`. Machines and oracle diffs want everything spelled
   out; these never reach users.
-- **Public module names** are `CSE/<Compiler>/<Lane>` with capitalized lane
-  names — `CSE/GCC/Serial`, `CSE/GCC/MPI`, `CSE/GCC/GPU` — and are
+- **Public module names** are `cse/<Compiler>/<Lane>` (stack prefix
+  lowercase, compiler and lane capitalized) — `cse/GCC/Serial`,
+  `cse/GCC/MPI`, `cse/GCC/GPU` — and are
   **qualified only when the system is ambiguous**: two MPI implementations →
   `MPI-openmpi` / `MPI-mpich` (and a GPU lane per MPI, since GPU codes ride
   one); two GPU architectures → `GPU-gfx90a` / `GPU-gfx942` (Blueback's
