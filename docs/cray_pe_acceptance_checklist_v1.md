@@ -36,3 +36,5 @@ Cray PE-specific proof points; it does not replace the common runbook.
 - [ ] A GPU-aware MPI test passes with the matching GTL integration.
 - [ ] `ldd` resolves trusted Cray PE libraries; verifier warnings for intentional
       externals are recorded rather than silently ignored.
+- [ ] Version-sensitive package module chains are tested: compatible chains
+      load cleanly, and incompatible dependency mixes fail or are prevented.

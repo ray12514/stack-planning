@@ -335,6 +335,55 @@ Verify per lane with `ldd` whether PE/site runtime libs resolve via RPATH (light
 lane module) or need the external's `LD_LIBRARY_PATH` (lane module must require
 the modules). Record the answer on a new lane's first build.
 
+### Package module dependency compatibility
+
+Clean package module names are the user-facing goal, but clean names must not
+allow users to compose incompatible dependency versions. A stack can expose
+multiple versions of related packages in the same lane, especially with
+independently concretized package groups. The module layer must therefore carry
+the resolved dependency relationship for version-sensitive public dependencies.
+
+Rule: a package module that exposes a version-sensitive public dependency must
+either load, prereq, or conflict against the exact dependency module family it
+was built and tested with. Do this only where the dependency relationship is
+part of the public runtime or build interface; do not over-constrain packages
+whose dependencies are private, ABI-stable for the supported range, or already
+isolated by RPATH.
+
+Examples:
+
+- `netcdf-c` built against `hdf5 +mpi` must not be loadable beside an
+  incompatible `hdf5` module from the same lane.
+- `netcdf-fortran` must preserve the compatible `netcdf-c` relationship.
+- Parallel HDF5, PnetCDF, MPI-dependent I/O stacks, and GPU-enabled libraries
+  should be treated as version-sensitive until proven otherwise.
+
+The preferred user experience is still:
+
+```text
+module load cse/GCC
+module load MPI
+module load netcdf-c/4.9.2
+```
+
+The user should not have to know which HDF5 version is compatible. The
+`netcdf-c/4.9.2` module carries that relationship internally through modulefile
+metadata and checks.
+
+Implementation source of truth: dependency constraints come from the per-lane
+lockfile/install metadata plus stack policy identifying which package
+relationships are public and version-sensitive. They are not hand-authored in
+package modules.
+
+Definition of done for module publication:
+
+- package module generation has access to the resolved dependency chain for the
+  lane being published;
+- version-sensitive package modules encode compatible dependency requirements;
+- incompatible manual load combinations fail clearly or are prevented by module
+  prerequisites;
+- compatible load chains are covered by module smoke tests.
+
 ### Provenance in modulefiles
 
 Every package module emits its class so `module avail`/`help` show it:

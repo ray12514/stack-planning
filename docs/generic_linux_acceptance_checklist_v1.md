@@ -34,3 +34,5 @@ replace the common runbook.
 - [ ] GPU compiler/runtime smoke tests pass on the target GPU node type.
 - [ ] The `cse/<Compiler>` surface exposes exactly the expected lane selectors,
       and conflicting lane loads fail.
+- [ ] Version-sensitive package module chains are tested: compatible chains
+      load cleanly, and incompatible dependency mixes fail or are prevented.

@@ -1,4 +1,6 @@
 """Generate the CSE lanes-model stakeholder deck — light theme, designed slides."""
+from pathlib import Path
+
 from lxml import etree
 from pptx import Presentation
 from pptx.dml.color import RGBColor
@@ -139,8 +141,8 @@ boxtxt(s, 9.0, 4.62, 1.5, 0.6, BLUE, [(12.5, WHITE, True, "MPI")])
 boxtxt(s, 10.6, 4.62, 1.55, 0.6, VIOLET, [(12.5, WHITE, True, "GPU")])
 txt(s, 7.1, 5.45, 5.4, 1.3, [
     (13.5, TEAL, True, "You see exactly one lane."),
-    (12.5, MUTED, False, "No contamination, no accidental MPI/GPU linkage ·"),
-    (12.5, MUTED, False, "versions inside a lane stay a one-at-a-time module choice"),
+    (12.5, MUTED, False, "GPU is a complete MPI-capable lane when the selected toolchain supports it ·"),
+    (12.5, MUTED, False, "package modules prevent incompatible version mixes"),
 ])
 
 # ------------------------------------------------- 3 · community validation
@@ -195,7 +197,7 @@ boxtxt(s, 2.35, 3.4, 8.6, 0.75, WHITE, [
 ], line=TEAL)
 lanes = [("Serial", AMBER, "hdf5~mpi · fftw~mpi · boost"),
          ("MPI", BLUE, "Cray MPICH · hdf5+mpi · netcdf · tau"),
-         ("GPU", VIOLET, "kokkos · rocm — arch from the probe")]
+         ("GPU", VIOLET, "GPU-aware MPI · rocm/cuda — arch from the probe")]
 for i, (name, color, content) in enumerate(lanes):
     x = 1.5 + i * 3.6
     arrow(s, 6.65, 4.15, x + 1.65, 4.75, color)
@@ -228,13 +230,13 @@ txt(s, cx - 2.5, 4.32, 5.0, 0.38, [(12.5, MUTED, True, "CHOOSE EXACTLY ONE LANE"
 for i, (name, color, content) in enumerate([
         ("Serial", AMBER, "hdf5~mpi 1.14.6 / 1.14.5 · fftw · boost"),
         ("MPI", BLUE, "Cray MPICH · hdf5+mpi · netcdf · tau"),
-        ("GPU", VIOLET, "kokkos +rocm gfx942")]):
+        ("GPU", VIOLET, "GPU-aware MPI · kokkos +rocm gfx942")]):
     x = 0.75 + i * 4.0
     boxtxt(s, x, 4.75, 3.8, 1.0, color,
            [(15, WHITE, True, name), (11.5, WHITE, False, content)])
 boxtxt(s, 0.75, 6.1, 11.85, 0.85, PANEL, [
-    (13.5, INK, True, "Only the chosen lane is visible — no contamination, no accidental MPI/GPU linkage."),
-    (12, MUTED, False, "Two HDF5 versions in a lane? The same one-at-a-time module choice users already know."),
+    (13.5, INK, True, "Only the chosen lane is visible — GPU includes its compatible MPI surface."),
+    (12, MUTED, False, "Clean module names stay; module metadata blocks incompatible HDF5/NetCDF-style version mixes."),
 ])
 
 # ------------------------------------------------- 6 · lane vocabulary
@@ -247,7 +249,7 @@ vocab = [
      "hdf5~mpi · fftw~mpi"),
     ("MPI", BLUE, "Built against the system MPI. Qualified only when the system offers more than one.",
      "MPI  ·  or MPI-openmpi / MPI-mpich"),
-    ("GPU", VIOLET, "GPU backend over GPU-aware MPI. Qualified by MPI or arch only when the system is ambiguous.",
+    ("GPU", VIOLET, "Complete MPI+GPU lane over a compatible compiler, MPI, and GPU toolkit. Load GPU instead of MPI, not in addition to it.",
      "GPU  ·  or GPU-gfx90a / GPU-gfx942"),
 ]
 for i, (name, color, desc, ex) in enumerate(vocab):
@@ -258,14 +260,14 @@ for i, (name, color, desc, ex) in enumerate(vocab):
     txt(s, x + 0.22, 2.75, 2.6, 1.7, [(12.5, TEXT, False, desc)])
     txt(s, x + 0.22, 4.55, 2.6, 0.7, [(11.5, MUTED, False, ex)])
 boxtxt(s, 0.6, 5.75, 12.13, 0.62, PANEL2, [(14, INK, True,
-    "Modules: CSE/<Compiler>/<Lane> — named by facts, qualified only when ambiguous, never by contents (GPU, not GPU-kokkos).")])
+    "Modules: cse/<Compiler>/<Lane> — short names for users; dependency compatibility is enforced by module metadata.")])
 
 # ------------------------------------------------- 7 · pilot scope
 s = slide()
 header(s, "Pilot scope", "Two compiler surfaces · one Cray system first")
 for i, (surf, note) in enumerate([
-        ("CSE/<SystemDefault>", "whatever the machine blesses as its baseline"),
-        ("CSE/GCC", "the portable reference surface")]):
+        ("cse/<SystemDefault>", "whatever the machine blesses as its baseline"),
+        ("cse/GCC", "the portable reference surface")]):
     x = 0.6 + i * 6.25
     box(s, x, 1.8, 5.9, 2.9, PANEL)
     txt(s, x + 0.25, 1.98, 5.4, 0.5, [(16, INK, True, surf)])
@@ -281,7 +283,7 @@ roster = ["HDF5", "NetCDF-C", "NetCDF-Fortran", "NetCDF-C++", "FFTW", "OpenBLAS"
 for i, n in enumerate(roster):
     chip(s, 0.6 + (i % 7) * 1.78, 5.4 + (i // 7) * 0.56, 1.62, n)
 txt(s, 0.6, 6.65, 12.1, 0.5, [(12, MUTED, False,
-    "Multi-version by policy: unify:false lanes · single-version pinned foundation · conflicts stay a module choice")])
+    "Multi-version by policy: clean package names · compatible chains load · incompatible mixes fail clearly")])
 
 # ------------------------------------------------- 8 · status / next
 s = slide()
@@ -296,13 +298,13 @@ for i, d in enumerate(done):
     txt(s, 1.35, 2.6 + i * 1.15, 4.95, 1.1, [(13, TEXT, False, d)])
 box(s, 6.85, 1.8, 5.85, 4.9, PANEL)
 txt(s, 7.15, 2.0, 5.3, 0.5, [(17, AMBER, True, "Next")])
-nxt = ["Build the science lanes on the Cray system; verify the module/view front door",
-       "Add the second compiler surface, then the NVIDIA system in parallel",
+nxt = ["Build the science lanes on the Cray and Linux systems; verify the module/view front door",
+       "Encode module compatibility checks for multi-version package chains",
        "Release process: build caches, lockfiles, release manifest"]
 for i, d in enumerate(nxt):
     txt(s, 7.15, 2.6 + i * 1.15, 0.4, 0.5, [(16, AMBER, True, "→")])
     txt(s, 7.6, 2.6 + i * 1.15, 4.85, 1.1, [(13, TEXT, False, d)])
 
-out = "/private/tmp/claude-501/-Users-ravonventers-Development-stack-composer/a23f38af-bedd-4b94-9c54-985d109b5350/scratchpad/cse_lanes_model.pptx"
-prs.save(out)
+out = Path(__file__).with_name("cse_lanes_model.pptx")
+prs.save(str(out))
 print("WROTE", out)

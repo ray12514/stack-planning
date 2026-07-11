@@ -105,6 +105,19 @@ surface, load one lane, compile and run a small MPI program), and (c) the
 stack lead approves. The approval and evidence are recorded in the release
 manifest. Rollback is moving the pointer back.
 
+Build policy boundaries:
+
+- The fact sheet records what exists. It does not decide what to build.
+- The stack file records package intent. It does not duplicate platform
+  discovery.
+- The renderer selects a coherent compiler/MPI/GPU/platform-runtime set from
+  the fact sheet and policy, then renders only that set for the managed stack.
+- Platform-coupled runtimes such as Cray MPICH, Cray LibSci, libfabric, CUDA,
+  and ROCm are consumed only through explicit policy. Observing a runtime on a
+  machine is not enough to expose it to a managed stack.
+- Every lane has a lockfile and manifest record. If a lane is rebuilt, the
+  release evidence changes with it.
+
 ## 5. How an independent app manager builds
 
 App managers outside the curated stack keep their own environments and
@@ -152,6 +165,28 @@ silently mixing environments. `module whatis` on any package reports where
 it came from: built by the stack, provided by the platform, or provided by
 the site.
 
+Package modules also protect version-sensitive dependency relationships. If
+`netcdf-c` was built against a specific compatible `hdf5` in the selected lane,
+the `netcdf-c` module loads, requires, or conflicts accordingly. Users see clean
+package names; the module layer prevents incompatible mixes where compatibility
+matters.
+
+User exposure policies:
+
+- A user loads one compiler surface, then one lane under that compiler. The lane
+  exposes only its package module root.
+- Serial, MPI, and GPU lanes conflict as public entry points. Users do not load
+  MPI and GPU lanes together.
+- A GPU lane is a complete MPI-capable GPU surface when the stack selected a
+  compatible compiler/MPI/GPU combination. In that case GPU is a superset of the
+  matching MPI lane's runtime surface, not a separate add-on lane.
+- Package module names stay clean. Compatibility rules live in module metadata,
+  not in long public names.
+- Foundation libraries are ambient in the compiler/lane view and single-version
+  by release policy. Core tools are loadable. MPI-dependent, GPU-dependent, and
+  performance-sensitive packages remain payload packages in Serial, MPI, or GPU
+  lanes.
+
 ## 7. Requests and issues
 
 - A user reporting a broken module or requesting a package or version
@@ -175,6 +210,8 @@ the site.
 - A release promotes only with clean validation, a passing user-level smoke
   test, and recorded approval.
 - A fresh user shell reaches any published package in three module commands.
+- Version-sensitive package module chains are tested: compatible chains load
+  cleanly, and incompatible dependency mixes fail or are prevented.
 
 ## 9. Open items for later revisions
 
