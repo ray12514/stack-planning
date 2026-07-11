@@ -94,7 +94,7 @@ select the provider exactly, for example `aocc@4.2.0`.
 name: foo
 builds:
   - name: mpi
-    kind: mpi                # cpu | mpi | gpu (usually inferred from specs)
+    kind: mpi                # core | serial | mpi | gpu (usually inferred)
     specs: [hdf5@1.14.5+mpi]
     compilers: [cce]         # ← override, narrows the default for this build
     # mpi: { provider: cray-mpich, source: platform }   # optional per-build override
@@ -107,7 +107,7 @@ The rule is always **defaults → stack wins**. Explicit beats policy.
 `stack-composer` resolves each build to a set of **lanes** (the things it
 renders a `spack.yaml` for):
 
-1. `kind` = explicit, else inferred from specs (gpu > mpi > cpu).
+1. `kind` = explicit, else inferred from specs (gpu > mpi > serial).
 2. `compilers` = (build override or `defaults.compilers`) resolved against
    `profile`: `baseline` → gcc-or-first (the lean default); `all` → every reported
    compiler; a list → intersect with reported (an absent one is a clear error).

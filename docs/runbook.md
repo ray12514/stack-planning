@@ -57,6 +57,16 @@ For a new Cray or generic Linux/Penguin system, the expected extra work is:
 4. pick an existing stack, or make the smallest stack file needed for the test;
 5. run validate, render, then the selected build path.
 
+The command sequence is common to every system. Apply the platform acceptance
+checklist after the common procedure:
+
+- `cray_pe_acceptance_checklist_v1.md` for Cray PE systems;
+- `generic_linux_acceptance_checklist_v1.md` for conventional Linux systems.
+
+These are validation deltas, not alternate runbooks. Per-system paths,
+selections, scheduler details, and accepted findings belong in
+`stack-content/systems/<system>/runbook-notes.md`.
+
 If the existing `stack-content` templates can model the profile facts, no
 additional hand-authored Spack YAML should be needed.
 
@@ -143,6 +153,22 @@ for repo in cluster-inspector stack-composer stack-content stack-planning; do
   git -C "$WORK_ROOT/$repo" switch "$STACK_BRANCH"
   git -C "$WORK_ROOT/$repo" pull --ff-only
 done
+```
+
+Set the common paths once per shell. The same commands then work for every
+system by changing `SYSTEM_NAME` and the selected stack:
+
+```bash
+export SYSTEM_NAME="<system-name>"
+export CONTENT="$WORK_ROOT/stack-content"
+export COMPOSER="$WORK_ROOT/stack-composer"
+export INSPECTOR="$WORK_ROOT/cluster-inspector"
+export PLANNING="$WORK_ROOT/stack-planning"
+export SYSTEM_DIR="$CONTENT/systems/$SYSTEM_NAME"
+export RENDER_ROOT="$WORK_ROOT/rendered"
+export STACK_COMPOSER="$COMPOSER/dist/stack-composer.pyz"
+
+mkdir -p "$SYSTEM_DIR" "$RENDER_ROOT"
 ```
 
 Use `git -C "$WORK_ROOT/<repo>" ...` when operating from the runbook. Do not
@@ -283,7 +309,7 @@ Validate the inputs, then render a deterministic workspace. The vendor scope is
 chosen automatically from the profile's provider families — no selector block to
 configure.
 
-**Targets on multi-partition CPU systems.** A cpu/mpi build resolves its CPU
+**Targets on multi-partition CPU systems.** A serial or MPI payload build resolves its CPU
 lane against the first runtime CPU node type only (`node_types[0]`), at that
 node's `native` uarch; GPU builds fan out across every GPU node, but CPU builds
 do not yet fan out across distinct CPU uarchs. On a system with several CPU
@@ -393,10 +419,10 @@ module roots to exist.
 
 The intended user flow is a chained module hierarchy:
 
-1. Load the compiler init module, for example `science_init_gcc`. This
+1. Load the compiler surface module, for example `cse/GCC`. This
    establishes the compiler layer, exposes the compiler-specific foundation/core
    view, and prepends the lane-module root to `MODULEPATH`.
-2. Load exactly one rendered lane module, for example `science/mpi`. That lane
+2. Load exactly one rendered lane module, for example `cse/GCC/MPI`. That lane
    module declares platform prereqs and prepends only that lane's package-module
    root.
 3. Load package modules made visible by the selected lane, such as `hdf5` or
@@ -437,8 +463,8 @@ Run at least these checks for every applicable lane:
 | Compiler or wrapper resolves from the intended lane | `which mpicc && mpicc --version` |
 | MPI launcher works on compute nodes | `srun -n 2 hostname` |
 | GPU runtime is visible on a GPU node | `srun rocm-smi` or `srun nvidia-smi` |
-| Compiler init exposes foundation/core and lane modules | `module load science_init_gcc && module avail science` |
-| Lane module isolates one package root | `module load science_init_gcc && module load science/mpi && module avail hdf5` |
+| Compiler surface exposes foundation/core and lane modules | `module load cse/GCC && module avail cse/GCC` |
+| Lane module isolates one package root | `module load cse/GCC && module load cse/GCC/MPI && module avail hdf5` |
 | Representative application runs | Use the stack's existing smoke workload. |
 
 Capture failures before applying temporary environment changes. Correct
@@ -449,7 +475,7 @@ input.
 
 | Artifact | Destination |
 |---|---|
-| Reviewed `profile.yaml` | Stack source under `profiles/<system>.yaml`. |
+| Reviewed `profile.yaml` | Stack source under `systems/<system>/profile.yaml`. |
 | Probe defects and regression fixtures | `cluster-inspector`. |
 | Known-good rendered fixtures and renderer defects | `stack-composer`. |
 | Design gaps and accepted policy changes | `stack-planning/docs/`. |

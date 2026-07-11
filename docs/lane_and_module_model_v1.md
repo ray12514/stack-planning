@@ -132,21 +132,22 @@ lane" stays the whole mental model. A GPU-only code with no MPI still loads the 
 lane (unused MPI symlinks are cheap) rather than doubling the matrix with a
 GPU-no-MPI kind.
 
-## Host-compiler policy for GPU lanes — the three lane kinds
+## Host-compiler policy for GPU lanes — three compiler shapes
 
 Device performance is controlled by the GPU toolchain (hipcc/nvcc), not the host
 compiler, so the default GPU lane uses a general-purpose host:
 
-| Kind | Shape | Coverage |
+| Compiler shape | Tuple | Coverage |
 |---|---|---|
-| **Kind-1 — pure CPU** | (compiler, mpi) | wide |
-| **Kind-2 — GPU + general host** (committed default) | (host_compiler, mpi, gpu_toolkit) | wide + GPU-toolkit-pinned subset |
-| **Kind-3 — GPU-aware compiler** (opt-in specialist) | (nvhpc/rocmcc, mpi) | restricted to specs that need the vendor compiler |
+| **CPU host** | (compiler, mpi) | wide |
+| **GPU + general host** (committed default) | (host_compiler, mpi, gpu_toolkit) | wide + GPU-toolkit-pinned subset |
+| **GPU-aware compiler** (opt-in specialist) | (nvhpc/rocmcc, mpi) | restricted to specs that need the vendor compiler |
 
 On Cray this maps to **Option B** (general-purpose `PrgEnv` + standalone GPU
 toolkit module, e.g. `PrgEnv-gnu` + `rocm/6.x`) as the committed default; **Option
-A** (`PrgEnv-amd`/`PrgEnv-nvidia` all-in-one) is the narrow Kind-3 exception lane.
-Slugs: Kind-1 `<compiler>-<mpi>`; Kind-2 `<host>-<mpi>-<toolkit>`; Kind-3
+A** (`PrgEnv-amd`/`PrgEnv-nvidia` all-in-one) is the narrow specialist lane.
+Slugs: CPU host `<compiler>-<mpi>`; general GPU host
+`<host>-<mpi>-<toolkit>`; GPU-aware compiler
 `<gpu_compiler>-<mpi>`. Compiler-family purity: if a lane's compiler can't build a
 spec, drop it from the lane and document why — never silently reroute to another
 compiler.
@@ -224,15 +225,15 @@ in `toolchains.yaml` plus the root spec's `%<toolchain_name>` decoration.
 Exposure rule (from `CONTEXT.md`): **lane-independent foundation/core → compiler
 view (+ compiler); lane-sensitive payload → lane modules.** Two exposure modes:
 
-- **`front_door`** (variant-rich): user loads one compiler init module
-  (`science_init_gcc`), then one lane module (`science/mpi`), then package
+- **`front_door`** (variant-rich): user loads one compiler surface module
+  (`cse/GCC`), then one lane module (`cse/GCC/MPI`), then package
   modules from that lane's root.
 - **`direct`** (small app stacks): public package modules published directly under
   `modules.publish_root`; the direct module carries the conflict/runtime-prereq
   policy a front-door would.
 
-In `front_door` mode, the site/init/bootstrap module is a compiler environment
-gate. For example, `science_init_gcc` establishes the GCC compiler layer, exposes
+In `front_door` mode, the front-door module is a compiler environment gate. For
+example, `cse/GCC` establishes the GCC compiler layer, exposes
 the compiler-specific foundation/core view, and prepends the module root where
 the available lane modules for that compiler live. It must not prepend package
 module roots for every MPI/GPU/serial lane. A lane module is the isolation seam:
@@ -242,12 +243,12 @@ visible.
 The user-facing hierarchy is intentionally short:
 
 ```text
-science_init_gcc
+cse/GCC
   ├─ exposes the GCC foundation/core view
   └─ exposes lane modules
-       ├─ science/serial
-       ├─ science/mpi
-       └─ science/gpu
+       ├─ cse/GCC/Serial
+       ├─ cse/GCC/MPI
+       └─ cse/GCC/GPU
             └─ exposes package modules for that lane
 ```
 
@@ -272,11 +273,11 @@ modulefiles. Spack makes package modules; render makes compiler init and lane
 modules. Tcl is the portable baseline (readable by both Environment Modules and
 Lmod); Lmod specifics can layer on later.
 
-### Compiler init module anatomy
+### Compiler surface module anatomy
 
 ```tcl
 #%Module1.0
-module-whatis "Science stack GCC compiler environment"
+module-whatis "cse compiler surface: GCC"
 
 # Compiler/platform prereqs for this compiler layer
 prereq gcc-native/13
@@ -298,9 +299,9 @@ prepend-path MODULEPATH ".../modules/gcc/lanes"
 module-whatis "Science stack lane: GCC + cray-mpich 8.1.29"
 
 # Conflicts — generated from the resolved lane plan; one per sibling lane
-conflict science/serial
-conflict science/mpi
-conflict science/gpu
+conflict cse/GCC/Serial
+conflict cse/GCC/MPI
+conflict cse/GCC/GPU
 
 # Platform-module prerequisites for this lane
 prereq cray-mpich/8.1.29

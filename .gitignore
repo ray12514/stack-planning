@@ -11,3 +11,7 @@ __pycache__/
 
 # macOS clutter.
 .DS_Store
+
+# Generated document exports; keep the Markdown sources tracked.
+docs/spack-learnings/*.docx
+docs/spack-learnings/*.pdf

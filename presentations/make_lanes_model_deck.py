@@ -128,7 +128,7 @@ txt(s, 0.85, 5.45, 5.4, 1.3, [
 ])
 box(s, 6.85, 1.75, 5.85, 5.15, PANEL)
 txt(s, 7.1, 1.95, 5.4, 0.5, [(17, INK, True, "The lanes model")])
-boxtxt(s, 7.4, 2.55, 4.75, 0.5, WHITE, [(13, INK, True, "module load CSE/GCC")], line=PANEL2)
+boxtxt(s, 7.4, 2.55, 4.75, 0.5, WHITE, [(13, INK, True, "module load cse/GCC")], line=PANEL2)
 arrow(s, 9.775, 3.05, 9.775, 3.35, TEAL)
 boxtxt(s, 7.4, 3.35, 2.3, 0.62, TEAL, [(12.5, WHITE, True, "Core — automatic")])
 boxtxt(s, 9.85, 3.35, 2.3, 0.62, GRAY, [(12.5, WHITE, True, "Foundation — in view")])
@@ -212,7 +212,7 @@ s = slide()
 header(s, "What a user experiences", "Schematic · the front door")
 cx = 6.666
 boxtxt(s, cx - 2.5, 1.8, 5.0, 0.62, WHITE,
-       [(16, INK, True, "$ module load CSE/GCC")], line=PANEL2)
+       [(16, INK, True, "$ module load cse/GCC")], line=PANEL2)
 arrow(s, cx, 2.42, cx, 2.82, TEAL)
 boxtxt(s, cx - 4.3, 2.82, 4.1, 1.0, TEAL, [
     (14.5, WHITE, True, "Core — loads automatically"),

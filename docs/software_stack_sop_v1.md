@@ -141,7 +141,7 @@ outside the stack still matches the machine.
 Three commands, no build-system knowledge:
 
 ```
-module load CSE/GCC        # compiler surface: core tools appear, and
+module load cse/GCC        # compiler surface: core tools appear, and
                            # foundation libraries are available to link
 module load MPI            # exactly one lane: Serial, MPI, or GPU
 module load hdf5/1.14.6    # the package, at the version they choose
