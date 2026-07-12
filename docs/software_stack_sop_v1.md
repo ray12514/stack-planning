@@ -18,7 +18,7 @@ person can author, inspect, or correct by hand.
 | # | Step | What exists afterward | Who owns it |
 |---|---|---|---|
 | 1 | Record the system's facts | the **fact sheet**: compilers, MPIs and their compiler pairings, GPU toolkits, network fabric, filesystems, module system | app manager for that system |
-| 2 | Choose the site paths | the **deployment overlay**: install tree, cache locations, module and view roots. Always chosen, never derived. | installer |
+| 2 | Choose the site paths | the **deployment overlay**: install tree, cache locations, module and view roots plus the owning collaboration group and access audience. Always chosen, never derived. | installer |
 | 3 | Declare the software | the **stack file** and reusable **package sets**: what to build, at which versions | app manager (curated stack) |
 | 4 | Derive the work tree | the **work tree**: complete build configuration, config scopes plus one build environment per lane | derived from steps 1 to 3 |
 | 5 | Build | installed software, one **lockfile** per lane, build-cache entries | app manager |
@@ -34,7 +34,9 @@ rebuild. Nothing downstream is edited in place.
 
 - **Fact sheet**: the per-system record of what the machine provides. It
   contains platform reality only, never software intent.
-- **Deployment overlay**: the per-system record of where things go.
+- **Deployment overlay**: the per-system record of where things go. Access to
+  those locations is an installer-owned deployment policy, never a discovered
+  system fact.
 - **Stack file / package set**: the record of what software is wanted. It
   contains intent only, never system facts.
 - **Lane**: one independently built target. A compiler, optionally paired
@@ -64,7 +66,10 @@ rebuild. Nothing downstream is edited in place.
    YAML file checked against a published schema.
 2. The installer records the deployment overlay: install tree, cache paths,
    module and view roots. These are decisions, not discoveries. The fact
-   sheet lists candidates; a person chooses.
+   sheet lists candidates; a person chooses. The selected roots must be on a
+   shared filesystem visible from the required login, build, and compute node
+   types. During the alpha deployment, the overlay names the CSE collaboration
+   group that owns the roots; access is group-only.
 3. Review and sign-off: both files enter the repo of record through a
    reviewed change (pull request). A second app manager, or the stack lead
    where there is only one, confirms the facts against the machine and
@@ -99,11 +104,25 @@ Publishing regenerates views and modules, pushes build caches, and records
 the release manifest and per-lane lockfiles. Those three artifacts (manifest,
 lockfiles, caches) are what make a release reproducible.
 
+Access has two enforcement points. Spack applies ownership and read/write
+permissions to package installation prefixes from the rendered
+`packages.yaml`. The build/publish path applies group ownership and setgid or
+default-ACL policy to the shared roots Spack does not own: caches, views,
+module trees, buildcache destinations, release metadata, and `current`.
+Discovery never changes permissions. Working roots are group-writable while a
+release is assembled. A promoted release is group-readable/executable and is
+not modified in place. The module front door and `current` pointer must resolve
+from both login and compute nodes. World access is disabled for the initial
+deployment; expanding the publication audience is a deliberate release-policy
+change.
+
 Promotion gate: a release becomes `current` only after (a) the validation
 report is clean, (b) a user-level smoke test passes (load a compiler
-surface, load one lane, compile and run a small MPI program), and (c) the
-stack lead approves. The approval and evidence are recorded in the release
-manifest. Rollback is moving the pointer back.
+surface, load one lane, compile and run a small MPI program), (c) a clean
+session from another member of the collaboration group can read the release
+and load its modules from both login and compute nodes, and (d) the stack lead
+approves. The approval and evidence are recorded in the release manifest.
+Rollback is moving the pointer back.
 
 Build policy boundaries:
 
@@ -210,6 +229,8 @@ User exposure policies:
 - A release promotes only with clean validation, a passing user-level smoke
   test, and recorded approval.
 - A fresh user shell reaches any published package in three module commands.
+- Shared release roots, module roots, and the `current` pointer are visible
+  from login and compute nodes and have the approved group-only access policy.
 - Version-sensitive package module chains are tested: compatible chains load
   cleanly, and incompatible dependency mixes fail or are prevented.
 

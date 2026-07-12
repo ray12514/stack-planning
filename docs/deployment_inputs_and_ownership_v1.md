@@ -45,6 +45,7 @@ flag it. The framework validates the choice; it never makes it. No Spack runs.
 | System facts (what exists) | System owner / `cluster-inspector` | `profile.yaml` | probe (1) |
 | Externals/`packages.yaml`, provider wiring, target, module syntax | **Framework (auto)** | rendered `configs/**` | render (5) |
 | **Install tree, build stage, caches, view/module roots, `publish_root`, buildcache destinations** | **Installer** | `deployment.yaml` (or build-time flags) | Stage 0 setup / install |
+| Shared-filesystem collaboration group and access audience | **Installer / release owner** | `deployment.yaml.access` | Stage 0 setup / publish |
 | Which Spack version (floor/pin) **and where Spack lives** | Template maintainer (floor), package manager (pin), installer (exact + location) | `defaults.spack.floor`, `stack.yaml.spack.version`, `deployment.yaml.spack.root` / `$PATH` | curate/author/install |
 
 In practice the package manager, the installer, and the template maintainer are
@@ -62,6 +63,11 @@ system. Current shape:
 # systems/<system>/deployment.yaml — installer-owned; never auto-derived
 schema_version: 1
 system: example-cray                  # must match profile.system.name
+
+access:
+  group: cse                          # REQUIRED — Unix group owning shared stack artifacts
+  read: group                         # REQUIRED — group or world
+  write: group                        # REQUIRED — user or group
 
 install_tree:
   root: /shared/stack/opt             # REQUIRED — chosen from profile candidates, not derived
@@ -111,6 +117,57 @@ Where it lives and how it is consumed:
 config or fails fast with a clear error when a required path (the install tree)
 is absent.
 
+## Shared access and permissions
+
+The selected install, cache, view, module, buildcache, and publication roots
+normally live on a shared filesystem. Their access policy is a deployment
+decision. It is not a profile fact. Cluster Inspector must not inspect group
+membership or change modes, and Stack Composer only renders the chosen policy;
+it does not call `chgrp` or mutate the filesystem.
+
+For the initial deployment, `deployment.yaml.access` records:
+
+- the site runbook names one CSE collaboration group;
+- working roots are owned by that group, use setgid directories, and are
+  group-readable/writable/executable while a release is assembled;
+- a group-friendly umask (`0002`) or an equivalent default ACL keeps new
+  files in the collaboration model;
+- promoted release content is group-readable/executable and is not edited in
+  place;
+- access for users outside the collaboration group is disabled;
+- the module front door, views needed at runtime, install tree, and `current`
+  pointer are verified from both login and compute nodes using a clean session
+  owned by another group member.
+
+Spack already owns the package-prefix portion of this policy. Spack 1.1.1 and
+newer accept package permissions in `packages.yaml`:
+
+```yaml
+packages:
+  all:
+    permissions:
+      read: group
+      write: group
+      group: <site-cse-group>
+```
+
+This applies the group and read/write policy to packages installed in the Spack
+store, including setgid inheritance within each package prefix. It does not
+govern the top-level install root, source and misc caches, build stage,
+buildcache files, views, generated modulefiles, release manifests, or the
+`current` pointer. The build/publish adapter still owns those paths.
+
+Setgid inheritance and default ACL support vary by filesystem and site policy.
+The build/publish adapter therefore owns the concrete POSIX/ACL operations.
+Do not recursively change an existing shared tree until the filesystem owner
+has confirmed that the tree is dedicated to this stack.
+
+The deployment schema intentionally keeps this interface small: collaboration
+group, read audience, and write audience. Stack Composer maps it to
+`packages:all:permissions`; the build/publish adapter applies the same intent to
+the remaining shared roots. Numeric mode bits remain adapter details unless
+real systems require them as portable inputs.
+
 ## Spack root vs. install tree
 
 Two different locations, easily confused:
@@ -144,3 +201,5 @@ field set:
    (precedence, and how the chosen values are recorded in the release manifest).
 5. The fact-based path checks worth running (writable, free space, on a shared
    filesystem visible to compute nodes).
+6. Which build/publish adapter applies group ownership, setgid/default ACL
+   behavior, and release hardening outside Spack package prefixes.

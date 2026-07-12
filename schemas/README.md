@@ -31,7 +31,7 @@ group: publish a versioned schema artifact that consumers pin.
 |---|---|
 | `profile-v1.json` | Observed system facts: system/OS/fabric/modules, generic `compiler_providers`, `mpi_providers`, GPU toolkit facts, filesystem candidates, node types. |
 | `defaults-v1.json` | Site/template-set policy: compiler/MPI/GPU/target defaults plus modules, externals, foundation pins, buildcache, release conventions. |
-| `deployment-v1.json` | Installer-owned per-system choices: install tree, build stage, caches, view/module roots, module publish root, buildcache destinations, optional Spack root. |
+| `deployment-v1.json` | Installer-owned per-system choices: shared access policy, install tree, build stage, caches, view/module roots, module publish root, buildcache destinations, optional Spack root. |
 | `stack-v1.json` | Stack/package intent: spec-native builds, optional per-build narrowing, package repos, and overrides. |
 | `package-set-v1.json` | Curated Spack root-spec groups usable from stack builds. |
 | `release-manifest-v1.json` | Draft/final manifest for the rendered workspace and downstream build evidence. |

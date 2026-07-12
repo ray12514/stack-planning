@@ -100,12 +100,68 @@ Before render, also decide the deployment-owned paths that are not facts:
 - build stage per node type;
 - buildcache destination, if this run will push binaries;
 - temporary module/view exposure path for the test.
+- collaboration group and publication audience for the shared roots.
 
 These roots are the installer's choice — recorded in
 `systems/<system>/deployment.yaml` and rendered into
 `configs/common/config.yaml`, or supplied/overridden at build time. They are
 never auto-derived; the profile only offers install-tree candidates. See
 `deployment_inputs_and_ownership_v1.md`.
+
+For the initial group-only deployment, record the site's CSE group and access
+audience in `deployment.yaml`:
+
+```yaml
+access:
+  group: <site-cse-group>
+  read: group
+  write: group
+```
+
+Before creating stack-owned roots, select the same group and use a
+group-friendly umask:
+
+```bash
+export STACK_GROUP="<site-cse-group>"
+umask 0002
+```
+
+Create only dedicated stack directories with group ownership and setgid
+inheritance. The exact roots come from `deployment.yaml`:
+
+```bash
+install -d -m 2770 -g "$STACK_GROUP" \
+  "<install-root>" "<cache-root>" "<view-root>" \
+  "<module-root>" "<buildcache-root>"
+```
+
+If the filesystem uses default ACLs instead of, or in addition to, setgid
+directories, have the site filesystem owner apply the equivalent group policy.
+Do not run a recursive permission change against an existing shared tree unless
+that tree is dedicated to this stack and its owner has approved the change.
+
+While assembling a release, dedicated working roots are group-writable. At
+promotion, the build/publish path makes the versioned release group-readable
+and executable, prevents in-place group edits, and then moves `current`. Keep
+world access disabled for this first deployment.
+
+Spack can enforce group ownership and permissions inside every installed
+package prefix through `packages.yaml`:
+
+```yaml
+packages:
+  all:
+    permissions:
+      read: group
+      write: group
+      group: <site-cse-group>
+```
+
+Stack Composer renders this block from `deployment.yaml.access`; do not patch a
+rendered `packages.yaml`. Verify the block in `configs/common/packages.yaml`
+before concretization. The directory procedure above remains necessary for
+shared roots and publication artifacts that Spack package permissions do not
+own.
 
 ## Stage 0 — Acquire repos and establish the stack directory
 
@@ -206,6 +262,10 @@ truth render consumes, synced onto the target's shared filesystem.
 
 3. Confirm the shared-filesystem path is writable and visible from the build and
    compute node types.
+4. From a clean shell owned by another member of `STACK_GROUP`, confirm the
+   dedicated roots are readable on the login node and on every representative
+   compute node type. Repeat this check against the versioned release, module
+   front door, and `current` pointer before promotion.
 
 Design references: `pre_v1_hosting_and_external_inventory_note_v1.md` and
 `stack_build_handoff_note_v1.md`.

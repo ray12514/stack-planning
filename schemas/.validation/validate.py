@@ -218,6 +218,16 @@ def defaults_negatives(base: dict) -> list[tuple[str, dict, str]]:
 def deployment_negatives(base: dict) -> list[tuple[str, dict, str]]:
     return [
         (
+            "missing required access policy",
+            with_mutation(base, ["access"], _MISSING),
+            "<root>",
+        ),
+        (
+            "world-writable package prefixes are forbidden",
+            with_mutation(base, ["access", "write"], "world"),
+            "access/write",
+        ),
+        (
             "missing required system",
             with_mutation(base, ["system"], _MISSING),
             "<root>",
