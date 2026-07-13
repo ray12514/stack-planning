@@ -16,6 +16,26 @@ Cray PE-specific proof points; it does not replace the common runbook.
 - [ ] ROCm or CUDA toolkit roots and accelerator architectures match the target
       node type.
 
+## Runtime transition evidence
+
+- [ ] The approved and candidate fact sheets are attached, with a structured
+      platform-runtime-set diff for every affected lane.
+- [ ] The selected CPE release notes and HPE product dependency/support matrix
+      have been reviewed for Cray MPICH, libfabric/CXI, PMI/PALS, GTL, LibSci,
+      compiler, and GPU-runtime changes.
+- [ ] Clean-shell module chains for both the approved and candidate runtime sets
+      are captured; no result depends on the ambient system default.
+- [ ] The selected Cray MPICH resolves the intended libfabric/CXI provider,
+      launcher/PMI components, compiler flavor, and GTL integration.
+- [ ] Runtime identity was verified with module inspection and executable or
+      library evidence (`readelf`, `ldd`, wrapper output, and fabric-provider
+      diagnostics), not inferred from version names alone.
+- [ ] Each lane has a recorded decision: revalidate, remain pinned to a
+      supported older runtime set, rebuild, or hold promotion.
+- [ ] The previous release was tested on the candidate system before being
+      declared compatible, and any user-visible module prerequisites or
+      deprecation dates are documented.
+
 ## Render and lockfiles
 
 - [ ] Only the selected platform generation is rendered into a lane; other
@@ -38,3 +58,15 @@ Cray PE-specific proof points; it does not replace the common runbook.
       externals are recorded rather than silently ignored.
 - [ ] Version-sensitive package module chains are tested: compatible chains
       load cleanly, and incompatible dependency mixes fail or are prevented.
+
+## Operational evidence sources
+
+- HPE CPE release notes and product dependencies for the selected release:
+  <https://cpe.ext.hpe.com/docs/latest/release_notes/sles_15_6_release_notes.html>
+- HPE Cray MPI runtime and OFI guidance:
+  <https://cpe.ext.hpe.com/docs/latest/mpt/mpich9/intro_mpi.html>
+- HPE CPE Spack integration and compiler-specific external layouts:
+  <https://cpe.ext.hpe.com/docs/latest/craype/spack.html>
+
+Site release notes and support tickets supplement these sources when local
+module packaging or supported coexistence differs from the vendor baseline.

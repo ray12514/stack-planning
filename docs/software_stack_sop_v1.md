@@ -2,8 +2,8 @@
 
 | Document control | |
 |---|---|
-| Version | Draft 2 |
-| Date | 2026-07-09 |
+| Version | Draft 3 |
+| Date | 2026-07-13 |
 | Owner | CSE stack team |
 | Status | For management review |
 | Review cycle | To be set at adoption |
@@ -25,10 +25,13 @@ person can author, inspect, or correct by hand.
 | 6 | Publish | the **modules and views** users see, and the **release manifest** | app manager and release approver |
 | 7 | Verify | validation evidence attached to the release | app manager |
 
-The continuous loop: when the system changes, only step 1 is redone. When
-the software list changes, only step 3. When site paths change, only step 2.
-Whatever changed, the work tree is re-derived and only the affected lanes
-rebuild. Nothing downstream is edited in place.
+The continuous loop: when the system changes, step 1 is redone and the new
+facts are compared with the approved release's platform runtime fingerprint.
+When the software list changes, only step 3 is redone. When site paths change,
+only step 2 is redone. Whatever changed, the work tree is re-derived. The
+runtime-transition gate in section 7 determines whether each lane can be
+revalidated, must remain pinned to an older supported runtime set, or must be
+rebuilt. Nothing downstream is edited in place.
 
 ## 2. Vocabulary
 
@@ -57,6 +60,14 @@ rebuild. Nothing downstream is edited in place.
   GPU toolkits as pinned externals) with a manifest naming the recommended
   choices. Any app manager can use it without joining the curated stack
   process.
+- **Platform runtime set**: the coherent vendor and site runtime selected for a
+  lane: compiler and programming-environment release, MPI provider and flavor,
+  fabric runtime, launcher/PMI components, accelerator toolkit and integration
+  libraries, and other platform-coupled libraries such as Cray LibSci.
+- **Platform runtime transition**: evaluation of a candidate runtime set after
+  a system or vendor update against the set recorded for a published release.
+  A transition is approved only with documented support evidence and tests;
+  module coexistence or a new system default is not compatibility evidence.
 
 ## 3. Onboarding a new system
 
@@ -206,7 +217,62 @@ User exposure policies:
   performance-sensitive packages remain payload packages in Serial, MPI, or GPU
   lanes.
 
-## 7. Requests and issues
+## 7. Platform upgrades and runtime transitions
+
+Every release manifest records the platform runtime fingerprint used by each
+lane. At minimum it records the approved fact-sheet revision, programming
+environment, compiler identity and module chain, MPI provider/version/flavor
+and module chain, fabric provider/version/prefix, launcher and PMI components,
+GPU toolkit and integration runtime where applicable, and platform-coupled
+libraries such as GTL and LibSci. A release never relies on whichever runtime
+the host happens to load by default.
+
+When the operating system, programming environment, compiler set, MPI, fabric,
+launcher, or accelerator stack changes, the app manager performs this gate on
+the pre-production or test system before the update reaches production:
+
+1. Generate a new fact sheet and retain the approved old fact sheet. Produce a
+   structured diff of their platform runtime fingerprints.
+2. Review the vendor release notes, product dependency matrix, and site module
+   changes for every changed platform-coupled component. Do not infer
+   compatibility solely from a package's major version, a path still existing,
+   or two modules being loadable side by side.
+3. Capture the old and candidate module chains in clean shells. Confirm the
+   actual compiler, MPI, fabric, PMI/launcher, and GPU libraries selected with
+   module inspection plus executable/library evidence such as `readelf`,
+   `ldd`, wrapper output, and provider diagnostics.
+4. Re-render and concretize against the candidate fact sheet. Classify and
+   record the outcome for every affected lane using the decision table below.
+5. Run the transition acceptance tests before promotion: C, C++, and Fortran
+   compile/link checks; scheduler-launched multi-node MPI; fabric-provider
+   checks; GPU-aware MPI where applicable; representative package/application
+   tests; module-chain tests; and library-resolution verification.
+6. Publish the decision with the release: supported runtime set, required
+   prerequisite modules, revalidated or rebuilt lanes, known restrictions,
+   deprecation date for an older runtime set, and user action if any.
+
+| Evidence | Required action |
+|---|---|
+| Runtime identity, explicit module chain, and linked providers are unchanged; transition tests pass | Revalidate the lane. No rebuild is required. |
+| The old runtime remains installed, explicitly selectable, and vendor/site-supported; the old module chain recreates the recorded fingerprint and tests pass | Keep the release pinned to the old runtime set. Do not let the new default leak into it. |
+| A required runtime, prefix, ABI, provider, or supported MPI/fabric/GPU pairing changed or disappeared | Rebuild the affected lane against the candidate runtime set, then run the full release gate. |
+| Compatibility or support status is unknown, or tests do not prove the recorded pairing | Hold promotion. Obtain vendor/site evidence or rebuild; never assume compatibility. |
+
+For Cray systems, Cray MPICH, libfabric/CXI, PMI/PALS, GTL, LibSci, the selected
+PrgEnv/compiler, and the GPU runtime are evaluated as one platform runtime set.
+The Cray MPICH external must load the exact supported module chain for that set;
+it must not inherit an ambient libfabric default. Older Cray PE releases may
+remain usable side by side only when the site and HPE support that pairing and
+the acceptance tests reproduce the recorded runtime fingerprint. A change to
+the system default alone neither proves that a rebuild is necessary nor proves
+that the old stack remains safe.
+
+The rebuild unit is the affected lane, not automatically the whole stack. A
+shared foundation or compiler-layer component rebuild expands the impact to
+every lane that consumes it. The app manager records that dependency impact in
+the transition report before any `current` pointer moves.
+
+## 8. Requests and issues
 
 - A user reporting a broken module or requesting a package or version
   raises it through the site's normal support channel. The system's app
@@ -216,7 +282,7 @@ User exposure policies:
   stack file (section 4). An independent app manager's package is handled
   by its owner (section 5).
 
-## 8. What good looks like
+## 9. What good looks like
 
 - The fact sheet and overlay are reviewed and approved before anything
   consumes them.
@@ -233,8 +299,13 @@ User exposure policies:
   from login and compute nodes and have the approved group-only access policy.
 - Version-sensitive package module chains are tested: compatible chains load
   cleanly, and incompatible dependency mixes fail or are prevented.
+- Every release records its platform runtime fingerprint and can recreate its
+  runtime through explicit modules without relying on the current system
+  default.
+- A system upgrade has a reviewed transition report with a per-lane
+  revalidate/pin/rebuild/hold decision before production promotion.
 
-## 9. Open items for later revisions
+## 10. Open items for later revisions
 
 Not yet defined and deliberately out of scope for this draft: system and
 release decommissioning; security re-validation cadence after CVEs in

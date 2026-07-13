@@ -65,6 +65,11 @@ lane-sensitive payload → lane modules.**
 - **Platform runtime set** — a coherent vendor runtime selection used by a lane:
   CPE release, compiler family, MPI provider/version/flavor, GPU toolkit, GTL,
   libfabric, LibSci, PMI/PALS, and related CrayPE components selected together.
+- **Platform runtime transition** — the reviewed comparison between the runtime
+  set recorded for an approved release and a candidate set after a system or
+  vendor update. Its outcome is recorded per lane as revalidate, remain pinned
+  to a supported older set, rebuild, or hold promotion. Coexisting modules and
+  changed system defaults are evidence to investigate, not compatibility proof.
 - **Manual config catalog** — a maintainer-generated set of complete Spack
   configuration YAML files for one system, derived from `profile.yaml` facts and
   site policy for manual/package-manager use. Users write their own `spack.yaml`

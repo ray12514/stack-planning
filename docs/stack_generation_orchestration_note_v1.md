@@ -72,7 +72,7 @@ guardrail is what lets one `stack.yaml` stay portable across every system.
 | `stacks/<stack>/stack.yaml` | Package manager | **Most frequent** — package adds, version bumps, new lanes | every system that deploys that stack |
 | `package-sets/*` | Curator | Occasional | stacks referencing the set |
 | `package-repos/*` | Maintainer | Occasional | stacks referencing the repo |
-| `systems/<system>/profile.yaml` | `cluster-inspector` | One-time per system, then on a system change (CPE / OS / compiler upgrade) | only that system |
+| `systems/<system>/profile.yaml` | `cluster-inspector` | One-time per system, then on a system change (CPE / OS / compiler / MPI / fabric / GPU-runtime upgrade) | only that system |
 
 The rendered workspace is **never committed**. It is a build artifact,
 regenerated on demand from the inputs above (v6 §End-to-End Mental Model).
@@ -83,7 +83,7 @@ The driver uses this to decide scope after a change:
 
 | Changed input | Re-render scope | Rebuild scope |
 |---|---|---|
-| `profile.yaml` for system S | S only | S's affected lanes |
+| `profile.yaml` for system S | S only | Determined per lane by the approved-vs-candidate platform runtime fingerprint |
 | `stack.yaml` for stack T | every system deploying T | changed lanes of T on those systems |
 | `package-set` P | every stack referencing P (on its systems) | lanes whose specs changed |
 | `template set` V (defaults / configs / environments) | every system+stack on V | lanes whose rendered scopes changed |
@@ -92,6 +92,16 @@ The driver uses this to decide scope after a change:
 Determinism makes this safe: re-rendering unchanged inputs yields the identical
 tree, so the driver may re-render freely and let the build path rebuild only what
 changed (Spack's own `reuse` / buildcache handles incremental builds).
+
+For a system upgrade, “affected” is an evidence-based lifecycle decision, not
+simply every lane whose profile file changed. The driver retains the approved
+release manifest and fact sheet, compares their platform runtime fingerprint
+with the candidate profile, and attaches the resulting transition report to the
+run. An unchanged, explicitly reproducible runtime set can be revalidated. An
+older set that remains supported may stay pinned to its exact module chain. A
+changed or removed runtime-coupled dependency forces rebuild of its consuming
+lanes. Unknown compatibility holds promotion. The driver records this decision;
+it does not contain the compatibility policy itself.
 
 ## The driver contract (tool-agnostic)
 
