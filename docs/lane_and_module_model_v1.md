@@ -68,9 +68,9 @@ naming layers, one rule.
   `{build-name}[-{mpi-provider}][-{gpu-arch}]`, e.g.
   `gpu-craympich-gfx942`. Machines and oracle diffs want everything spelled
   out; these never reach users.
-- **Public module names** are `cse/<Compiler>/<Lane>` (stack prefix
-  lowercase, compiler and lane capitalized) — `cse/GCC/Serial`,
-  `cse/GCC/MPI`, `cse/GCC/GPU` — and are
+- **Public module names** use a compiler front door plus compiler-specific lane
+  names: `cse/<Compiler>` followed by `<Lane>` from the MODULEPATH exposed by
+  that compiler — `cse/GCC` then `Serial`, `MPI`, or `GPU`. Lane names are
   **qualified only when the system is ambiguous**: two MPI implementations →
   `MPI-openmpi` / `MPI-mpich` (and a GPU lane per MPI, since GPU codes ride
   one); two GPU architectures → `GPU-gfx90a` / `GPU-gfx942` (Blueback's
@@ -226,7 +226,7 @@ Exposure rule (from `CONTEXT.md`): **lane-independent foundation/core → compil
 view (+ compiler); lane-sensitive payload → lane modules.** Two exposure modes:
 
 - **`front_door`** (variant-rich): user loads one compiler surface module
-  (`cse/GCC`), then one lane module (`cse/GCC/MPI`), then package
+  (`cse/GCC`), then one lane module (`MPI`), then package
   modules from that lane's root.
 - **`direct`** (small app stacks): public package modules published directly under
   `modules.publish_root`; the direct module carries the conflict/runtime-prereq
@@ -246,11 +246,18 @@ The user-facing hierarchy is intentionally short:
 cse/GCC
   ├─ exposes the GCC foundation/core view
   └─ exposes lane modules
-       ├─ cse/GCC/Serial
-       ├─ cse/GCC/MPI
-       └─ cse/GCC/GPU
+       ├─ Serial
+       ├─ MPI
+       └─ GPU
             └─ exposes package modules for that lane
 ```
+
+Do not nest lane selector files under the compiler-init module name in the lane
+MODULEPATH. With Lmod, loading `cse/GCC` and then adding a tree containing
+`cse/GCC/Serial` changes `cse/GCC` from a leaf into a parent while it is being
+loaded, which can trigger repeated module reloads. The compiler-specific
+MODULEPATH already supplies the namespace boundary, so short selector names are
+both unambiguous and safe.
 
 Foundation/core view contents are conservative: build tools and base libraries
 that are safe for every lane under that compiler, such as `cmake`, `zlib`, `xz`,
@@ -299,9 +306,9 @@ prepend-path MODULEPATH ".../modules/gcc/lanes"
 module-whatis "Science stack lane: GCC + cray-mpich 8.1.29"
 
 # Conflicts — generated from the resolved lane plan; one per sibling lane
-conflict cse/GCC/Serial
-conflict cse/GCC/MPI
-conflict cse/GCC/GPU
+conflict Serial
+conflict MPI
+conflict GPU
 
 # Platform-module prerequisites for this lane
 prereq cray-mpich/8.1.29

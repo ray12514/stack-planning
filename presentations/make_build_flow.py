@@ -1,5 +1,7 @@
 """CSE build-flow schematic — faithful to the original 7-stage left-to-right
 layout, redrawn with aligned stages, complete arrows, and lane-kind colors."""
+from pathlib import Path
+
 from lxml import etree
 from pptx import Presentation
 from pptx.dml.color import RGBColor
@@ -262,6 +264,6 @@ build_slide(
     "Open MPI typically built with UCX",
 )
 
-out = "/private/tmp/claude-501/-Users-ravonventers-Development-stack-composer/a23f38af-bedd-4b94-9c54-985d109b5350/scratchpad/cse_build_flow.pptx"
+out = Path(__file__).with_name("cse_build_flow.pptx")
 prs.save(out)
 print("WROTE", out)

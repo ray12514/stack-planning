@@ -1,6 +1,6 @@
 # v1 Readiness Refresh
 
-Recorded 2026-07-05, branch `codex/simplified-render-plan`. A synthesis of where
+Refreshed 2026-07-12, branch `codex/simplified-render-plan`. A synthesis of where
 the four repos stand and what remains for a v1 release, after the Blueback smoke
 passed and the render pipeline was firmed up. Detailed design lives in the
 per-topic notes referenced inline; this is the map.
@@ -22,6 +22,12 @@ per-topic notes referenced inline; this is the map.
 - **Cray runtime packages are observed, not rendered.** GTL/PMI/PALS appear in
   `reports/render-plan.yaml` but are not written as externals without an
   explicit package-repo policy.
+- **Generic Linux has real-system evidence.** Raider reached successful
+  concretization and exercised the generic compiler/OpenMPI/CUDA selection
+  path. The local Rocky smoke has concrete core, serial, and MPI lockfiles.
+- **The manual static catalog exists.** `stack-composer render-static` emits
+  include-ready compiler, MPI/toolchain, GPU, common, and platform scopes plus
+  a manifest and recommendation report.
 
 ## Status by area
 
@@ -29,12 +35,12 @@ per-topic notes referenced inline; this is the map.
 |---|---|---|
 | Plan-layer render seam | **Done** | `simplified_render_plan_branch_v1.md` |
 | Cray real-system smoke | **Done** (Blueback) | runbook-notes |
-| Generic Linux path | Built (fixtures green); **no real-system run yet** | — |
+| Generic Linux path | **Real-system concretization passed** (Raider); broader build matrix pending | Raider runbook |
 | Manual / Tier-0 consumption | Structural check only; no `spack concretize` on a box | `manual_config_catalog_note_v1.md` |
 | Collapsed inventory schema (nested versions) | Designed, **not built** | `platform_runtime_set_design_v1.md` |
 | CPE-locked GPU/MPI compat validation | Rules written, **not implemented** | `cpe_rocm_compatibility_note_v1.md` |
 | GTL preload elimination (package repo) | Designed, **not built**; preload is the run-#1 workaround | `cray_runtime_package_repo_note_v1.md` |
-| Manual config catalog command | **Not built** | `manual_config_catalog_note_v1.md` |
+| Manual config catalog command | **Built** (`render-static`); system publication/consumer smoke pending | `manual_config_catalog_note_v1.md` |
 | Multi-CPE fan-out | **Not built**; deferred v1 goal | `platform_runtime_set_design_v1.md` |
 | libsci / fabric rendered from selected set | **Not built** (observed only) | `cray_runtime_package_repo_note_v1.md` |
 
@@ -60,7 +66,7 @@ Minimum for a defensible v1 (one managed stack, two system families):
 
 1. Plan-layer render seam. **(done)**
 2. Cray real-system smoke, oracle-checked. **(done — Blueback)**
-3. **Generic Linux real-system smoke** — the current gap that most reduces risk.
+3. Generic Linux real-system concretization. **(done — Raider)**
 4. **CPE-locked compatibility validation** — refuse cross-major GPU/MPI pairings
    at render, so a bad combination fails before a build, not at runtime.
 5. GTL decision resolved (workaround-documented *or* package repo).
@@ -71,12 +77,19 @@ Everything past line 6 is post-v1 unless a decision pulls it in.
 
 ## Test sequence (agreed direction)
 
-1. **Generic Linux cluster smoke first.** It exercises the same plan layer with
-   no Cray-specific runtime, so it is the cleanest proof the seam is not
-   Cray-coupled — and it is the untested path. Add a generic multi-provider
-   render fixture before the run.
-2. **Then re-run Cray (Blueback)** with the refreshed pipeline to confirm no
-   regression from the firming-up.
+1. Local Docker/Lmod compiler-surface and lane selection pass, including
+   mutually exclusive lane rejection. Complete package-module visibility after
+   a fresh local concretization/module refresh.
+2. Re-run Raider and Blueback with that same module acceptance sequence and
+   record the resulting release evidence.
+3. Publish one generated static catalog on a system-local path and concretize a
+   small user-authored environment that includes its recommended scopes.
+
+The current local acceptance cycle continues to use the tracked runner in
+`cse-stack/docker/smoke`. After that cycle is green, move the maintained
+Dockerfile, runner, and stable input fixtures to `cluster-inspector/docker`.
+Keep generated binaries, profiles, rendered workspaces, images, caches, and
+persistent runtime state outside git.
 
 ## Decisions needed to lock v1 scope
 

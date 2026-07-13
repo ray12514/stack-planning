@@ -482,7 +482,7 @@ The intended user flow is a chained module hierarchy:
 1. Load the compiler surface module, for example `cse/GCC`. This
    establishes the compiler layer, exposes the compiler-specific foundation/core
    view, and prepends the lane-module root to `MODULEPATH`.
-2. Load exactly one rendered lane module, for example `cse/GCC/MPI`. That lane
+2. Load exactly one rendered lane module, for example `MPI`. That lane
    module declares platform prereqs and prepends only that lane's package-module
    root.
 3. Load package modules made visible by the selected lane, such as `hdf5` or
@@ -523,8 +523,8 @@ Run at least these checks for every applicable lane:
 | Compiler or wrapper resolves from the intended lane | `which mpicc && mpicc --version` |
 | MPI launcher works on compute nodes | `srun -n 2 hostname` |
 | GPU runtime is visible on a GPU node | `srun rocm-smi` or `srun nvidia-smi` |
-| Compiler surface exposes foundation/core and lane modules | `module load cse/GCC && module avail cse/GCC` |
-| Lane module isolates one package root | `module load cse/GCC && module load cse/GCC/MPI && module avail hdf5` |
+| Compiler surface exposes foundation/core and lane modules | `module load cse/GCC && module avail MPI Serial GPU` |
+| Lane module isolates one package root | `module load cse/GCC && module load MPI && module avail hdf5` |
 | Representative application runs | Use the stack's existing smoke workload. |
 
 Capture failures before applying temporary environment changes. Correct
