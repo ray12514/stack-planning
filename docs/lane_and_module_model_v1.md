@@ -51,10 +51,34 @@ Placement rules (2026-07-08): serial means the package *could* build against
 MPI and the stack deliberately offers the MPI-less build too; a package with no
 MPI implementation at all is core, not serial. Edge cases are decided by the
 second core criterion (compiler-agnostic): `openblas` has no MPI but is
-compiler/performance-sensitive, so it stays payload-serial; `gnuplot` is
-flagged for team review. Open team question, recorded not decided: MPI built
+compiler/performance-sensitive, so it stays payload-serial; `gnuplot` likewise
+(decided 2026-07-13) — it must be built with the surface's compiler for
+library compatibility, so it is not compiler-agnostic and cannot be Core.
+Open team question, recorded not decided: MPI built
 for one rank can subsume a serial build, so the serial tier could in principle
 collapse into MPI — CSE keeps the explicit serial tier for now.
+
+**Lane-agnostic payload exposure (decided 2026-07-13).** Where a package is
+*built* and where it is *visible* are separate axes. Packages that are
+non-core (not compiler-agnostic: compiler- or performance-sensitive) but
+lane-agnostic — no MPI implementation exists (`openblas`, `netlib-lapack`,
+`gnuplot`), so serial and MPI code link the same build — build
+exactly once, in the compiler column's serial lane, and are module-exposed in
+*every* payload lane of that column: Serial, MPI, and GPU. No rebuild, no new
+loadable layer, and the lane conflicts stand unchanged; without this, an MPI
+user had no loadable BLAS/LAPACK at all. Mechanics: the package set declares
+`lane_agnostic:` names (schema-validated to be serial-only root specs); the
+serial lane's environment emits their modulefiles into a per-compiler shared
+module root (`…/<compiler>/shared`, a Spack second module set with an
+include whitelist) and excludes them from its own lane root; every payload
+lane selector module prepends the shared root below its own lane root. A
+stack that skips the serial kind renders with a recorded warning (the
+declaration is vacuous there); two serial lanes in one column declaring
+lane-agnostic packages is a hard render error (one shared root, one owner).
+`boost` is deliberately **not** on the list: it is MPI-capable, so it is a
+dual-build package (`~mpi` in serial, `+mpi` in MPI, same clean name) like
+HDF5 and FFTW — decided 2026-07-13. Validation enforces the boundary: a
+lane_agnostic name with root specs in any non-serial kind is a render error.
 
 A simple stack may use one payload lane and no separate Core. Variant-rich stacks
 use front-door compiler-init and lane modules so a user enters one compiler
@@ -370,11 +394,11 @@ The preferred user experience is still:
 ```text
 module load cse/GCC
 module load MPI
-module load netcdf-c/4.9.2
+module load netcdf-c/4.9.3
 ```
 
 The user should not have to know which HDF5 version is compatible. The
-`netcdf-c/4.9.2` module carries that relationship internally through modulefile
+`netcdf-c/4.9.3` module carries that relationship internally through modulefile
 metadata and checks.
 
 Implementation source of truth: dependency constraints come from the per-lane
@@ -397,7 +421,7 @@ Every package module emits its class so `module avail`/`help` show it:
 
 ```tcl
 setenv STACK_PACKAGE_PROVENANCE Platform-backed
-module-whatis "netcdf-c 4.9.2 (Platform-backed via Cray PE)"
+module-whatis "netcdf-c 4.9.3 (Platform-backed via Cray PE)"
 ```
 
 Render derives the class from `packages.yaml`: `buildable: false` + Cray PE prefix

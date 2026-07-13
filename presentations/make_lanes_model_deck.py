@@ -228,7 +228,7 @@ arrow(s, cx, 3.82, cx, 4.32, TEAL)
 txt(s, cx - 2.5, 4.32, 5.0, 0.38, [(12.5, MUTED, True, "CHOOSE EXACTLY ONE LANE")],
     align=PP_ALIGN.CENTER)
 for i, (name, color, content) in enumerate([
-        ("Serial", AMBER, "hdf5~mpi 1.14.6 / 1.14.5 · fftw · boost"),
+        ("Serial", AMBER, "hdf5~mpi 2.1.0 / 1.14.6 · fftw · boost"),
         ("MPI", BLUE, "Cray MPICH · hdf5+mpi · netcdf · tau"),
         ("GPU", VIOLET, "GPU-aware MPI · kokkos +rocm gfx942")]):
     x = 0.75 + i * 4.0
@@ -277,13 +277,13 @@ for i, (surf, note) in enumerate([
     boxtxt(s, x + 0.3, 3.72, 1.65, 0.62, AMBER, [(12, WHITE, True, "Serial")])
     boxtxt(s, x + 2.1, 3.72, 1.65, 0.62, BLUE, [(12, WHITE, True, "MPI")])
     boxtxt(s, x + 3.9, 3.72, 1.65, 0.62, VIOLET, [(12, WHITE, True, "GPU")])
-txt(s, 0.6, 4.95, 12, 0.4, [(13, INK, True, "Representative roster — evolving, ~two versions each")])
+txt(s, 0.6, 4.95, 12, 0.4, [(13, INK, True, "Representative roster — newest two supported releases")])
 roster = ["HDF5", "NetCDF-C", "NetCDF-Fortran", "NetCDF-C++", "FFTW", "OpenBLAS",
           "Boost", "GSL", "TAU", "Kokkos", "CMake", "Python", "Miniforge"]
 for i, n in enumerate(roster):
     chip(s, 0.6 + (i % 7) * 1.78, 5.4 + (i // 7) * 0.56, 1.62, n)
 txt(s, 0.6, 6.65, 12.1, 0.5, [(12, MUTED, False,
-    "Multi-version by policy: clean package names · compatible chains load · incompatible mixes fail clearly")])
+    "Newest-two policy: clean package names · compatible chains load · incompatible mixes fail clearly")])
 
 # ------------------------------------------------- 8 · status / next
 s = slide()
@@ -304,6 +304,123 @@ nxt = ["Build the science lanes on the Cray and Linux systems; verify the module
 for i, d in enumerate(nxt):
     txt(s, 7.15, 2.6 + i * 1.15, 0.4, 0.5, [(16, AMBER, True, "→")])
     txt(s, 7.6, 2.6 + i * 1.15, 4.85, 1.1, [(13, TEXT, False, d)])
+
+# ------------------------------------------------- appendix · build roots
+# Tables mirror stack-content/package-sets/{core-foundation,science-full}.yaml
+# exactly — every root spec appears. Update both together.
+
+POLICY_FOOTER = ("Version policy: newest supported + immediate predecessor · "
+                 "pinned to spack-packages v2026.06.0 (Spack v1.1.1)")
+
+
+def roster_table(s, y, sections, col_pkg=2.1, col_ver=2.5):
+    """One table: lane-colored section divider rows + package rows."""
+    x, w = 0.6, 12.13
+    nrows = 1 + sum(1 + len(rows) for _, _, rows in sections)
+    frame = s.shapes.add_table(nrows, 3, Inches(x), Inches(y), Inches(w),
+                               Inches(0.33 * nrows))
+    tbl = frame.table
+    tbl.first_row = False; tbl.horz_banding = False
+    tbl.columns[0].width = Inches(col_pkg)
+    tbl.columns[1].width = Inches(col_ver)
+    tbl.columns[2].width = Inches(w - col_pkg - col_ver)
+
+    def style(cell, text, size, color, bold, fill):
+        cell.fill.solid(); cell.fill.fore_color.rgb = fill
+        cell.margin_left = Inches(0.12); cell.margin_right = Inches(0.08)
+        cell.margin_top = cell.margin_bottom = Inches(0.015)
+        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        p = cell.text_frame.paragraphs[0]
+        p.text = text
+        p.font.size = Pt(size); p.font.color.rgb = color; p.font.bold = bold
+        p.font.name = "Avenir Next"
+
+    for c, head in enumerate(("Package", "Versions", "Built as · pairing")):
+        style(tbl.cell(0, c), head, 11, MUTED, True, WHITE)
+    r = 1
+    for label, color, rows in sections:
+        sec = tbl.cell(r, 0); sec.merge(tbl.cell(r, 2))
+        style(sec, label, 11.5, WHITE, True, color)
+        r += 1
+        for pkg, vers, note in rows:
+            style(tbl.cell(r, 0), pkg, 11, INK, True, WHITE)
+            style(tbl.cell(r, 1), vers, 11, TEXT, False, WHITE)
+            style(tbl.cell(r, 2), note, 10.5, MUTED, False, WHITE)
+            r += 1
+    return frame
+
+
+def appendix_slide(title, sections):
+    s = slide()
+    header(s, title, "Appendix · exact build roots")
+    roster_table(s, 1.62, sections)
+    txt(s, 0.6, 7.2, 12.1, 0.28, [(10.5, MUTED, False, POLICY_FOOTER)])
+    return s
+
+
+appendix_slide("Core and foundation — built once per compiler surface", [
+    ("Foundation — ambient in the lane view, never a module", GRAY, [
+        ("zlib",   "1.3.1", "single pinned version (require: pin)"),
+        ("xz",     "5.4.6", "single pinned version"),
+        ("zstd",   "1.5.6", "single pinned version"),
+    ]),
+    ("Core tools — user-loadable, compiler-agnostic", TEAL, [
+        ("cmake",      "4.3.3 · 4.2.3", ""),
+        ("ninja · pkgconf · git", "newest", "unpinned — newest from the recipe generation"),
+        ("python",     "3.14.5 · 3.13.13", "the two newest supported minor lines"),
+        ("py-numpy",   "2.4.6", "built against each python line (newest non-deprecated recipe)"),
+        ("miniforge3", "26.1.1-3", "single by nature — installer for user-managed environments"),
+    ]),
+    ("Only-serial by nature — no MPI implementation exists", TEAL, [
+        ("gsl",    "2.8 · 2.7.1", ""),
+        ("sqlite", "3.53.1 · 3.51.2", ""),
+    ]),
+])
+
+appendix_slide("Serial lane — MPI-capable, deliberately built without MPI", [
+    ("Serial data chains — each netcdf rides one named hdf5", AMBER, [
+        ("hdf5",           "2.1.0 · 1.14.6", "~mpi +fortran +cxx +hl"),
+        ("netcdf-c",       "4.10.0 · 4.9.3", "~mpi — paired to hdf5 2.1.0 / 1.14.6"),
+        ("netcdf-fortran", "4.6.2 · 4.6.1",  "rides its paired netcdf-c / hdf5 chain"),
+        ("netcdf-cxx4",    "4.3.1", "single recipe version — newest chain only"),
+    ]),
+    ("Serial math", AMBER, [
+        ("fftw",  "3.3.11 · 3.3.10", "~mpi"),
+        ("boost", "1.90.0 · 1.89.0", "~mpi — dual-build: the MPI lane carries its own +mpi boost"),
+    ]),
+    ("Lane-agnostic — built here once, module-visible in every lane", GREEN, [
+        ("openblas",      "0.3.33 · 0.3.32", "performance-sensitive so payload, not core — BLAS for all lanes"),
+        ("netlib-lapack", "3.12.1 · 3.12.0", "reference LAPACK alongside openblas — flagged for team review"),
+        ("gnuplot",       "6.0.0 · 5.4.10",  "needs the surface's compiler for compatibility — payload, not core"),
+    ]),
+])
+
+appendix_slide("MPI and GPU lanes — built against the system MPI", [
+    ("MPI data chains — same pairing rule as serial", BLUE, [
+        ("hdf5",           "2.1.0 · 1.14.6", "+mpi +fortran +cxx +hl"),
+        ("netcdf-c",       "4.10.0 · 4.9.3", "+mpi +parallel-netcdf — paired to hdf5 2.1.0 / 1.14.6"),
+        ("netcdf-fortran", "4.6.2 · 4.6.1",  "rides its paired netcdf-c / hdf5 chain"),
+        ("netcdf-cxx4",    "4.3.1", "single recipe version — newest chain only"),
+    ]),
+    ("MPI math and tools", BLUE, [
+        ("fftw",   "3.3.11 · 3.3.10", "+mpi"),
+        ("boost",  "1.90.0 · 1.89.0", "+mpi — dual-build with the serial lane's ~mpi boost"),
+        ("tau",    "2.35.1 · 2.35",   "+mpi"),
+        ("dakota", "6.24.0 · 6.23.0", "+mpi — heaviest build in the roster"),
+    ]),
+    ("GPU lane — complete MPI-capable lane, arch from the probe", VIOLET, [
+        ("kokkos", "5.1.1 · 5.1.0",
+         "+gpu → expands per lane: +rocm amdgpu_target=<arch> or +cuda cuda_arch=<n>"),
+    ]),
+    ("Lane-agnostic — one serial-lane build, exposed here too", GREEN, [
+        ("lane-agnostic set", "see Serial",
+         "openblas · netlib-lapack · gnuplot — same modules via the shared root, no rebuild"),
+    ]),
+    ("Externals — used from the system, never built", GRAY, [
+        ("externals", "system",
+         "cray-mpich (Platform-backed) · openmpi, openssl (Site-external)"),
+    ]),
+])
 
 out = Path(__file__).with_name("cse_lanes_model.pptx")
 prs.save(str(out))

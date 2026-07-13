@@ -224,4 +224,4 @@ A future hardening pass should make these behaviors explicit:
 
 ## Non-goal
 
-This note does not move MPI-capable, GPU-capable, or performance-sensitive scientific libraries into foundation/Core. Those remain in serial, MPI, or GPU payload lanes according to package-set intent and lane kind.
+This note does not move MPI-capable, GPU-capable, or performance-sensitive scientific libraries into foundation/Core. Those remain in serial, MPI, or GPU payload lanes according to package-set intent and lane kind. Packages that are payload (not compiler-agnostic) yet usable from every lane are handled by lane-agnostic exposure — one serial-lane build, module-visible in every payload lane — decided 2026-07-13 in `lane_and_module_model_v1.md`, not by promotion into Core.

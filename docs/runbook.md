@@ -525,6 +525,7 @@ Run at least these checks for every applicable lane:
 | GPU runtime is visible on a GPU node | `srun rocm-smi` or `srun nvidia-smi` |
 | Compiler surface exposes foundation/core and lane modules | `module load cse/GCC && module avail MPI Serial GPU` |
 | Lane module isolates one package root | `module load cse/GCC && module load MPI && module avail hdf5` |
+| Lane-agnostic packages visible from every payload lane | From the MPI lane: `module avail openblas` shows the serial-lane build via the `<compiler>/shared` root; loading it resolves to the same install (one hash) the Serial lane sees. |
 | Representative application runs | Use the stack's existing smoke workload. |
 
 Capture failures before applying temporary environment changes. Correct

@@ -95,7 +95,7 @@ name: foo
 builds:
   - name: mpi
     kind: mpi                # core | serial | mpi | gpu (usually inferred)
-    specs: [hdf5@1.14.5+mpi]
+    specs: [hdf5@1.14.6+mpi]
     compilers: [cce]         # ← override, narrows the default for this build
     # mpi: { provider: cray-mpich, source: platform }   # optional per-build override
 ```
