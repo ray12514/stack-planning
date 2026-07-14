@@ -133,7 +133,7 @@ txt(s, 7.1, 1.95, 5.4, 0.5, [(17, INK, True, "The lanes model")])
 boxtxt(s, 7.4, 2.55, 4.75, 0.5, WHITE, [(13, INK, True, "module load cse/GCC")], line=PANEL2)
 arrow(s, 9.775, 3.05, 9.775, 3.35, TEAL)
 boxtxt(s, 7.4, 3.35, 2.3, 0.62, TEAL, [(12.5, WHITE, True, "Core (automatic)")])
-boxtxt(s, 9.85, 3.35, 2.3, 0.62, GRAY, [(12.5, WHITE, True, "Foundation (in view)")])
+boxtxt(s, 9.85, 3.35, 2.3, 0.62, GRAY, [(12.5, WHITE, True, "Foundation (on the path)")])
 arrow(s, 9.775, 3.97, 9.775, 4.27, TEAL)
 txt(s, 7.4, 4.27, 4.9, 0.35, [(11.5, MUTED, True, "CHOOSE EXACTLY ONE")], align=PP_ALIGN.CENTER)
 boxtxt(s, 7.4, 4.62, 1.5, 0.6, AMBER, [(12.5, WHITE, True, "Serial")])
@@ -221,7 +221,7 @@ boxtxt(s, cx - 4.3, 2.82, 4.1, 1.0, TEAL, [
     (11.5, WHITE, False, "cmake · python · miniforge · gsl"),
 ])
 boxtxt(s, cx + 0.2, 2.82, 4.1, 1.0, GRAY, [
-    (14.5, WHITE, True, "Foundation: ambient in the view"),
+    (14.5, WHITE, True, "Foundation: on your paths automatically"),
     (11.5, WHITE, False, "zlib · xz · zstd · one pinned version"),
 ])
 arrow(s, cx, 3.82, cx, 4.32, TEAL)
@@ -382,7 +382,7 @@ layers = [
      "openblas · netlib-lapack · gnuplot · one Serial-lane build, one install, shared module root"),
     (TEAL, "Core: loads with the compiler surface",
      "cmake · ninja · git · python · py-numpy · miniforge · gsl · sqlite"),
-    (GRAY, "Foundation: ambient in the view, never a module",
+    (GRAY, "Foundation: on your paths automatically, nothing to load",
      "zlib · xz · zstd, single pinned version"),
 ]
 for i, (color, title, body) in enumerate(layers):
@@ -399,7 +399,7 @@ txt(s, 0.6, 6.78, 12.1, 0.5, [(11.5, MUTED, False,
     "and exactly one payload. The other payloads stay invisible until their lane is loaded.")])
 
 appendix_slide("Core and foundation: built once per compiler surface", [
-    ("Foundation: ambient in the lane view, never a module", GRAY, [
+    ("Foundation: on your paths automatically, never a loadable module", GRAY, [
         ("zlib",   "1.3.1", "single pinned version (require: pin)"),
         ("xz",     "5.4.6", "single pinned version"),
         ("zstd",   "1.5.6", "single pinned version"),

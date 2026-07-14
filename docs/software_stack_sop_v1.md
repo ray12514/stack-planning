@@ -213,10 +213,13 @@ User exposure policies:
   matching MPI lane's runtime surface, not a separate add-on lane.
 - Package module names stay clean. Compatibility rules live in module metadata,
   not in long public names.
-- Foundation libraries are ambient in the compiler/lane view and single-version
-  by release policy. Core tools are loadable. MPI-dependent, GPU-dependent, and
-  performance-sensitive packages remain payload packages in Serial, MPI, or GPU
-  lanes.
+- Foundation libraries (zlib, xz, zstd) come with the compiler surface: loading
+  it puts the view's bin, include, and lib directories on the search paths
+  (PATH, CPATH, LIBRARY_PATH, LD_LIBRARY_PATH), so a compile or a run finds
+  them automatically. There is no foundation module to load, and each library
+  has one pinned version per release so a fresh link is never ambiguous. Core
+  tools are loadable. MPI-dependent, GPU-dependent, and performance-sensitive
+  packages remain payload packages in Serial, MPI, or GPU lanes.
 - The Serial lane contains two distinct classes of software: **common
   compiler-dependent packages** and **non-MPI configurations of packages
   that also support MPI**.
