@@ -105,7 +105,7 @@ box(s, 0, 6.9, 13.333, 0.6, PANEL, radius=False)
 txt(s, 0.9, 2.2, 11.5, 1.2, [(46, INK, True, "The CSE Software Stack")])
 box(s, 0.95, 3.35, 2.4, 0.06, TEAL, radius=False)
 txt(s, 0.9, 3.6, 11.5, 1.4, [
-    (22, TEXT, False, "One clean build surface per compiler, MPI, and GPU — the lanes model"),
+    (22, TEXT, False, "One clean build surface per compiler, MPI, and GPU: the lanes model"),
     (15, MUTED, False, "How we got here, what the community runs, and where we're going"),
 ])
 txt(s, 0.9, 6.95, 11.5, 0.5, [(12, MUTED, False, "July 2026  ·  working draft")])
@@ -116,7 +116,7 @@ for i, c in enumerate((TEAL, AMBER, BLUE, VIOLET)):
 s = slide()
 header(s, "From one flat surface to lanes", "Where we are · where we're going")
 box(s, 0.6, 1.75, 5.85, 5.15, PANEL)
-txt(s, 0.85, 1.95, 5.4, 0.5, [(17, INK, True, "Today — CSEinit")])
+txt(s, 0.85, 1.95, 5.4, 0.5, [(17, INK, True, "Today: CSEinit")])
 txt(s, 0.85, 2.42, 5.4, 0.4, [(12.5, MUTED, False,
     "GCC- and Intel-backed flavors · standard / noloads · extends MODULEPATH")])
 names = ["hdf5/1.14.6", "hdf5/1.10", "openmpi", "boost", "netcdf", "fftw",
@@ -126,14 +126,14 @@ for i, n in enumerate(names):
 txt(s, 0.85, 5.45, 5.4, 1.3, [
     (13.5, AMBER, True, "Everything visible at once."),
     (12.5, MUTED, False, "Conflicts avoided by convention · MPI/GPU surfaces not isolated ·"),
-    (12.5, MUTED, False, "hand-curated per system — upgrades mean rebuilding everything"),
+    (12.5, MUTED, False, "hand-curated per system; upgrades mean rebuilding everything"),
 ])
 box(s, 6.85, 1.75, 5.85, 5.15, PANEL)
 txt(s, 7.1, 1.95, 5.4, 0.5, [(17, INK, True, "The lanes model")])
 boxtxt(s, 7.4, 2.55, 4.75, 0.5, WHITE, [(13, INK, True, "module load cse/GCC")], line=PANEL2)
 arrow(s, 9.775, 3.05, 9.775, 3.35, TEAL)
-boxtxt(s, 7.4, 3.35, 2.3, 0.62, TEAL, [(12.5, WHITE, True, "Core — automatic")])
-boxtxt(s, 9.85, 3.35, 2.3, 0.62, GRAY, [(12.5, WHITE, True, "Foundation — in view")])
+boxtxt(s, 7.4, 3.35, 2.3, 0.62, TEAL, [(12.5, WHITE, True, "Core (automatic)")])
+boxtxt(s, 9.85, 3.35, 2.3, 0.62, GRAY, [(12.5, WHITE, True, "Foundation (in view)")])
 arrow(s, 9.775, 3.97, 9.775, 4.27, TEAL)
 txt(s, 7.4, 4.27, 4.9, 0.35, [(11.5, MUTED, True, "CHOOSE EXACTLY ONE")], align=PP_ALIGN.CENTER)
 boxtxt(s, 7.4, 4.62, 1.5, 0.6, AMBER, [(12.5, WHITE, True, "Serial")])
@@ -152,7 +152,7 @@ cards = [
     ("NASA JSC  ·  Flight Sciences Lab", BLUE,
      "1,000+ packages · 4 compiler suites · 3 MPIs",
      ["Lmod hierarchy: Core → Compiler → MPI",
-      "compiler_mixing: false — lanes stay isolated",
+      "compiler_mixing: false keeps lanes isolated",
       "“Users never run a spack command.”"]),
     ("ALCF  ·  Polaris Spack PE", VIOLET,
      "spack-pe-base + spack-pe-gnu",
@@ -192,7 +192,7 @@ for i, (t, d) in enumerate(stages):
     if i < 4:
         arrow(s, x + 2.27, 2.32, x + 2.5, 2.32, TEAL)
 boxtxt(s, 2.35, 3.4, 8.6, 0.75, WHITE, [
-    (14.5, INK, True, "Core + Foundation — built once per compiler surface, portable target"),
+    (14.5, INK, True, "Core + Foundation: built once per compiler surface, portable target"),
     (11.5, MUTED, False, "cmake · python · miniforge   |   zlib · xz · zstd (single pinned version)"),
 ], line=TEAL)
 lanes = [("Serial", AMBER, "non-MPI hdf5 · fftw · boost, plus common BLAS/LAPACK"),
@@ -204,7 +204,7 @@ for i, (name, color, content) in enumerate(lanes):
     boxtxt(s, x, 4.75, 3.3, 0.95, color,
            [(14.5, WHITE, True, name), (11, WHITE, False, content)])
 txt(s, 0.6, 6.15, 12.1, 0.9, [
-    (14, TEAL, True, "A new system is a probe + a render — not months of curation."),
+    (14, TEAL, True, "A new system is a probe and a render, not months of curation."),
     (12.5, MUTED, False,
      "The same pipeline produced a Cray EX (MI300A · ROCm) stack and an NVIDIA A100 Linux stack, unchanged."),
 ])
@@ -217,12 +217,12 @@ boxtxt(s, cx - 2.5, 1.8, 5.0, 0.62, WHITE,
        [(16, INK, True, "$ module load cse/GCC")], line=PANEL2)
 arrow(s, cx, 2.42, cx, 2.82, TEAL)
 boxtxt(s, cx - 4.3, 2.82, 4.1, 1.0, TEAL, [
-    (14.5, WHITE, True, "Core — loads automatically"),
+    (14.5, WHITE, True, "Core: loads automatically"),
     (11.5, WHITE, False, "cmake · python · miniforge · gsl"),
 ])
 boxtxt(s, cx + 0.2, 2.82, 4.1, 1.0, GRAY, [
-    (14.5, WHITE, True, "Foundation — ambient in the view"),
-    (11.5, WHITE, False, "zlib · xz · zstd — one pinned version"),
+    (14.5, WHITE, True, "Foundation: ambient in the view"),
+    (11.5, WHITE, False, "zlib · xz · zstd · one pinned version"),
 ])
 arrow(s, cx, 3.82, cx, 4.32, TEAL)
 txt(s, cx - 2.5, 4.32, 5.0, 0.38, [(12.5, MUTED, True, "CHOOSE EXACTLY ONE LANE")],
@@ -260,7 +260,7 @@ for i, (name, color, desc, ex) in enumerate(vocab):
     txt(s, x + 0.22, 2.75, 2.6, 1.7, [(12.5, TEXT, False, desc)])
     txt(s, x + 0.22, 4.55, 2.6, 0.7, [(11.5, MUTED, False, ex)])
 boxtxt(s, 0.6, 5.75, 12.13, 0.62, PANEL2, [(14, INK, True,
-    "Modules: cse/<Compiler>/<Lane> — short names for users; dependency compatibility is enforced by module metadata.")])
+    "Modules: cse/<Compiler>/<Lane>. Short names for users; dependency compatibility is enforced by module metadata.")])
 
 # ------------------------------------------------- 7 · pilot scope
 s = slide()
@@ -277,7 +277,7 @@ for i, (surf, note) in enumerate([
     boxtxt(s, x + 0.3, 3.72, 1.65, 0.62, AMBER, [(12, WHITE, True, "Serial")])
     boxtxt(s, x + 2.1, 3.72, 1.65, 0.62, BLUE, [(12, WHITE, True, "MPI")])
     boxtxt(s, x + 3.9, 3.72, 1.65, 0.62, VIOLET, [(12, WHITE, True, "GPU")])
-txt(s, 0.6, 4.95, 12, 0.4, [(13, INK, True, "Representative roster — newest two supported releases")])
+txt(s, 0.6, 4.95, 12, 0.4, [(13, INK, True, "Representative roster: newest two supported releases")])
 roster = ["HDF5", "NetCDF-C", "NetCDF-Fortran", "NetCDF-C++", "FFTW", "OpenBLAS",
           "Boost", "GSL", "TAU", "Dakota", "Kokkos", "Gnuplot", "Python", "Miniforge"]
 for i, n in enumerate(roster):
@@ -378,11 +378,11 @@ for i, (name, color, content, note) in enumerate(payloads):
         (10, WHITE, False, note),
     ])
 layers = [
-    (GREEN, "Common compiler-dependent packages — loadable from every lane",
-     "openblas · netlib-lapack · gnuplot — one Serial-lane build, one install, shared module root"),
-    (TEAL, "Core — loads with the compiler surface",
+    (GREEN, "Common compiler-dependent packages: loadable from every lane",
+     "openblas · netlib-lapack · gnuplot · one Serial-lane build, one install, shared module root"),
+    (TEAL, "Core: loads with the compiler surface",
      "cmake · ninja · git · python · py-numpy · miniforge · gsl · sqlite"),
-    (GRAY, "Foundation — ambient in the view, never a module",
+    (GRAY, "Foundation: ambient in the view, never a module",
      "zlib · xz · zstd, single pinned version"),
 ]
 for i, (color, title, body) in enumerate(layers):
@@ -391,72 +391,72 @@ for i, (color, title, body) in enumerate(layers):
         (10.5, WHITE, False, body),
     ])
 boxtxt(s, 0.6, 6.02, 12.13, 0.6, WHITE, [
-    (13, INK, True, "cse/<Compiler> surface — everything above sits on one compiler"),
+    (13, INK, True, "cse/<Compiler> surface: everything above sits on one compiler"),
     (10.5, MUTED, False, "lanes never mix compilers; loading a second lane fails loudly"),
 ], line=PANEL2)
 txt(s, 0.6, 6.78, 12.1, 0.5, [(11.5, MUTED, False,
     "A user's view is one column: the surface, Foundation, Core, the common packages, "
     "and exactly one payload. The other payloads stay invisible until their lane is loaded.")])
 
-appendix_slide("Core and foundation — built once per compiler surface", [
-    ("Foundation — ambient in the lane view, never a module", GRAY, [
+appendix_slide("Core and foundation: built once per compiler surface", [
+    ("Foundation: ambient in the lane view, never a module", GRAY, [
         ("zlib",   "1.3.1", "single pinned version (require: pin)"),
         ("xz",     "5.4.6", "single pinned version"),
         ("zstd",   "1.5.6", "single pinned version"),
     ]),
-    ("Core tools — user-loadable, compiler-agnostic", TEAL, [
+    ("Core tools: user-loadable, compiler-agnostic", TEAL, [
         ("cmake",      "4.3.3 · 4.2.3", ""),
-        ("ninja · pkgconf · git", "newest", "unpinned — newest from the recipe generation"),
+        ("ninja · pkgconf · git", "newest", "unpinned; newest from the recipe generation"),
         ("python",     "3.14.5 · 3.13.13", "the two newest supported minor lines"),
         ("py-numpy",   "2.4.6", "built against each python line (newest non-deprecated recipe)"),
-        ("miniforge3", "26.1.1-3", "single by nature — installer for user-managed environments"),
+        ("miniforge3", "26.1.1-3", "single by nature; installer for user-managed environments"),
     ]),
-    ("Only-serial by nature — no MPI implementation exists", TEAL, [
+    ("Only-serial by nature: no MPI implementation exists", TEAL, [
         ("gsl",    "2.8 · 2.7.1", ""),
         ("sqlite", "3.53.1 · 3.51.2", ""),
     ]),
 ])
 
-appendix_slide("Serial lane — MPI-capable, deliberately built without MPI", [
-    ("Serial data chains — each netcdf rides one named hdf5", AMBER, [
+appendix_slide("Serial lane: MPI-capable, deliberately built without MPI", [
+    ("Serial data chains: each netcdf rides one named hdf5", AMBER, [
         ("hdf5",           "2.1.0 · 1.14.6", "~mpi +fortran +cxx +hl"),
-        ("netcdf-c",       "4.10.0 · 4.9.3", "~mpi — paired to hdf5 2.1.0 / 1.14.6"),
+        ("netcdf-c",       "4.10.0 · 4.9.3", "~mpi, paired to hdf5 2.1.0 / 1.14.6"),
         ("netcdf-fortran", "4.6.2 · 4.6.1",  "rides its paired netcdf-c / hdf5 chain"),
-        ("netcdf-cxx4",    "4.3.1", "single recipe version — newest chain only"),
+        ("netcdf-cxx4",    "4.3.1", "single recipe version; newest chain only"),
     ]),
     ("Serial math", AMBER, [
         ("fftw",  "3.3.11 · 3.3.10", "~mpi"),
         ("boost", "1.90.0 · 1.89.0", "~mpi here; the MPI lane carries its own +mpi build"),
     ]),
-    ("Common compiler-dependent — built here once, available in every lane", GREEN, [
+    ("Common compiler-dependent: built here once, available in every lane", GREEN, [
         ("openblas",      "0.3.33 · 0.3.32", "performance-sensitive, so payload rather than core; the BLAS every lane links"),
         ("netlib-lapack", "3.12.1 · 3.12.0", "reference LAPACK alongside openblas (flagged for team review)"),
         ("gnuplot",       "6.0.0 · 5.4.10",  "needs the surface's compiler, so payload rather than core"),
     ]),
 ])
 
-appendix_slide("MPI and GPU lanes — built against the system MPI", [
-    ("MPI data chains — same pairing rule as serial", BLUE, [
+appendix_slide("MPI and GPU lanes: built against the system MPI", [
+    ("MPI data chains: same pairing rule as serial", BLUE, [
         ("hdf5",           "2.1.0 · 1.14.6", "+mpi +fortran +cxx +hl"),
-        ("netcdf-c",       "4.10.0 · 4.9.3", "+mpi +parallel-netcdf — paired to hdf5 2.1.0 / 1.14.6"),
+        ("netcdf-c",       "4.10.0 · 4.9.3", "+mpi +parallel-netcdf, paired to hdf5 2.1.0 / 1.14.6"),
         ("netcdf-fortran", "4.6.2 · 4.6.1",  "rides its paired netcdf-c / hdf5 chain"),
-        ("netcdf-cxx4",    "4.3.1", "single recipe version — newest chain only"),
+        ("netcdf-cxx4",    "4.3.1", "single recipe version; newest chain only"),
     ]),
     ("MPI math and tools", BLUE, [
         ("fftw",   "3.3.11 · 3.3.10", "+mpi"),
         ("boost",  "1.90.0 · 1.89.0", "+mpi; the Serial lane carries its own ~mpi build"),
         ("tau",    "2.35.1 · 2.35",   "+mpi"),
-        ("dakota", "6.24.0 · 6.23.0", "+mpi — heaviest build in the roster"),
+        ("dakota", "6.24.0 · 6.23.0", "+mpi; heaviest build in the roster"),
     ]),
-    ("GPU lane — selects the full MPI roster above, plus the GPU payload", VIOLET, [
+    ("GPU lane: selects the full MPI roster above, plus the GPU payload", VIOLET, [
         ("kokkos", "5.1.1 · 5.1.0",
          "+gpu → expands per lane: +rocm amdgpu_target=<arch> or +cuda cuda_arch=<n>"),
     ]),
-    ("Common compiler-dependent — the Serial-lane build, available here too", GREEN, [
+    ("Common compiler-dependent: the Serial-lane build, available here too", GREEN, [
         ("common packages", "see Serial",
          "openblas · netlib-lapack · gnuplot: the same modules through the shared root, nothing rebuilt"),
     ]),
-    ("Externals — used from the system, never built", GRAY, [
+    ("Externals: used from the system, never built", GRAY, [
         ("externals", "system",
          "cray-mpich (Platform-backed) · openmpi, openssl (Site-external)"),
     ]),
