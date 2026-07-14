@@ -292,7 +292,7 @@ box(s, 0.6, 1.8, 5.95, 4.9, PANEL)
 txt(s, 0.9, 2.0, 5.4, 0.5, [(17, GREEN, True, "Done")])
 done = ["End-to-end Cray smoke: probe → render → concretize → build (PrgEnv-gnu · cray-mpich · ROCm)",
         "Second system validated the generic-Linux path and hardened the prober",
-        "Science stack — four lanes, two-version roster — renders clean today"]
+        "Science stack renders clean today: four lanes, two-version roster"]
 for i, d in enumerate(done):
     txt(s, 0.9, 2.6 + i * 1.15, 0.4, 0.5, [(16, GREEN, True, "✓")])
     txt(s, 1.35, 2.6 + i * 1.15, 4.95, 1.1, [(13, TEXT, False, d)])
@@ -386,12 +386,12 @@ appendix_slide("Serial lane — MPI-capable, deliberately built without MPI", [
     ]),
     ("Serial math", AMBER, [
         ("fftw",  "3.3.11 · 3.3.10", "~mpi"),
-        ("boost", "1.90.0 · 1.89.0", "~mpi — dual-build: the MPI lane carries its own +mpi boost"),
+        ("boost", "1.90.0 · 1.89.0", "~mpi here; the MPI lane carries its own +mpi build"),
     ]),
-    ("Lane-agnostic — built here once, module-visible in every lane", GREEN, [
-        ("openblas",      "0.3.33 · 0.3.32", "performance-sensitive so payload, not core — BLAS for all lanes"),
-        ("netlib-lapack", "3.12.1 · 3.12.0", "reference LAPACK alongside openblas — flagged for team review"),
-        ("gnuplot",       "6.0.0 · 5.4.10",  "needs the surface's compiler for compatibility — payload, not core"),
+    ("Common compiler-dependent — built here once, available in every lane", GREEN, [
+        ("openblas",      "0.3.33 · 0.3.32", "performance-sensitive, so payload rather than core; the BLAS every lane links"),
+        ("netlib-lapack", "3.12.1 · 3.12.0", "reference LAPACK alongside openblas (flagged for team review)"),
+        ("gnuplot",       "6.0.0 · 5.4.10",  "needs the surface's compiler, so payload rather than core"),
     ]),
 ])
 
@@ -404,7 +404,7 @@ appendix_slide("MPI and GPU lanes — built against the system MPI", [
     ]),
     ("MPI math and tools", BLUE, [
         ("fftw",   "3.3.11 · 3.3.10", "+mpi"),
-        ("boost",  "1.90.0 · 1.89.0", "+mpi — dual-build with the serial lane's ~mpi boost"),
+        ("boost",  "1.90.0 · 1.89.0", "+mpi; the Serial lane carries its own ~mpi build"),
         ("tau",    "2.35.1 · 2.35",   "+mpi"),
         ("dakota", "6.24.0 · 6.23.0", "+mpi — heaviest build in the roster"),
     ]),
@@ -412,9 +412,9 @@ appendix_slide("MPI and GPU lanes — built against the system MPI", [
         ("kokkos", "5.1.1 · 5.1.0",
          "+gpu → expands per lane: +rocm amdgpu_target=<arch> or +cuda cuda_arch=<n>"),
     ]),
-    ("Lane-agnostic — one serial-lane build, exposed here too", GREEN, [
-        ("lane-agnostic set", "see Serial",
-         "openblas · netlib-lapack · gnuplot — same modules via the shared root, no rebuild"),
+    ("Common compiler-dependent — the Serial-lane build, available here too", GREEN, [
+        ("common packages", "see Serial",
+         "openblas · netlib-lapack · gnuplot: the same modules through the shared root, nothing rebuilt"),
     ]),
     ("Externals — used from the system, never built", GRAY, [
         ("externals", "system",
