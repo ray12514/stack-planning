@@ -80,6 +80,33 @@ dual-build package (`~mpi` in serial, `+mpi` in MPI, same clean name) like
 HDF5 and FFTW — decided 2026-07-13. Validation enforces the boundary: a
 lane_agnostic name with root specs in any non-serial kind is a render error.
 
+**User-facing statement of the model (2026-07-13).** The Serial lane
+contains two distinct classes of software: common compiler-dependent
+packages, and non-MPI configurations of packages that also support MPI.
+
+Common compiler-dependent packages (BLAS/LAPACK, gnuplot) are made
+available in the Serial, MPI, and GPU lanes, because the lanes are mutually
+exclusive and applications in each lane may require those packages. They
+are built once, in the Serial lane, and every lane sees the same install.
+
+Non-MPI configurations are not automatically propagated beyond the Serial
+lane. When an MPI-enabled configuration of the same package is selected for
+the MPI or GPU lane's roster, that configuration is what the lane's users
+see — under the same clean module name, never a suffixed one. For example:
+Serial users get `boost` built without MPI; MPI and GPU users get `boost`
+built with MPI, because those rosters select the `+mpi` build. Serial FFTW
+exists only in the Serial lane; the MPI and GPU lanes carry MPI-enabled
+FFTW. Consequence for rosters: the gpu kind selects the MPI-enabled roster
+alongside the GPU payload, keeping GPU a superset of the MPI lane's runtime
+surface (identical specs reuse the same installs by hash — no rebuilds).
+
+The rejected alternative, recorded for the record (2026-07-13): appending
+the lane to the public module name (`fftw-serial`, `fftw-mpi`). Names carry
+facts only when the user still has a choice to make; inside a loaded lane
+the choice is already made, and suffixed names reintroduce the flat-surface
+failure mode (users must know which variant to type, and nothing but
+convention stops the wrong one).
+
 A simple stack may use one payload lane and no separate Core. Variant-rich stacks
 use front-door compiler-init and lane modules so a user enters one compiler
 surface and then picks exactly one serial/MPI/GPU lane.

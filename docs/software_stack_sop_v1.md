@@ -217,14 +217,22 @@ User exposure policies:
   by release policy. Core tools are loadable. MPI-dependent, GPU-dependent, and
   performance-sensitive packages remain payload packages in Serial, MPI, or GPU
   lanes.
-- Lane-agnostic payload packages (BLAS/LAPACK, gnuplot — no MPI
-  implementation exists) are built once in the compiler's serial lane and are
-  module-visible from every lane of that compiler — an MPI or GPU user loads
-  the same `openblas` module a Serial user does, resolving to the same
-  install. No rebuild, no extra lane to load; declared per package set
-  (`lane_agnostic:`), decided 2026-07-13 in `lane_and_module_model_v1.md`.
-  MPI-capable packages (HDF5, FFTW, Boost) are dual-build instead: one build
-  per lane under the same clean name.
+- The Serial lane contains two distinct classes of software: **common
+  compiler-dependent packages** and **non-MPI configurations of packages
+  that also support MPI**.
+- Common compiler-dependent packages (BLAS/LAPACK, gnuplot — no MPI
+  implementation exists) are made available in the Serial, MPI, and GPU
+  lanes, because the lanes are mutually exclusive and applications in each
+  lane may require them. They are built once, in the serial lane; an MPI or
+  GPU user loads the same `openblas` module a Serial user does, resolving
+  to the same install. No rebuild, no extra lane to load; declared per
+  package set (`lane_agnostic:`).
+- Non-MPI configurations are not propagated beyond the Serial lane. When an
+  MPI-enabled configuration of the same package is selected for the MPI or
+  GPU lane, that configuration is what those users see — under the same
+  clean module name (HDF5, FFTW, Boost: Serial users get the non-MPI build,
+  MPI/GPU users get the `+mpi` build). The loaded lane picks the build; the
+  name never carries the lane.
 
 ## 7. Platform upgrades and runtime transitions
 

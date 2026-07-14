@@ -408,7 +408,7 @@ appendix_slide("MPI and GPU lanes — built against the system MPI", [
         ("tau",    "2.35.1 · 2.35",   "+mpi"),
         ("dakota", "6.24.0 · 6.23.0", "+mpi — heaviest build in the roster"),
     ]),
-    ("GPU lane — complete MPI-capable lane, arch from the probe", VIOLET, [
+    ("GPU lane — selects the full MPI roster above, plus the GPU payload", VIOLET, [
         ("kokkos", "5.1.1 · 5.1.0",
          "+gpu → expands per lane: +rocm amdgpu_target=<arch> or +cuda cuda_arch=<n>"),
     ]),
