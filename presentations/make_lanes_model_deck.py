@@ -273,7 +273,7 @@ for i, (surf, note) in enumerate([
     txt(s, x + 0.25, 1.98, 5.4, 0.5, [(16, INK, True, surf)])
     txt(s, x + 0.25, 2.5, 5.4, 0.4, [(12, MUTED, False, note)])
     boxtxt(s, x + 0.3, 3.0, 2.55, 0.55, TEAL, [(12, WHITE, True, "Core (automatic)")])
-    boxtxt(s, x + 3.0, 3.0, 2.55, 0.55, GRAY, [(12, WHITE, True, "Foundation (view)")])
+    boxtxt(s, x + 3.0, 3.0, 2.55, 0.55, GRAY, [(12, WHITE, True, "Foundation (on the path)")])
     boxtxt(s, x + 0.3, 3.72, 1.65, 0.62, AMBER, [(12, WHITE, True, "Serial")])
     boxtxt(s, x + 2.1, 3.72, 1.65, 0.62, BLUE, [(12, WHITE, True, "MPI")])
     boxtxt(s, x + 3.9, 3.72, 1.65, 0.62, VIOLET, [(12, WHITE, True, "GPU")])

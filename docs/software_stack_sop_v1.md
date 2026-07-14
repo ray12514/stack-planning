@@ -53,6 +53,11 @@ rebuilt. Nothing downstream is edited in place.
   environment per lane. It can be regenerated at any time, it is never
   patched by hand, and every value in it can be traced to the fact sheet,
   overlay, or stack file that set it.
+- **View**: one merged directory tree (a single `bin`, `include`, and `lib`)
+  assembled by Spack from many installed packages, like one virtual install
+  prefix. Loading a compiler surface puts the view's directories on the
+  search paths, which is how foundation libraries are found with no module
+  to load.
 - **Release**: one built, verified, tagged copy of the stack. A `current`
   pointer names the active release; promotion moves the pointer.
 - **Platform catalog**: a published, per-system, per-release set of
@@ -337,3 +342,8 @@ Editorial (2026-07-14): a copyedit pass over this document and the other
 team-facing docs is owed before wide circulation. Remove remaining em
 dashes and machine-flavored phrasing; keep sentences plain and readable.
 The deck has already had this pass.
+
+Documentation structure (2026-07-14): this SOP stays at process level. A
+user guide (how to load and use the stack) and a developer guide (how the
+rendering and build tooling works) are planned as separate documents;
+detail beyond process belongs there, not here.
