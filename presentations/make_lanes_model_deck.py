@@ -195,9 +195,9 @@ boxtxt(s, 2.35, 3.4, 8.6, 0.75, WHITE, [
     (14.5, INK, True, "Core + Foundation — built once per compiler surface, portable target"),
     (11.5, MUTED, False, "cmake · python · miniforge   |   zlib · xz · zstd (single pinned version)"),
 ], line=TEAL)
-lanes = [("Serial", AMBER, "hdf5~mpi · fftw~mpi · boost"),
-         ("MPI", BLUE, "Cray MPICH · hdf5+mpi · netcdf · tau"),
-         ("GPU", VIOLET, "GPU-aware MPI · rocm/cuda — arch from the probe")]
+lanes = [("Serial", AMBER, "non-MPI hdf5 · fftw · boost, plus common BLAS/LAPACK"),
+         ("MPI", BLUE, "Cray MPICH · hdf5+mpi · fftw+mpi · tau · dakota"),
+         ("GPU", VIOLET, "the MPI roster plus kokkos · rocm/cuda arch from the probe")]
 for i, (name, color, content) in enumerate(lanes):
     x = 1.5 + i * 3.6
     arrow(s, 6.65, 4.15, x + 1.65, 4.75, color)
@@ -228,14 +228,14 @@ arrow(s, cx, 3.82, cx, 4.32, TEAL)
 txt(s, cx - 2.5, 4.32, 5.0, 0.38, [(12.5, MUTED, True, "CHOOSE EXACTLY ONE LANE")],
     align=PP_ALIGN.CENTER)
 for i, (name, color, content) in enumerate([
-        ("Serial", AMBER, "hdf5~mpi 2.1.0 / 1.14.6 · fftw · boost"),
-        ("MPI", BLUE, "Cray MPICH · hdf5+mpi · netcdf · tau"),
-        ("GPU", VIOLET, "GPU-aware MPI · kokkos +rocm gfx942")]):
+        ("Serial", AMBER, "non-MPI hdf5 · fftw · boost, plus openblas · gnuplot"),
+        ("MPI", BLUE, "Cray MPICH · hdf5+mpi · fftw+mpi · boost+mpi · tau"),
+        ("GPU", VIOLET, "the MPI roster plus kokkos +rocm gfx942")]):
     x = 0.75 + i * 4.0
     boxtxt(s, x, 4.75, 3.8, 1.0, color,
            [(15, WHITE, True, name), (11.5, WHITE, False, content)])
 boxtxt(s, 0.75, 6.1, 11.85, 0.85, PANEL, [
-    (13.5, INK, True, "Only the chosen lane is visible — GPU includes its compatible MPI surface."),
+    (13.5, INK, True, "Only the chosen lane is visible; common packages (BLAS/LAPACK, gnuplot) are reachable from every lane."),
     (12, MUTED, False, "Clean module names stay; module metadata blocks incompatible HDF5/NetCDF-style version mixes."),
 ])
 
@@ -243,13 +243,13 @@ boxtxt(s, 0.75, 6.1, 11.85, 0.85, PANEL, [
 s = slide()
 header(s, "Lane vocabulary", "Names carry facts, not contents")
 vocab = [
-    ("Core", TEAL, "No MPI implementation exists for it, or it is a compiler-agnostic building block. Loads with the surface.",
-     "gsl · python · miniforge · cmake"),
-    ("Serial", AMBER, "MPI-capable — deliberately built without MPI for users who want it plain.",
-     "hdf5~mpi · fftw~mpi"),
+    ("Core", TEAL, "Compiler-agnostic building blocks and tools. They load with the surface, before any lane is chosen.",
+     "cmake · python · miniforge · gsl · sqlite"),
+    ("Serial", AMBER, "Two classes: non-MPI builds of MPI-capable packages, and common compiler-dependent packages that every lane can load.",
+     "hdf5~mpi · fftw~mpi  |  openblas · gnuplot"),
     ("MPI", BLUE, "Built against the system MPI. Qualified only when the system offers more than one.",
      "MPI  ·  or MPI-openmpi / MPI-mpich"),
-    ("GPU", VIOLET, "Complete MPI+GPU lane over a compatible compiler, MPI, and GPU toolkit. Load GPU instead of MPI, not in addition to it.",
+    ("GPU", VIOLET, "Carries the full MPI roster plus the GPU payload. Load GPU instead of MPI, not in addition to it.",
      "GPU  ·  or GPU-gfx90a / GPU-gfx942"),
 ]
 for i, (name, color, desc, ex) in enumerate(vocab):
@@ -279,7 +279,7 @@ for i, (surf, note) in enumerate([
     boxtxt(s, x + 3.9, 3.72, 1.65, 0.62, VIOLET, [(12, WHITE, True, "GPU")])
 txt(s, 0.6, 4.95, 12, 0.4, [(13, INK, True, "Representative roster — newest two supported releases")])
 roster = ["HDF5", "NetCDF-C", "NetCDF-Fortran", "NetCDF-C++", "FFTW", "OpenBLAS",
-          "Boost", "GSL", "TAU", "Kokkos", "CMake", "Python", "Miniforge"]
+          "Boost", "GSL", "TAU", "Dakota", "Kokkos", "Gnuplot", "Python", "Miniforge"]
 for i, n in enumerate(roster):
     chip(s, 0.6 + (i % 7) * 1.78, 5.4 + (i // 7) * 0.56, 1.62, n)
 txt(s, 0.6, 6.65, 12.1, 0.5, [(12, MUTED, False,
@@ -357,6 +357,46 @@ def appendix_slide(title, sections):
     txt(s, 0.6, 7.2, 12.1, 0.28, [(10.5, MUTED, False, POLICY_FOOTER)])
     return s
 
+
+# ------------------------------------------------- appendix · layer stacking
+s = slide()
+header(s, "What each lane exposes", "Appendix · how the layers stack")
+txt(s, 0.6, 1.52, 12.1, 0.3, [(11.5, MUTED, True, "CHOOSE EXACTLY ONE LANE")],
+    align=PP_ALIGN.CENTER)
+payloads = [
+    ("Serial", AMBER, "hdf5 · netcdf · fftw · boost",
+     "the same packages, built without MPI"),
+    ("MPI", BLUE, "hdf5 · netcdf · fftw · boost · tau · dakota",
+     "built against the system MPI"),
+    ("GPU", VIOLET, "the MPI roster, plus kokkos",
+     "+rocm / +cuda, arch from the probe"),
+]
+for i, (name, color, content, note) in enumerate(payloads):
+    boxtxt(s, 0.6 + i * 4.18, 1.88, 3.95, 1.45, color, [
+        (15, WHITE, True, name),
+        (11, WHITE, False, content),
+        (10, WHITE, False, note),
+    ])
+layers = [
+    (GREEN, "Common compiler-dependent packages — loadable from every lane",
+     "openblas · netlib-lapack · gnuplot — one Serial-lane build, one install, shared module root"),
+    (TEAL, "Core — loads with the compiler surface",
+     "cmake · ninja · git · python · py-numpy · miniforge · gsl · sqlite"),
+    (GRAY, "Foundation — ambient in the view, never a module",
+     "zlib · xz · zstd, single pinned version"),
+]
+for i, (color, title, body) in enumerate(layers):
+    boxtxt(s, 0.6, 3.5 + i * 0.83, 12.13, 0.7, color, [
+        (12.5, WHITE, True, title),
+        (10.5, WHITE, False, body),
+    ])
+boxtxt(s, 0.6, 6.02, 12.13, 0.6, WHITE, [
+    (13, INK, True, "cse/<Compiler> surface — everything above sits on one compiler"),
+    (10.5, MUTED, False, "lanes never mix compilers; loading a second lane fails loudly"),
+], line=PANEL2)
+txt(s, 0.6, 6.78, 12.1, 0.5, [(11.5, MUTED, False,
+    "A user's view is one column: the surface, Foundation, Core, the common packages, "
+    "and exactly one payload. The other payloads stay invisible until their lane is loaded.")])
 
 appendix_slide("Core and foundation — built once per compiler surface", [
     ("Foundation — ambient in the lane view, never a module", GRAY, [
