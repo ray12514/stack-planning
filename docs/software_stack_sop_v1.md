@@ -329,3 +329,8 @@ release decommissioning; security re-validation cadence after CVEs in
 system-provided libraries; cross-system version-consistency audits; the
 package deprecation and removal flow; the onboarding checklist for a new
 app manager (the person, not the system).
+
+Editorial (2026-07-14): a copyedit pass over this document and the other
+team-facing docs is owed before wide circulation. Remove remaining em
+dashes and machine-flavored phrasing; keep sentences plain and readable.
+The deck has already had this pass.
