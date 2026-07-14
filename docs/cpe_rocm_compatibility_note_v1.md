@@ -13,7 +13,7 @@ runtime; cross-version compatibility is not guaranteed:
 
 > "Releases of cray-mpich are each compiled using a specific version of ROCm,
 > and compatibility across multiple versions is not guaranteed."
-> — [OLCF Frontier guide](https://docs.olcf.ornl.gov/systems/frontier_user_guide.html)
+> Source: [OLCF Frontier guide](https://docs.olcf.ornl.gov/systems/frontier_user_guide.html)
 
 ## Matrix highlights (see Frontier guide for the full table)
 
@@ -142,13 +142,13 @@ cited breakage mode for mismatches is CCE Fortran module-file incompatibility.
 
 Same major-version coupling: cray-mpich 9.1.0's GTL moved to CUDA 13 in the
 same release (CPE-13351). CUDA's driver-level minor-version/forward
-compatibility is **not** confirmed to extend to the GTL — apply the same
+compatibility is **not** confirmed to extend to the GTL; apply the same
 CPE-locked pairing logic on NVIDIA systems.
 
 ## Implications for the tools
 
 - **Profile facts** (cluster-inspector / profile schema): per-provider
-  `cpe_version` (the authoritative key — already sketched as deferred in
+  `cpe_version` (the authoritative key, already sketched as deferred in
   `lane_and_module_model_v1.md`), plus per-MPI GPU-runtime linkage
   (e.g. cray-mpich 8.1.29 -> `rocm@6.0:`, 9.1.0 -> `rocm@7.0:`).
 - **Render validation** (stack-composer preflight): hard-error a GPU lane that

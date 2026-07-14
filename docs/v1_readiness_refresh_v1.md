@@ -8,7 +8,7 @@ per-topic notes referenced inline; this is the map.
 ## Where we are
 
 - **Real-system Cray smoke passed.** Blueback (HPE Cray EX, MI300A) rendered one
-  coherent runtime set — PrgEnv-gnu, cray-mpich 9.1.0, ROCm 7.0.0, gfx942 — and
+  coherent runtime set (PrgEnv-gnu, cray-mpich 9.1.0, ROCm 7.0.0, gfx942) and
   reached the build path: `cluster-inspector -> profile.yaml -> validate/render
   -> spack-build`.
 - **Render pipeline seam is complete.** All selection policy (MPI, GPU, common
@@ -58,16 +58,16 @@ per-topic notes referenced inline; this is the map.
    representation but a cross-repo schema change. Is it v1, or does the current
    flat-but-deduped inventory suffice for v1?
 4. **Manual config catalog & multi-CPE.** Both are designed and both are real
-   goals — but are they *v1* or *post-v1*? This is the biggest scope lever.
+   goals, but are they *v1* or *post-v1*? This is the biggest scope lever.
 
 ## Proposed v1 definition of done
 
 Minimum for a defensible v1 (one managed stack, two system families):
 
 1. Plan-layer render seam. **(done)**
-2. Cray real-system smoke, oracle-checked. **(done — Blueback)**
-3. Generic Linux real-system concretization. **(done — Raider)**
-4. **CPE-locked compatibility validation** — refuse cross-major GPU/MPI pairings
+2. Cray real-system smoke, oracle-checked. **(done: Blueback)**
+3. Generic Linux real-system concretization. **(done: Raider)**
+4. **CPE-locked compatibility validation**: refuse cross-major GPU/MPI pairings
    at render, so a bad combination fails before a build, not at runtime.
 5. GTL decision resolved (workaround-documented *or* package repo).
 6. Explicit v1/post-v1 line drawn for: manual config catalog, multi-CPE,

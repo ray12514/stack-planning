@@ -17,7 +17,7 @@ No v1 stack release has been deployed yet. This model is changeable pre-v1.
 See also: `end_to_end_map_v1.md` (the consolidated A→B map),
 `stack_build_handoff_note_v1.md` (rendered tree → build path),
 `pre_v1_hosting_and_external_inventory_note_v1.md` (stack-content hosting), and
-v6 §"Render Step — Specification" (the seam this note orchestrates).
+v6 §"Render Step: Specification" (the seam this note orchestrates).
 
 ## Generation is a pure, per-system seam
 
@@ -28,7 +28,7 @@ render(profile, stack, package_sets, package_repos, templates, release_vars, out
   → output/<system>/<stack>/<release>/   { configs/**, environments/**, release-manifest.yaml }
 ```
 
-Render invariants (v6 §Render Step — Specification): file-in / file-out,
+Render invariants (v6 §Render Step: Specification): file-in / file-out,
 deterministic (same inputs → byte-identical tree), never calls Spack, never reads
 `$HOME` / `$PATH` / host state, never writes outside `output`. **One profile in,
 one system's tree out.** N systems = N render calls = N sibling trees under
@@ -52,7 +52,7 @@ profile (what this system has)
 
 The source is consistent; the **output differs per system** because each profile
 intersects differently. `per_system:` (v6 §Durable Inputs) is the only place a
-system name may appear, and it may **only narrow** — it never widens the
+system name may appear, and it may **only narrow**: it never widens the
 contract, invents a compiler/MPI/GPU arch, or changes package roots. That
 guardrail is what lets one `stack.yaml` stay portable across every system.
 
@@ -68,8 +68,8 @@ guardrail is what lets one `stack.yaml` stay portable across every system.
 
 | Input | Produced by | Cadence | A change re-renders |
 |---|---|---|---|
-| `templates/<set>/` | Template maintainer (gated by scaffold + review) | Rare — new OS / compiler / MPI / GPU support | every system+stack using that set |
-| `stacks/<stack>/stack.yaml` | Package manager | **Most frequent** — package adds, version bumps, new lanes | every system that deploys that stack |
+| `templates/<set>/` | Template maintainer (gated by scaffold + review) | Rare, new OS / compiler / MPI / GPU support | every system+stack using that set |
+| `stacks/<stack>/stack.yaml` | Package manager | **Most frequent**, package adds, version bumps, new lanes | every system that deploys that stack |
 | `package-sets/*` | Curator | Occasional | stacks referencing the set |
 | `package-repos/*` | Maintainer | Occasional | stacks referencing the repo |
 | `systems/<system>/profile.yaml` | `cluster-inspector` | One-time per system, then on a system change (CPE / OS / compiler / MPI / fabric / GPU-runtime upgrade) | only that system |
@@ -105,19 +105,19 @@ it does not contain the compatibility policy itself.
 
 ## The driver contract (tool-agnostic)
 
-A **driver** orchestrates render across systems. It is thin and external — a
+A **driver** orchestrates render across systems. It is thin and external: a
 `Makefile`, a CI pipeline, an Ansible play, or a shell loop. The model does not
 mandate one; each site picks the mechanism. The driver MUST:
 
-1. **Enumerate targets** — the `(system, stack, release)` set to render (see
+1. **Enumerate targets**: the `(system, stack, release)` set to render (see
    Target enumeration).
-2. **Resolve inputs** — locate the synced `stack-content` and each system's
+2. **Resolve inputs**: locate the synced `stack-content` and each system's
    `profile.yaml`.
-3. **Invoke `render` per target** — one system at a time; never batch profiles
+3. **Invoke `render` per target**: one system at a time; never batch profiles
    into a single call.
-4. **Hand each rendered tree to a build path** — `spacktools`, `spack-build`,
+4. **Hand each rendered tree to a build path**: `spacktools`, `spack-build`,
    Ansible, or bare Spack; see `stack_build_handoff_note_v1.md`.
-5. **Record outcomes** — keep each `release-manifest.yaml`; optionally record
+5. **Record outcomes**: keep each `release-manifest.yaml`; optionally record
    what changed for incremental runs.
 
 The driver MUST NOT:
@@ -150,12 +150,12 @@ beyond a few entries.
 
 ## Open questions
 
-1. **Change detection** — content-hash of inputs, git-diff, or always-render?
+1. **Change detection**: content-hash of inputs, git-diff, or always-render?
    Determinism allows always-render; incremental needs a hash/diff rule owned by
    the driver, not by `stack-composer`.
-2. **Release id source and retention** — who allocates `release`, and how does
+2. **Release id source and retention**: who allocates `release`, and how does
    `stack.release.retain_previous` interact with the driver's cleanup?
-3. **Deployment matrix** — adopt an explicit `stack-content` targets file, or
+3. **Deployment matrix**: adopt an explicit `stack-content` targets file, or
    keep targets as run args? Decide from first-system scale.
-4. **Build hand-off ownership** — does the same driver invoke the build path, or
+4. **Build hand-off ownership**: does the same driver invoke the build path, or
    stop at render and let a separate build orchestrator pick up the trees?

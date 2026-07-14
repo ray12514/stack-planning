@@ -10,7 +10,7 @@ is the spec that pass implements against.
 Today a build that requests a compiler the profile does not report is
 skipped (`compiler_unavailable`). That is the right default, but it is the
 whole story: there is no supported way to say "this compiler does not exist
-on the system yet — build it, then build with it." Spack 1.x is fully
+on the system yet: build it, then build with it." Spack 1.x is fully
 capable of building compilers (compilers are ordinary package nodes), so
 the gap is planning policy, not mechanism.
 
@@ -26,8 +26,8 @@ cause Spack to build that compiler as a side effect. Three reasons:
    lane concretizes first.
 2. Lanes build independently and in parallel; an implicit compiler build is
    a race between every lane that names it.
-3. The externals tripwire — "Spack building something the system already
-   provides means the inputs were wrong" — only works if a compiler build
+3. The externals tripwire, "Spack building something the system already
+   provides means the inputs were wrong," only works if a compiler build
    is never a legitimate surprise.
 
 Production precedent: NASA JSC's stack runs a dedicated compilers
@@ -46,7 +46,7 @@ the compilers.
   external: with `reuse: true`, a payload toolchain naming `gcc@14.3.0`
   resolves to the installed node. No packages.yaml entry pretends it is a
   system external.
-- **Ordering rule:** the build driver runs kinds in order —
+- **Ordering rule:** the build driver runs kinds in order:
   `compiler` → `core` → `serial`/`mpi`/`gpu`. By the time any payload lane
   concretizes, the provisioned compiler is installed and in the buildcache.
   Compiler artifacts key into the foundation-style cache lane
@@ -82,5 +82,5 @@ ship, which is what makes a cross-system shared Core honest.
 Stack schema kind enum gains `compiler`; `build_kind` treats it as explicit
 only (never inferred); planner availability rule and error message; build
 driver ordering; manifest provenance entries; lane/module docs gain the
-kind (a compiler lane is internal — it never gets a public lane module);
+kind (a compiler lane is internal; it never gets a public lane module);
 tests first, per the usual discipline.

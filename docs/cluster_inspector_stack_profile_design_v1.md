@@ -348,7 +348,7 @@ renderer consumes only `profile.yaml`.
 ### Iterative Bring-Up Loop
 
 Bringing up a new system follows a short discover-narrow-verify loop. The
-first run almost never produces a final profile — module-name heuristics
+first run almost never produces a final profile: module-name heuristics
 will pick up entries that look like compilers or MPIs but are not real
 choices for the stack (`gcc-data/9.3`, `gcc-toolset/12`, intermediate
 `cuda/11.x` toolkit versions on current CPE). The hints file converges quickly:

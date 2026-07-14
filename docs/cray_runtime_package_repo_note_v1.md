@@ -100,7 +100,7 @@ Even LAMMPS's opt-in only fires when the *whole chain* is decorated: the
 LAMMPS spec itself must be `+rocm`/`+cuda` (GPU support expressed only on a
 `kokkos` dependency does not trigger it), and the `cray-mpich` external spec
 must carry `+rocm amdgpu_target=...` for `gtl_lib` to resolve anything.
-Otherwise it degrades silently — build succeeds, GTL never links (observed
+Otherwise it degrades silently: build succeeds, GTL never links (observed
 firsthand on a real Cray LAMMPS+Kokkos/gfx942 build, ~2026-04).
 
 Timeline evidence that upstream will not generalize this soon: the mechanism
@@ -110,8 +110,8 @@ opt OSU micro-benchmarks in (spack-packages #1164) went stale and closed
 unmerged (2026-05), and a PR to attach GTL by default when the GPU variant is
 set (spack-packages #1444) was closed unmerged (2025-09). One consumer in ~17
 months, default-attach rejected.
-Externals are opaque to Spack — no post-install patchelf is possible on
-`/opt/cray` binaries — which is why universal attachment needs the
+Externals are opaque to Spack: no post-install patchelf is possible on
+`/opt/cray` binaries, which is why universal attachment needs the
 CSCS-style *buildable* repackaging (patchelf `--add-needed` at install time)
 this note proposes.
 

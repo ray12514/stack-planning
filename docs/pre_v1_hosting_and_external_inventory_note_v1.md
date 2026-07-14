@@ -54,7 +54,7 @@ project-owned GitHub links in docs once the final GitLab namespace is known.
 ## Repository layout recommendation
 
 Use one GitLab group for the stack-generation project and keep a four-repo
-split underneath it — three tool repos plus a stack-content repo:
+split underneath it: three tool repos plus a stack-content repo:
 
 ```text
 <gitlab-group>/cluster-inspector
@@ -68,7 +68,7 @@ This keeps ownership boundaries clear:
 - `cluster-inspector`: read-only system facts and profile production;
 - `stack-composer`: stack/profile/template validation and render tooling;
 - `stack-planning`: schemas, design docs, and operating model;
-- `stack-content`: the human-authored source render consumes — per-system
+- `stack-content`: the human-authored source render consumes, per-system
   `profile.yaml`, `stack.yaml`, package sets, package repos, and the template
   set (`defaults.yaml`, `configs/`, `environments/`).
 
@@ -126,7 +126,7 @@ renderer to either emit a correct Spack external or fail with a useful error.
 
 ## Pre-v1 direction for Cray and provider generalization
 
-> **Status — realized.** Provider inventory now uses generic
+> **Status: realized.** Provider inventory now uses generic
 > `compiler_providers` + `mpi_providers`. The generic provider axis is
 > `provider_family: platform|site|system`; platform-specific detail such as
 > Cray PE/CPE is `platform_family: cray-pe`.

@@ -9,7 +9,7 @@ Design note / hardening target. This records intended semantics that are not ful
 The foundation/Core split below was settled in the original v6 master design
 (`docs/spack_stack_generation_design_v6.md`, deleted in `9ca9f6e`; recover with
 `git show 9ca9f6e^:docs/spack_stack_generation_design_v6.md`). Earlier
-revisions of this note drifted from it — Core tools were described as
+revisions of this note drifted from it: Core tools were described as
 "internal unless explicitly public" and foundation was pushed into an internal
 build view. Restored 2026-07-08 to the settled semantics: **foundation is
 ambient in the user-facing view; Core tools are the loadable layer.** The
@@ -36,12 +36,12 @@ These packages may be built once with a baseline compiler and baseline CPU targe
 ### Foundation layer
 
 The foundation layer is the lowest shared layer: **ABI-stable libraries that
-are ambient in the user-facing view** — per the v6 master design, "the user's
+are ambient in the user-facing view**, per the v6 master design, "the user's
 compiler picks them up without an explicit choice." They are single-version
 per release generation, pinned with `require:` lines in the common scope,
 because the user-link path (a fresh compile, where RPATH has not happened yet)
 must be unambiguous. The membership discriminator is v6's rule: *does a user
-`-l` this directly* — not "is it low-level." OpenSSL, for example, stays a
+`-l` this directly*, not "is it low-level." OpenSSL, for example, stays a
 private RPATH-isolated transitive dependency and needs no pin. Foundation is
 optimized for portability and reuse, not for target-specific performance.
 
@@ -58,7 +58,7 @@ A foundation package should generally be:
 A Core lane is compiler-adjacent stack infrastructure holding the **loadable
 tool layer**: build and user tools such as cmake, ninja, pkgconf, git, and the
 miniforge/python user environment (the v6 `core-foundation` package set).
-Core tools are user-facing — users load them (as modules or via the lane
+Core tools are user-facing: users load them (as modules or via the lane
 view's front door) the way ALCF users `module load cmake` from spack-pe-base.
 Core stays single-version ("there is no user reason to expose multiple
 CMakes") and builds at the portable baseline target, not the payload target.
@@ -67,7 +67,7 @@ concretized environment and carries the foundation roots directly. Reuse
 between Core and payload lanes happens through the foundation buildcache, not
 by including another lane's lockfile. The eventual direction (recorded from
 the start, alongside the per-compiler model) is one **shared, compiler-agnostic
-Core** built with a generic GCC — sequence that with multi-CPE fan-out, where
+Core** built with a generic GCC; sequence that with multi-CPE fan-out, where
 per-lane tool rebuilds start multiplying.
 
 The design records two possible deployment shapes, but only Option B is committed for v1:
@@ -96,7 +96,7 @@ The two layers have opposite exposure shapes, and neither is "internal":
 
 - **Foundation libraries are ambient**: projected into the user-facing lane
   view so a user's own compile links them without an explicit choice. They do
-  **not** get per-package modules — a module implies a choice, and foundation
+  **not** get per-package modules: a module implies a choice, and foundation
   is exactly the layer where there is no choice (single pinned version).
 - **Core tools are loadable**: exposed for users to pick up explicitly
   (module-exposed or front-door view), like any user-facing tool.
@@ -224,4 +224,4 @@ A future hardening pass should make these behaviors explicit:
 
 ## Non-goal
 
-This note does not move MPI-capable, GPU-capable, or performance-sensitive scientific libraries into foundation/Core. Those remain in serial, MPI, or GPU payload lanes according to package-set intent and lane kind. Packages that are payload (not compiler-agnostic) yet usable from every lane are handled by lane-agnostic exposure — one serial-lane build, module-visible in every payload lane — decided 2026-07-13 in `lane_and_module_model_v1.md`, not by promotion into Core.
+This note does not move MPI-capable, GPU-capable, or performance-sensitive scientific libraries into foundation/Core. Those remain in serial, MPI, or GPU payload lanes according to package-set intent and lane kind. Packages that are payload (not compiler-agnostic) yet usable from every lane are handled by lane-agnostic exposure (one serial-lane build, module-visible in every payload lane), decided 2026-07-13 in `lane_and_module_model_v1.md`, not by promotion into Core.

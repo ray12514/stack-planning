@@ -7,8 +7,8 @@ hold up for real users on unfamiliar systems."
 ## 1. Bare-specs stack (the minimal user)
 
 A user who knows roughly what is on the system writes a `stack.yaml` that is
-nothing but a name and Spack specs (or a matrix) — no kind, no compilers, no
-mpi block, no externals posture:
+nothing but a name and Spack specs (or a matrix), without a kind, compilers,
+mpi block, or externals posture:
 
 ```yaml
 schema_version: 1
@@ -63,7 +63,7 @@ baseline module sets.
 
 ## 4. Lane-less modulefile render into user space (design first)
 
-Asked 2026-07-07: a mode that considers no lanes at all — just renders a
+Asked 2026-07-07: a mode that considers no lanes at all, just renders a
 modulefile into a user-chosen location (e.g. `~/privatemodules`), pointing at
 an existing built stack. Does not exist today: modulefiles are entirely
 lane-driven (`build_front_door_module_plan` derives init/lane modules from

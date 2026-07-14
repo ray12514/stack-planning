@@ -10,16 +10,16 @@ first-system evidence shows it is wrong.
 
 ## The method: each fact lives where it varies
 
-Every piece of information varies with exactly one thing. That — not convenience
-— decides its home. This is the rule that keeps the model consistent system to
+Every piece of information varies with exactly one thing. That, not convenience,
+decides its home. This is the rule that keeps the model consistent system to
 system.
 
 | Varies with… | Lives in | Written by | Example |
 |---|---|---|---|
-| the machine — facts | `systems/<sys>/profile.yaml` | cluster-inspector | which compilers/MPI/GPU exist, OS, targets |
-| the machine — paths | `systems/<sys>/deployment.yaml` | installer | install tree, caches, view/module roots, spack root |
-| nothing — site policy | `defaults.yaml` (one) | maintainer | "build all reported compilers", openmpi, target=native |
-| the stack — intent | `stacks/<stack>/stack.yaml` | anyone | specs, kind, optional narrowing ("this one: cce only") |
+| the machine: facts | `systems/<sys>/profile.yaml` | cluster-inspector | which compilers/MPI/GPU exist, OS, targets |
+| the machine: paths | `systems/<sys>/deployment.yaml` | installer | install tree, caches, view/module roots, spack root |
+| nothing: site policy | `defaults.yaml` (one) | maintainer | "build all reported compilers", openmpi, target=native |
+| the stack: intent | `stacks/<stack>/stack.yaml` | anyone | specs, kind, optional narrowing ("this one: cce only") |
 | render mechanics | `templates/<set>/*.j2` | maintainer, ~never | how a `packages.yaml` is written |
 
 No additional contract layer is required. Site policy lives in `defaults.yaml`;
@@ -52,7 +52,7 @@ Pre-v1, `templates/v6` is the current active working set and can be changed
 directly. Before the first stable release, rename or freeze it as a clearer
 contract name such as `templates/hpc-v1` if the model has stabilized.
 
-## defaults.yaml — site policy, one file, write as policy not lists
+## defaults.yaml: site policy, one file, write as policy not lists
 
 `defaults.yaml` is **one per site** (lives in `templates/<set>/`), merged into
 every stack on every system. The only per-system files are `profile.yaml` and
@@ -79,7 +79,7 @@ release:    { save_lockfiles: true, save_manifest: true }
 ```
 
 `compilers: all` resolves to `{cce, gcc, …}` on a Cray and `{gcc, aocc}` on
-Penguin — same file, same rule, different menu. If the profile reports multiple
+Penguin, same file, same rule, different menu. If the profile reports multiple
 versions of one compiler family, a bare selection such as `aocc` is rejected;
 select the provider exactly, for example `aocc@4.2.0`.
 
@@ -87,8 +87,8 @@ select the provider exactly, for example `aocc@4.2.0`.
 
 "Build with CCE or Intel" is one of two moves, identical on every system:
 
-- change the **site default** — `defaults.yaml: compilers: [gcc, cce]`, or
-- **override on the build** — `stacks/foo/stack.yaml`:
+- change the **site default**: `defaults.yaml: compilers: [gcc, cce]`, or
+- **override on the build**: `stacks/foo/stack.yaml`:
 
 ```yaml
 name: foo
@@ -137,7 +137,7 @@ Lanes = selected compilers × (the MPI provider, if mpi/gpu) × (each GPU arch, 
 gpu). So `compilers: [gcc, aocc@4.2.0]` + `kind: mpi` = two lanes. Each lane →
 `environments/<compiler-axis>/<lane>/spack.yaml` that `include::`s the scopes it needs
 (`common`, `os/<family>`, `target/<uarch>`, vendor, `mpi/<provider>`,
-`gpu/<toolkit>`). Everything inside a lane is Spack's job — we do not re-model it.
+`gpu/<toolkit>`). Everything inside a lane is Spack's job: we do not re-model it.
 
 For managed mpi/gpu lanes, Stack Composer also renders real Spack
 `toolchains.yaml` files in the selected MPI provider scope and decorates root
@@ -204,6 +204,6 @@ templates (render mechanics). Five, each one job, joined by one override rule.
 
 ## Related
 
-- `stack_workspace_lifecycle_v1.md` — per-stack workspaces, the shared install tree, the three lifetimes.
-- `stack_build_handoff_note_v1.md` — where render stops and the build seam.
-- `deployment_inputs_and_ownership_v1.md` — the chosen roots (`deployment.yaml`).
+- `stack_workspace_lifecycle_v1.md`: per-stack workspaces, the shared install tree, the three lifetimes.
+- `stack_build_handoff_note_v1.md`: where render stops and the build seam.
+- `deployment_inputs_and_ownership_v1.md`: the chosen roots (`deployment.yaml`).

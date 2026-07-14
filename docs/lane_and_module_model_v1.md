@@ -24,8 +24,8 @@ Every user-facing package has a provenance class, surfaced in its modulefile:
 A **lane** is one rendered build target: a single (compiler × optional MPI
 provider × optional GPU arch) at a chosen CPU target. Each lane is a normal,
 independently-concretized Spack environment with its **own `spack.yaml`,
-lockfile, view, and module root** — e.g. `gcc/core`, `cce/mpi-craympich`,
-`gcc/gpu-craympich-gfx942`. If the profile has multiple versions of one
+lockfile, view, and module root** (e.g. `gcc/core`, `cce/mpi-craympich`,
+`gcc/gpu-craympich-gfx942`). If the profile has multiple versions of one
 compiler family, an exact compiler selection such as `aocc@4.2.0` gets a
 versioned lane axis such as `aocc420` so environment paths and toolchain names
 do not collide.
@@ -33,7 +33,7 @@ do not collide.
 **Lanes are derived, not enumerated.** The renderer computes the lane set by
 resolving `profile ∩ defaults ∩ per-build override` (compilers × MPI provider ×
 GPU archs × runtime nodes). There is no stored lane list. `stack.yaml`
-`per_system:` blocks only **prune** the derived set — they cannot add a lane the
+`per_system:` blocks only **prune** the derived set; they cannot add a lane the
 derivation wouldn't produce. A missing lane means the gap is in `profile.yaml` or
 `defaults.yaml`.
 
@@ -42,7 +42,7 @@ derivation wouldn't produce. A missing lane means the gap is in `profile.yaml` o
 | Kind | Purpose | Built/exposed |
 |---|---|---|
 | **foundation** | build tools + stable-ABI low-level libs (cmake, ninja, pkgconf, zlib, xz, zstd) | once per compiler; **view**-exposed (+compiler) |
-| **core** | only-serial-by-nature packages (`gsl` — no MPI implementation exists) plus compiler-agnostic building blocks (`python`, `miniforge`, `cmake`) | compiler-init **view**; tools loadable |
+| **core** | only-serial-by-nature packages (`gsl`; no MPI implementation exists) plus compiler-agnostic building blocks (`python`, `miniforge`, `cmake`) | compiler-init **view**; tools loadable |
 | **serial** | MPI-*capable* package built without MPI by choice (`hdf5~mpi`) | module |
 | **mpi** | built with MPI (osu, `hdf5+mpi`) | module |
 | **gpu** | GPU backend (`+rocm`/`+cuda`), over GPU-aware MPI | module |
@@ -52,11 +52,11 @@ MPI and the stack deliberately offers the MPI-less build too; a package with no
 MPI implementation at all is core, not serial. Edge cases are decided by the
 second core criterion (compiler-agnostic): `openblas` has no MPI but is
 compiler/performance-sensitive, so it stays payload-serial; `gnuplot` likewise
-(decided 2026-07-13) — it must be built with the surface's compiler for
+(decided 2026-07-13); it must be built with the surface's compiler for
 library compatibility, so it is not compiler-agnostic and cannot be Core.
 Open team question, recorded not decided: MPI built
 for one rank can subsume a serial build, so the serial tier could in principle
-collapse into MPI — CSE keeps the explicit serial tier for now.
+collapse into MPI; CSE keeps the explicit serial tier for now.
 
 Open team question (2026-07-14, Ravon): GPU-built, non-MPI packages. Today
 the GPU lane is "the MPI roster plus the GPU payload", and its payload
@@ -69,8 +69,8 @@ counterpart? Needs semantics before the first such package lands.
 **Lane-agnostic payload exposure (decided 2026-07-13).** Where a package is
 *built* and where it is *visible* are separate axes. Packages that are
 non-core (not compiler-agnostic: compiler- or performance-sensitive) but
-lane-agnostic — no MPI implementation exists (`openblas`, `netlib-lapack`,
-`gnuplot`), so serial and MPI code link the same build — build
+lane-agnostic (no MPI implementation exists for `openblas`, `netlib-lapack`,
+`gnuplot`, so serial and MPI code link the same build) build
 exactly once, in the compiler column's serial lane, and are module-exposed in
 *every* payload lane of that column: Serial, MPI, and GPU. No rebuild, no new
 loadable layer, and the lane conflicts stand unchanged; without this, an MPI
@@ -85,7 +85,7 @@ declaration is vacuous there); two serial lanes in one column declaring
 lane-agnostic packages is a hard render error (one shared root, one owner).
 `boost` is deliberately **not** on the list: it is MPI-capable, so it is a
 dual-build package (`~mpi` in serial, `+mpi` in MPI, same clean name) like
-HDF5 and FFTW — decided 2026-07-13. Validation enforces the boundary: a
+HDF5 and FFTW (decided 2026-07-13). Validation enforces the boundary: a
 lane_agnostic name with root specs in any non-serial kind is a render error.
 
 **User-facing statement of the model (2026-07-13).** The Serial lane
@@ -100,13 +100,13 @@ are built once, in the Serial lane, and every lane sees the same install.
 Non-MPI configurations are not automatically propagated beyond the Serial
 lane. When an MPI-enabled configuration of the same package is selected for
 the MPI or GPU lane's roster, that configuration is what the lane's users
-see — under the same clean module name, never a suffixed one. For example:
+see, under the same clean module name, never a suffixed one. For example:
 Serial users get `boost` built without MPI; MPI and GPU users get `boost`
 built with MPI, because those rosters select the `+mpi` build. Serial FFTW
 exists only in the Serial lane; the MPI and GPU lanes carry MPI-enabled
 FFTW. Consequence for rosters: the gpu kind selects the MPI-enabled roster
 alongside the GPU payload, keeping GPU a superset of the MPI lane's runtime
-surface (identical specs reuse the same installs by hash — no rebuilds).
+surface (identical specs reuse the same installs by hash; no rebuilds).
 
 The rejected alternative, recorded for the record (2026-07-13): appending
 the lane to the public module name (`fftw-serial`, `fftw-mpi`). Names carry
@@ -129,7 +129,7 @@ naming layers, one rule.
   out; these never reach users.
 - **Public module names** use a compiler front door plus compiler-specific lane
   names: `cse/<Compiler>` followed by `<Lane>` from the MODULEPATH exposed by
-  that compiler — `cse/GCC` then `Serial`, `MPI`, or `GPU`. Lane names are
+  that compiler: `cse/GCC` then `Serial`, `MPI`, or `GPU`. Lane names are
   **qualified only when the system is ambiguous**: two MPI implementations →
   `MPI-openmpi` / `MPI-mpich` (and a GPU lane per MPI, since GPU codes ride
   one); two GPU architectures → `GPU-gfx90a` / `GPU-gfx942` (Blueback's
@@ -147,7 +147,7 @@ Every compiler owns its own Core environment/view/module root (`gcc/core`,
 `cce/core`, …). A shared cross-compiler Core does not work under per-lane builds:
 two compilers' `cmake/3.30.5` are disjoint binaries but a single shared view has
 one path for that name+version. Per-compiler view roots remove the collision
-honestly. Cost: build tools + stable-ABI libs are duplicated per compiler —
+honestly. Cost: build tools + stable-ABI libs are duplicated per compiler,
 acceptable on these systems; a shared-Core extraction is an evidence-gated future
 optimization, not a dependency. (This is "Option B / squeezed Core" in
 `foundation_core_view_semantics_note_v1.md`.)
@@ -158,31 +158,31 @@ optimization, not a dependency. (This is "Option B / squeezed Core" in
 |---|---|---|
 | compiler (precondition) | selected first via the front-door | its own column |
 | `<compiler>/core` | no | every lane in the same compiler column |
-| serial | yes — with mpi/gpu in the column | the compiler's Core |
-| mpi | yes — with serial/gpu in the column | the compiler's Core |
-| gpu | yes — with serial/(non-gpu)mpi + incompatible gpu | the compiler's Core |
+| serial | yes, with mpi/gpu in the column | the compiler's Core |
+| mpi | yes, with serial/gpu in the column | the compiler's Core |
+| gpu | yes, with serial/(non-gpu)mpi + incompatible gpu | the compiler's Core |
 
 A **dual-build package** (HDF5, NetCDF-C, PnetCDF) lives in *both* serial and MPI
-lane views under the same clean name (`hdf5`) — never `hdf5-mpi`. The loaded lane
+lane views under the same clean name (`hdf5`), never `hdf5-mpi`. The loaded lane
 decides which build is visible; the lane is the prefix, expressed as MODULEPATH
 position. The serial/mpi conflict blocks only mistakes (header/pkg-config bleed,
 linking serial into MPI), never a real workflow.
 
 ## Targets (per tier)
 
-- **foundation/core** — a fixed conservative baseline (e.g. `x86_64_v2`),
+- **foundation/core**: a fixed conservative baseline (e.g. `x86_64_v2`),
   unoptimized, built once, shared.
-- **CPU payload (serial/mpi)** — ONE build at the **lowest-common-denominator**
+- **CPU payload (serial/mpi)**: ONE build at the **lowest-common-denominator**
   uarch across the CPU runtime nodes (the highest target that runs on all of
   them). Not per-uarch fan-out.
-- **GPU payload** — fan out per GPU node type, each **optimized to that node's
+- **GPU payload**: fan out per GPU node type, each **optimized to that node's
   exact arch** (e.g. `gfx942`); the GPU node's CPU target is that node's uarch.
-- **Global override** — "build everything at one baseline" for testing/portability
+- **Global override**: "build everything at one baseline" for testing/portability
   (used by Blueback run #1).
 
 ## Why GPU is its own kind (not an MPI sub-type)
 
-A GPU lane *is* an MPI lane plus GPU-arch-pinned packages — a **superset** scoped
+A GPU lane *is* an MPI lane plus GPU-arch-pinned packages, a **superset** scoped
 to one GPU class. It stays a distinct kind because: runtime targeting differs (GPU
 partition + a runtime `rocm/cuda` prereq); GPU arch is a **build-time pin**
 (`kokkos+rocm amdgpu_target=gfx942` ≠ `…gfx90a`, different hashes → two lanes);
@@ -191,7 +191,7 @@ lane" stays the whole mental model. A GPU-only code with no MPI still loads the 
 lane (unused MPI symlinks are cheap) rather than doubling the matrix with a
 GPU-no-MPI kind.
 
-## Host-compiler policy for GPU lanes — three compiler shapes
+## Host-compiler policy for GPU lanes: three compiler shapes
 
 Device performance is controlled by the GPU toolchain (hipcc/nvcc), not the host
 compiler, so the default GPU lane uses a general-purpose host:
@@ -208,10 +208,10 @@ A** (`PrgEnv-amd`/`PrgEnv-nvidia` all-in-one) is the narrow specialist lane.
 Slugs: CPU host `<compiler>-<mpi>`; general GPU host
 `<host>-<mpi>-<toolkit>`; GPU-aware compiler
 `<gpu_compiler>-<mpi>`. Compiler-family purity: if a lane's compiler can't build a
-spec, drop it from the lane and document why — never silently reroute to another
+spec, drop it from the lane and document why; never silently reroute to another
 compiler.
 
-## Toolchain — compiler-matched MPI binding
+## Toolchain: compiler-matched MPI binding
 
 A **toolchain** binds a compiler to its matching MPI build so a concrete spec
 materializes correctly. The canonical case: Cray `cray-mpich` ships per-compiler
@@ -245,13 +245,13 @@ root specs. When versions are known, the key includes both compiler and MPI
 versions, e.g. `aocc420_openmpi503` or `gcc1330_craympich8129`. This avoids two
 classes of collision: multiple compiler versions for one family, and multiple
 MPI versions for one provider. A build that resolves to an ambiguous provider
-name must set `mpi.version` in `stack.yaml` — unpinned ambiguity is a hard render
+name must set `mpi.version` in `stack.yaml`; unpinned ambiguity is a hard render
 error, never a silent first-match pick or a silent skip. Build-sourced
 (Spack-built) MPI lanes get a toolchain too, pinning the provider but not the
-MPI version (`%mpi=openmpi`) — the scope's `packages.yaml` `mpi:` requirement
+MPI version (`%mpi=openmpi`); the scope's `packages.yaml` `mpi:` requirement
 keeps the lane's provider singular while Spack resolves the version.
 
-**Externals carry no `%compiler`** — an external is a pre-existing binary the stack
+**Externals carry no `%compiler`**: an external is a pre-existing binary the stack
 didn't build. The **only** exception is Cray PE per-flavor `cray-mpich`, where
 `%compiler` names which real binary the spec refers to (the per-flavor `prefix:`
 makes it observable). A site MPI built once and reused has no `%compiler`; only
@@ -275,7 +275,7 @@ in `toolchains.yaml` plus the root spec's `%<toolchain_name>` decoration.
 - **Hint tier (`buildable: true`):** other detected libs (PMIx, libfabric, UCX,
   hwloc, …) are hints the solver may reuse or rebuild. Carry version floors in the
   consumer root spec (`mpich ^pmix@4`), not in the external.
-- **`modules:` vs `prefix:`** — prefer `prefix:` (deterministic, no live-module
+- **`modules:` vs `prefix:`**: prefer `prefix:` (deterministic, no live-module
   coupling). Use `modules:` only for the sanctioned vendor case (Cray PE compilers
   + cray-mpich) where the modulefile establishes env a bare prefix can't.
 
@@ -332,7 +332,7 @@ init module. Version fan-out belongs behind lane modules or package-specific
 module names, not in the compiler init view.
 
 **Generation (Q4):** render emits a `modules.yaml` scope (driven by tier
-visibility — foundation/core selected for the compiler view, payload=public —
+visibility: foundation/core selected for the compiler view, payload=public,
 and `deployment.module_root`) plus the front-door/direct module templates; the
 build path runs `spack -e <env> module tcl refresh` to emit the package
 modulefiles. Spack makes package modules; render makes compiler init and lane
@@ -471,10 +471,10 @@ Different compiler chains run in parallel once their bottom compiler exists.
 
 - **Cold-cache race trap:** launching every lane in parallel on a cold cache makes
   each lane concretize+build CMake under its own compiler simultaneously (the
-  per-prefix lock never engages — different prefixes). Build + cache the foundation
+  per-prefix lock never engages; different prefixes). Build + cache the foundation
   Core first as an explicit checkpoint, *then* fan out so each lane pulls CMake
   from the cache.
-- **Push to cache after every successful step** (first run included) — the cache is
+- **Push to cache after every successful step** (first run included): the cache is
   the cross-run progress checkpoint; a small DAG change then rebuilds only the
   changed spec.
 - **build_stage** on a fast local exec path (reject `noexec`); `install_tree` +

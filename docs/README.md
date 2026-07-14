@@ -3,11 +3,11 @@
 Human-readable contracts for the stack-planning system. The JSON Schemas in
 `../schemas/` are the machine-readable form and the source of truth.
 
-## Current model — start here
+## Current model: start here
 
 | File | Purpose |
 |---|---|
-| `../CONTEXT.md` | **Glossary** — the ubiquitous language: tiers (foundation/core/serial/mpi/gpu), view/module exposure, lane, toolchain, CPE version, provider. Read first. |
+| `../CONTEXT.md` | **Glossary**: the ubiquitous language, tiers (foundation/core/serial/mpi/gpu), view/module exposure, lane, toolchain, CPE version, provider. Read first. |
 | `stack_generation_structure_v1.md` | **The method.** What each file holds (profile, deployment, `defaults.yaml`, stack, templates), the selection/resolution rules, and `stack-composer show`. |
 | `lane_and_module_model_v1.md` | **Lane + module model.** Lanes, per-compiler Core, the three GPU lane kinds, toolchain binding, externalization, exposure, front-door module anatomy, provenance, build order. |
 | `stack_workspace_lifecycle_v1.md` | Per-stack workspaces, the one shared hash-deduplicated install tree, and the three lifetimes (kept / regenerable / durable). |

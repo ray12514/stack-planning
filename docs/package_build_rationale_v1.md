@@ -55,7 +55,7 @@ OpenSSL are consumed as system externals, pinned in the rendered
 configuration with buildable false. Reasons: the system's MPI is fabric- and
 scheduler-integrated in ways a self-built one is not; the compilers are the
 site's supported surfaces by definition; OpenSSL tracks the OS security
-process, not ours. The build must use these — a build that starts compiling
+process, not ours. The build must use these: a build that starts compiling
 its own MPI or OpenSSL means the inputs were wrong, and that is treated as a
 stop-and-fix, not a fallback.
 
@@ -79,21 +79,21 @@ stop-and-fix, not a fallback.
   test for Core. It is declared lane-agnostic (2026-07-13): one serial-lane
   build whose modules are exposed in every payload lane of the compiler
   column, because MPI and GPU codes link BLAS/LAPACK constantly and lanes
-  are exclusive — without the shared exposure an MPI user had no loadable
+  are exclusive; without the shared exposure an MPI user had no loadable
   BLAS at all.
 - netlib-lapack is built alongside openblas (the usage list names lapack
   explicitly). openblas already provides LAPACK, so this gives users the
   reference implementation as well; flagged for team review since it puts
   two LAPACKs in the view. Lane-agnostic, same reasoning as openblas.
 - gnuplot placement is decided (2026-07-13, was flagged core-vs-serial):
-  it stays in the serial payload because it is **not compiler-agnostic** —
+  it stays in the serial payload because it is **not compiler-agnostic**:
   it must be built with the surface's compiler to stay compatible with the
-  lane libraries it links — so it fails the Core test the same way openblas
+  lane libraries it links, so it fails the Core test the same way openblas
   does. Lane-agnostic exposure keeps it visible to every lane's users.
 - boost is a dual-build package (decided 2026-07-13): it **can be built
-  with an MPI backend**, so the stack builds it both ways — ~mpi in the
+  with an MPI backend**, so the stack builds it both ways: ~mpi in the
   serial lane and +mpi in the MPI lane, same clean module name, the loaded
-  lane picks the build — exactly like HDF5 and FFTW. It was briefly
+  lane picks the build, exactly like HDF5 and FFTW. It was briefly
   considered lane-agnostic; being MPI-capable disqualifies it.
 - kokkos is the GPU lane pilot content: unlike a profiler, it compiles
   device code, which is what actually proves the GPU toolchain works.
@@ -101,12 +101,12 @@ stop-and-fix, not a fallback.
 ## Build posture for this pass
 
 - No target optimization: every lane builds at the portable baseline
-  (x86_64_v3). If it builds portable, it builds optimized — optimization is
+  (x86_64_v3). If it builds portable, it builds optimized; optimization is
   a per-lane flag to turn on later, not a structural change.
 - Concretization runs with unify false: lanes deliberately carry multiple
   versions of the same package, which strict unification would collapse or
   reject.
 - Expected reuse check at first concretize: the numpy roots should reuse
   the two python installs rather than concretizing private pythons. If
-  the install tree shows more than two pythons, add a require pin — the
+  the install tree shows more than two pythons, add a require pin; the
   lockfile makes this obvious.

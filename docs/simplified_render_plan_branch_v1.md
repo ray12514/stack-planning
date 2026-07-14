@@ -202,7 +202,7 @@ For branch notes, record:
 | Metric | Baseline (main, 2026-07-03) | Branch (2026-07-03) | Notes |
 |---|---:|---:|---|
 | Python LOC touched | 0 | +1000/−88 (18 files) | `git diff --stat main...HEAD`, stack-composer |
-| Jinja template files | 24 (274 lines) | 24 (274 lines) | unchanged so far — slice 1 is additive by design |
+| Jinja template files | 24 (274 lines) | 24 (274 lines) | unchanged so far, slice 1 is additive by design |
 | Jinja conditional/loop sites | 45 | 45 | `grep -rEn '\{%-? *(if|elif|for) '` over fixture templates; should decrease in later slices |
 | Render reports emitted | 0 | 1 (`reports/render-plan.yaml`) | |
 | Blueback render/concretize status | pending run | real-system smoke path passed | Blueback reached the managed-stack blueprint path on 2026-07-05; Cray MPICH library verify warning recorded as external-runtime follow-up |
@@ -271,7 +271,7 @@ The next slices should reduce policy-bearing template logic:
    lane-selected version or Spack sees duplicate externals. Non-Cray providers
    at *different* versions (openmpi@4.1.6 vs @4.1.7) are distinguishable by Spack
    and render as a version-qualified catalog with version-qualified toolchain
-   names (`aocc420_openmpi416` vs `aocc420_openmpi503`) — no ambiguity, covered
+   names (`aocc420_openmpi416` vs `aocc420_openmpi503`), no ambiguity, covered
    by `test_rendered_generic_linux_workspace_contains_site_mpi_without_cray` and
    `test_mpi_version_pin_disambiguates_and_versions_toolchain_names`. The
    "multiple externals" ambiguity only affects duplicate *same* name@version
@@ -303,7 +303,7 @@ All tests pass; no crashes. Fixed and deferred items below.
   cray-mpich version ever exposes two same-family baseline dirs (e.g.
   `ofi/gnu/12.3` and `ofi/gnu/14.0`), the loaded module and the rendered external
   could point to different builds. Does **not** trigger on Blueback (9.1.0 has a
-  single gnu dir). Note: this is only about the MPI build directory — the lane
+  single gnu dir). Note: this is only about the MPI build directory: the lane
   *compiler* is always the newest satisfying (gcc@14.3.0), which is correct.
   Open question before fixing: when multiple baseline dirs exist, which build is
   right for a given compiler? Needs Cray docs / a real multi-baseline system;
@@ -315,7 +315,7 @@ All tests pass; no crashes. Fixed and deferred items below.
   same ambiguity check to versioned requests.
 - **cluster-inspector `normalizeCrayProductVersion`.** "Insert a dot before the
   last char" mangles undotted versions outside 2-3 digits (`"12"->"1.2"`). Use a
-  more robust parse or restrict to the known digit patterns.
+  stricter parse or restrict to the known digit patterns.
 - **cluster-inspector `applyVerifiedCrayMPICH`.** `continue` on a filesystem
   match skips module-verification fallback for a partial product tree; and
   `setCrayMPICH` overwrites a flavor's `Modules` slot instead of unioning

@@ -3,7 +3,7 @@
 | Document control | |
 |---|---|
 | Date | 2026-07-13 |
-| Status | Research note — reference material, not policy |
+| Status | Research note: reference material, not policy |
 | Method | Official site documentation only, fetched 2026-07-13; source URLs inline. Fields a site does not publish are marked as such. |
 
 A survey of how eleven major HPC centers build and expose user-facing scientific software stacks, structured around hierarchical module systems, meta-module gates, container activation models, and CVMFS-distributed stacks. Companion to the three references already cited in the lanes-model deck (NASA JSC Flight Sciences Lab, ALCF Polaris, Spack/E4S); the goal here is range, including models that disagree with ours.
@@ -17,7 +17,7 @@ A survey of how eleven major HPC centers build and expose user-facing scientific
 - **Module system**: Lmod (Lua-based, hierarchical)
 - **Exposure model**: 
   - Hierarchical dependency-based gating: `module avail` shows only modules accessible without unmet dependencies
-  - Mutually exclusive compiler family (gcc, cce, aocc, nvidia)—loading one compiler swaps it for another
+  - Mutually exclusive compiler family (gcc, cce, aocc, nvidia), loading one compiler swaps it for another
   - `module spider` reveals full hierarchy across all dependencies
   - Default module loads baseline software on login
   - User commands: `module load`, `module unload`, `module list`, `ml` shorthand (e.g., `ml gcc` loads, `ml -gcc` unloads)
@@ -38,7 +38,7 @@ A survey of how eleven major HPC centers build and expose user-facing scientific
 - **Exposure model**:
   - Two-tier hierarchy:
     1. **Cray PE layer**: Load `PrgEnv-<compiler>` (cray, amd, gnu) to activate compatible compiler, MPI, scientific libraries, with automatic wrappers (cc, CC, ftn) for compilation
-    2. **UMS layer**: Opt-in gating—`module load ums` enables UMS, then `module load ums-<PROJECT>` accesses project-specific packages
+    2. **UMS layer** (opt-in gating): `module load ums` enables UMS, then `module load ums-<PROJECT>` accesses project-specific packages
   - ROCm GPU toolchain accessed via `rocm` modules alongside PrgEnv
   - User commands: `module avail`, `module spider`, `module load`
   - Core/25.03 versioned module layer (e.g., Core/24.07 default, Core/25.03 available March 2025)
@@ -237,10 +237,10 @@ The field clusters around three primary exposure models:
 
 4. **Containerized environments** (CSCS uenv): Software delivered as squashfs images activated by name rather than selection within a module tree. The most divergent documented approach in this survey.
 
-Sites that keep their approach private or minimally documented: **LLNL (TCE)** publishes layered architecture but not the module hierarchy details. **CSCS Stackinator** is "maintained for internal use." Most other sites publish comprehensive documentation via official wikis and user guides.
+Sites that keep their approach private or minimally documented: **LLNL (TCE)** publishes layered architecture but not the module hierarchy details. **CSCS Stackinator** is "maintained for internal use." Most other sites publish full documentation via official wikis and user guides.
 
 ---
 
 ## What this means for the lanes model
 
-Hierarchical module exposure with compiler-family exclusivity and dependency-gated visibility is the documented field standard on major systems (NERSC, OLCF Frontier, LUMI, TACC, Pawsey, Jülich JSC). The lanes model — a compiler surface gating into mutually exclusive Serial/MPI/GPU lanes with clean package names below — sits inside that norm; the lane tier is our refinement of the standard Compiler→MPI level. The instructive divergences: OLCF's explicit opt-in gate for user-managed software (a clean pattern for multi-project stacks), CSCS's uenv container model (versioned and reproducible, at the cost of module discovery), LUMI's compact-central-stack-plus-user-EasyBuild split (pushes long-tail maintenance to users), and the CVMFS distribution models (EESSI, Digital Research Alliance) that solve a multi-site problem we do not have yet. None of these contradicts the lanes story; they mark the axes along which it could evolve.
+Hierarchical module exposure with compiler-family exclusivity and dependency-gated visibility is the documented field standard on major systems (NERSC, OLCF Frontier, LUMI, TACC, Pawsey, Jülich JSC). The lanes model (a compiler surface gating into mutually exclusive Serial/MPI/GPU lanes with clean package names below) sits inside that norm; the lane tier is our refinement of the standard Compiler→MPI level. The instructive divergences: OLCF's explicit opt-in gate for user-managed software (a clean pattern for multi-project stacks), CSCS's uenv container model (versioned and reproducible, at the cost of module discovery), LUMI's compact-central-stack-plus-user-EasyBuild split (pushes long-tail maintenance to users), and the CVMFS distribution models (EESSI, Digital Research Alliance) that solve a multi-site problem we do not have yet. None of these contradicts the lanes story; they mark the axes along which it could evolve.

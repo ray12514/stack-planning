@@ -12,8 +12,8 @@ A site should be able to declare once, in `defaults.yaml`:
   whatever MPI the profile actually reports when it does not;
 - resolve one provider name reported at multiple versions by policy
   (newest) instead of hard-erroring;
-- fall through the source ladder — platform/site external first, Spack-built
-  last — without inventing per-system stacks.
+- fall through the source ladder (platform/site external first, Spack-built
+  last) without inventing per-system stacks.
 
 The reference baseline both template sets ship: **gcc-family compilers**
 (PrgEnv-gnu on Cray, plain gcc elsewhere) and the **newest reported version
@@ -28,20 +28,20 @@ baseline module set from the profile."
 
 ## MPI selection (`defaults.yaml` → `mpi_selection`)
 
-- `provider` — preferred provider name. When the profile reports it, it wins
+- `provider`: preferred provider name. When the profile reports it, it wins
   over profile order. When the profile does not report it, `source: auto`
   falls back to the first reported renderable provider (respecting
   `provider_family_priority`), and only builds the preferred provider from
   source when the profile reports no MPI at all. A **per-build** `mpi:`
-  override naming an unreported provider still means "build exactly that" —
+  override naming an unreported provider still means "build exactly that":
   an explicit build request is intent, not preference.
-- `version_policy` — how one provider name reported at multiple versions
+- `version_policy`: how one provider name reported at multiple versions
   resolves. `explicit` (default): `mpi.version` is required, anything else is
   the hard `mpi_ambiguous` error (undeclared ambiguity stays an authoring
   defect). `newest`: the highest version wins and is recorded in the render
   plan. Platform-family providers (one coherent product tree, e.g. Cray PE)
   always resolve newest; the knob exists for site/system externals.
-- `provider_family_priority` — unchanged: provider-family preference when
+- `provider_family_priority`: unchanged, provider-family preference when
   multiple *different-name* providers are reported.
 - Source ladder: `source: auto` already encodes external-first
   (platform/site provider reported by the profile) → Spack-built fallback.
@@ -51,7 +51,7 @@ baseline module set from the profile."
 
 Spack 1.x treats compilers as ordinary package nodes: a toolchain entry or
 spec constraint (`%c=gcc@14.3.0`) does not require the compiler to be
-installed or external at render time — the concretizer builds the compiler
+installed or external at render time; the concretizer builds the compiler
 first when nothing satisfies the constraint. The renderer therefore does not
 need a compiler-source knob to *permit* Spack-built compilers; it must only
 avoid emitting an external pin or `buildable: false` for a compiler the

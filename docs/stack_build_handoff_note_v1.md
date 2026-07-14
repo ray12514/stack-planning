@@ -5,9 +5,9 @@ the build half is handed off:
 
 1. `stack-composer` renders a Spack workspace **tree**; the per-lane `spack.yaml`
    environments plus the `configs/**` scopes they include are the handoff.
-2. Build and concretize are a **co-equal downstream choice** — `spacktools`
+2. Build and concretize are a **co-equal downstream choice**: `spacktools`
    (a separate build/concretize tool), the in-house `spack-build` script,
-   Ansible, or bare Spack — not `stack-composer`'s job.
+   Ansible, or bare Spack, not `stack-composer`'s job.
 3. The source content render consumes lives in a hosted **stack-content**
    directory; see `pre_v1_hosting_and_external_inventory_note_v1.md`.
 
@@ -63,13 +63,13 @@ spack:
 
 Contract consequence: a lone `spack.yaml` is **not** self-contained. The build
 consumer must root the **whole tree** where Spack can read the included scopes.
-The `include::` list — not ambient `~/.spack`, site, or system scopes — is the
+The `include::` list, not ambient `~/.spack`, site, or system scopes, is the
 production isolation boundary, so the tree must travel intact.
 
 ## Co-equal build paths
 
-The render step ends at the workspace. The build half — concretize, fetch,
-install, smoke/verify, and (optionally) buildcache push — has four supported
+The render step ends at the workspace. The build half (concretize, fetch,
+install, smoke/verify, and optionally buildcache push) has four supported
 paths. None is "the default"; a site picks one.
 
 | Path | Use when | Owns |
@@ -89,12 +89,12 @@ A build cannot run until Spack knows the install tree, caches, build stage, and
 view/module roots. These are **deployment-owned**, not facts. The handoff
 supports **both** mechanisms, and they compose:
 
-- **From the deployment overlay** — the installer's chosen roots in
+- **From the deployment overlay**: the installer's chosen roots in
   `systems/<system>/deployment.yaml` are rendered into
   `configs/common/config.yaml`. They are *chosen*, never auto-derived from the
   profile (which only offers install-tree candidates). See
   `deployment_inputs_and_ownership_v1.md`.
-- **Build-time override** — the build path may supply or override
+- **Build-time override**: the build path may supply or override
   install/view/module/cache roots when it invokes Spack, without re-rendering.
 
 Inline environment config and the include order still apply: a build-time
@@ -106,8 +106,8 @@ How the build consumer reads the config scopes is a **user choice**:
 
 | Mode | `include::` targets | Sync needed | Notes |
 |---|---|---|---|
-| A — synced tree | Relative local paths (`../../../configs/...`) | Yes — tree on the shared filesystem | Default. Tree must stay intact. |
-| B — GitLab-direct | Remote GitLab URLs | No local sync | Spack reads the config yaml directly from GitLab. |
+| A: synced tree | Relative local paths (`../../../configs/...`) | Yes: tree on the shared filesystem | Default. Tree must stay intact. |
+| B: GitLab-direct | Remote GitLab URLs | No local sync | Spack reads the config yaml directly from GitLab. |
 
 Mode B requires a Spack release that supports URL/remote config includes.
 **Validate the exact remote-include syntax against the pinned Spack floor**
@@ -120,7 +120,7 @@ default setting, not a fork in the model.
 
 ## Stack-content directory (the upstream source)
 
-Render consumes a hosted **stack-content** directory — the human-authored source
+Render consumes a hosted **stack-content** directory, the human-authored source
 of truth, distinct from the three tool repos:
 
 ```text
@@ -167,7 +167,7 @@ Confirm with first-system testing and bring evidence back here:
 3. Does it fetch stack-content by **cloning GitLab** or by reading the
    **shared-FS** synced copy?
 4. Who owns **concretizer policy** (`unify`/`reuse`) and **Spack version-floor**
-   enforcement — `spacktools` or us?
+   enforcement: `spacktools` or us?
 5. Does `spacktools` also cover **multi-host** orchestration (overlap with
    Ansible), or single-host build only?
 6. Who owns **buildcache push** destinations?
@@ -186,4 +186,4 @@ The handoff is v1-ready when:
 - both config delivery modes (synced tree and GitLab-direct) are validated
   against the pinned Spack release;
 - a package manager can render and hand off without learning a `stack-composer`
-  build language — they author normal Spack specs and pick a build path.
+  build language: they author normal Spack specs and pick a build path.

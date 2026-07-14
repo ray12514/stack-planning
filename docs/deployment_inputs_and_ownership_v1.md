@@ -13,10 +13,10 @@ do not add compatibility paths for unused alpha shapes.
 
 ## The core principle: auto vs. explicit
 
-The framework's job is to spare a user the backend grind — not to decide where
+The framework's job is to spare a user the backend grind, not to decide where
 their software lives or how it is exposed.
 
-| Auto — the framework's job (from profile facts + defaults policy) | Explicit — the installer/user chooses (profile offers candidates only) |
+| Auto: the framework's job (from profile facts + defaults policy) | Explicit: the installer/user chooses (profile offers candidates only) |
 |---|---|
 | Which externals exist → `packages.yaml` content | **Install tree location** |
 | Compiler / MPI / GPU provider wiring | **Build stage, source/build caches** |
@@ -25,15 +25,15 @@ their software lives or how it is exposed.
 | The deterministic workspace | The specs / package-sets; which Spack |
 
 **The install tree is never auto-derived.** `profile.filesystem.install_tree_candidates`
-are *candidates* — the profile cannot know where this particular install should
+are *candidates*; the profile cannot know where this particular install should
 land. The installer chooses. Likewise module exposure is a deliberate choice, not
 a silent default.
 
-Where the framework can help on the explicit values: a **fact-based check** —
+Where the framework can help on the explicit values: a **fact-based check**:
 if the chosen install tree is not writable or is too small per profile facts,
 flag it. The framework validates the choice; it never makes it. No Spack runs.
 
-## Input ownership — who, where, when
+## Input ownership: who, where, when
 
 | Decision | Owner | Where | When (stage) |
 |---|---|---|---|
@@ -50,8 +50,8 @@ flag it. The framework validates the choice; it never makes it. No Spack runs.
 
 In practice the package manager, the installer, and the template maintainer are
 often the **same person**. The ownership split is therefore mostly about *which
-file* a value belongs in — portable `stack.yaml` intent versus site-specific
-`deployment.yaml` paths — not about org boundaries.
+file* a value belongs in: portable `stack.yaml` intent versus site-specific
+`deployment.yaml` paths, not about org boundaries.
 
 ## The deployment overlay (`deployment.yaml`)
 
@@ -100,7 +100,7 @@ spack:
 Where it lives and how it is consumed:
 
 - **Lives** at `systems/<system>/deployment.yaml` in `stack-content`, next to
-  `profile.yaml` — but it is *installer-owned* (chosen), where `profile.yaml` is
+  `profile.yaml`, but it is *installer-owned* (chosen), where `profile.yaml` is
   *inspector-owned* (observed). Keeping them adjacent keeps the per-system inputs
   together and reviewable.
 - **Seeded at Stage 0.** When a site already knows its standard install/cache
@@ -172,17 +172,17 @@ real systems require them as portable inputs.
 
 Two different locations, easily confused:
 
-- **Spack root** — where the Spack *tool* lives on disk (a clone or a site
+- **Spack root**: where the Spack *tool* lives on disk (a clone or a site
   module). Pure operator concern; the stack source never names it. Only the
   **build path** needs it, and it finds Spack one of two ways: a site module on
   `$PATH` (`module load spack/<v>`), or an explicit root it sources
-  (`<root>/share/spack/setup-env.sh`) — recorded as `deployment.yaml.spack.root`
+  (`<root>/share/spack/setup-env.sh`), recorded as `deployment.yaml.spack.root`
   or passed as `spack-build --spack-root`. The build path enforces floor + pin
   against that install's `spack --version`.
-- **Install tree** — where Spack *installs built packages* (the `install_tree`
+- **Install tree**: where Spack *installs built packages* (the `install_tree`
   above). A different path, also installer-chosen.
 
-`stack-composer` needs neither — render is Spack-free; Spack location only
+`stack-composer` needs neither: render is Spack-free; Spack location only
 matters once a build path starts. See v6 § Three-Layer Version Model and
 § Acquiring And Installing Spack for the floor/pin/root split and the
 site-module vs per-version-clone patterns. How `spacktools` locates Spack is
