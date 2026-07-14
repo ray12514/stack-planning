@@ -18,7 +18,12 @@ one numpy recipe version produce four explicit roots:
 
 Reasoning: numpy versions exist to serve python versions, not the other way
 around. Each interpreter wants the newest non-deprecated numpy that supports
-it, which is one numpy today. A user with genuinely unusual pairing needs uses
+it, which is one numpy today. Module and view naming consequence (2026-07-14):
+two py-numpy roots share one name and version, so their modules carry the
+python line (py-numpy/2.4.6-python3.14.5); this is the same
+qualify-only-when-ambiguous rule lane and toolchain names follow, and the
+renderer fails loudly on same-name/version root collisions that no python
+line distinguishes. A user with genuinely unusual pairing needs uses
 miniforge (in Core for exactly this) and manages their own environment. If the
 team ever wants a broader matrix, it is an explicit package-set change, not a
 renderer redesign.

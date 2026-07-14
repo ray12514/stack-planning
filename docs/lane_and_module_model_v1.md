@@ -58,6 +58,14 @@ Open team question, recorded not decided: MPI built
 for one rank can subsume a serial build, so the serial tier could in principle
 collapse into MPI — CSE keeps the explicit serial tier for now.
 
+Open team question (2026-07-14, Ravon): GPU-built, non-MPI packages. Today
+the GPU lane is "the MPI roster plus the GPU payload", and its payload
+(kokkos) is MPI-adjacent. Eventually a package will be GPU-accelerated but
+have nothing to do with MPI. Where does it live (GPU lane only? a
+GPU-analog of the serial/common split?), what does its kind derivation look
+like, and does the common-compiler-dependent exposure rule need a GPU
+counterpart? Needs semantics before the first such package lands.
+
 **Lane-agnostic payload exposure (decided 2026-07-13).** Where a package is
 *built* and where it is *visible* are separate axes. Packages that are
 non-core (not compiler-agnostic: compiler- or performance-sensitive) but
