@@ -179,9 +179,9 @@ boxtxt(s, 0.6, 6.0, 12.13, 0.62, PANEL2, [(14, INK, True,
 # ------------------------------------------------- 4 · how it's built
 s = slide()
 header(s, "How a stack is built", "Schematic · generated, not hand-curated")
-stages = [("PROBE", "cluster-inspector\nreads the system"),
+stages = [("PROBE", "record the system's\nfacts, once"),
           ("POLICY", "one small site\ndefaults file"),
-          ("RENDER", "stack-composer\nemits every lane"),
+          ("RENDER", "derive every lane's\nbuild input"),
           ("BUILD", "Spack · lanes build\nin parallel"),
           ("PUBLISH", "modules · views\nbuild caches")]
 for i, (t, d) in enumerate(stages):
