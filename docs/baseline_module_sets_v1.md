@@ -149,4 +149,3 @@ Stack Composer should validate:
 4. Add Stack Composer `system-default` policy and validation.
 5. Add Raider and Blueback fixture tests using both observed and file-declared
    baseline module sets.
-

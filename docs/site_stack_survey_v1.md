@@ -15,7 +15,7 @@ A survey of how eleven major HPC centers build and expose user-facing scientific
 - **Site / system**: NERSC Perlmutter (NVIDIA GPU, HPE compute)
 - **Build tooling**: Spack (E4S project, also discussed but detailed E4S docs at 404); no pinning approach documented at available pages
 - **Module system**: Lmod (Lua-based, hierarchical)
-- **Exposure model**: 
+- **Exposure model**:
   - Hierarchical dependency-based gating: `module avail` shows only modules accessible without unmet dependencies
   - Mutually exclusive compiler family (gcc, cce, aocc, nvidia), loading one compiler swaps it for another
   - `module spider` reveals full hierarchy across all dependencies
@@ -24,7 +24,7 @@ A survey of how eleven major HPC centers build and expose user-facing scientific
   - `contrib` module extends MODULEPATH with user-contributed software
 - **Environments for users?**: Yes; Default and contrib modules gate access to community software.
 - **Divergence / notable**: Compiler family exclusivity enforced by Lmod; hidden modules (prefix ".") require `--show_hidden` to view. Hierarchical discovery balances accessibility with compatibility.
-- **Sources**: 
+- **Sources**:
   - https://docs.nersc.gov/environment/lmod/
   - https://docs.nersc.gov/applications/
 
@@ -73,7 +73,7 @@ A survey of how eleven major HPC centers build and expose user-facing scientific
 - **Site / system**: CSCS Alps (one infrastructure, multiple vClusters)
 - **Build tooling**: Stackinator (CSCS-developed tool for uenv configuration) + Spack (software compilation). Stackinator "currently maintained for internal use" with limited support.
 - **Module system**: None (software embedded in uenv container images)
-- **Exposure model**: 
+- **Exposure model**:
   - **Most divergent model**: Software delivered as self-contained squashfs images (uenv) rather than a global module tree
   - User workflow: `uenv image find` (search) → `uenv image pull` (download) → `uenv start <name>` or `uenv run` (activate for interactive or command execution)
   - Example: `uenv start namd/3.0:v1` activates a NAMD environment
