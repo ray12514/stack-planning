@@ -189,7 +189,7 @@
       <tr><th>Package</th><th>Versions</th><th>Built as · pairing</th></tr>
       <tr><td>the MPI roster</td><td class="v">as above</td><td class="why">Selected verbatim, so GPU stays a superset of the MPI lane's runtime surface</td></tr>
       <tr><td>tau</td><td class="v">2.35.1</td><td class="why"><code>+mpi</code> plus the lane's GPU backend (<code>+rocm</code> or <code>+cuda</code>): its own build rather than the MPI lane's, which cannot see kernels. The variants are additive, so this one build profiles MPI codes, GPU codes, and MPI+GPU codes alike. No architecture flag, because tau traces the GPU runtime rather than compiling device code</td></tr>
-      <tr><td>kokkos</td><td class="v">5.1.1 · 5.1.0</td><td class="why"><code>+gpu</code> expands per lane to <code>+rocm amdgpu_target=&lt;arch&gt;</code> or <code>+cuda cuda_arch=&lt;n&gt;</code>. It compiles device code, which is what proves the GPU toolchain</td></tr>
+      <tr><td>kokkos</td><td class="v">5.1.1 · 5.1.0</td><td class="why">Built for the lane's GPU architecture, taken from the probe. It compiles device code, which is what proves the GPU toolchain works. New to the roster: it is here to prove that path rather than because users asked for it. See the note below on serving CPU lanes later</td></tr>
     </table></div>
   </section>
 
@@ -251,6 +251,22 @@
     <p>The current flat stack offers MKL. Wheat is an Intel Cascade Lake
     system, where MKL is the vendor-tuned path. Dropping it silently would be a
     regression for those users; keeping it is a decision to make on purpose.</p>
+  </div>
+
+  <div class="note open">
+    <h3>Kokkos could serve the CPU lanes too</h3>
+    <p>Kokkos does not link MPI, so it is not an MPI-lane package in the way
+    HDF5 is. It is a portability layer: one build carries a host backend and
+    optionally a device backend, and a GPU build always has both. Today it sits
+    in the GPU lane only, which means a Serial or MPI user has no Kokkos at
+    all. A CPU build could sit in those lanes under the same name, the way
+    Boost's two builds do, which would extend the dual-build rule from the MPI
+    boundary to the GPU boundary.</p>
+    <p>Deferred for now, deliberately. Kokkos is in the roster to prove the GPU
+    toolchain rather than to serve a request, and the reason to give CPU users a
+    portability layer is performance, which this pass does not chase: everything
+    builds at the portable baseline. Worth revisiting when target optimization
+    turns on, or sooner if someone asks for Kokkos on CPU.</p>
   </div>
 
   <div class="note open">

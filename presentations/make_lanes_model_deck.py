@@ -504,7 +504,7 @@ appendix_slide("Serial lane: MPI-capable, deliberately built without MPI", [
     ]),
 ])
 
-appendix_slide("MPI and GPU lanes: built against the system MPI", row_h=0.295, sections=[
+appendix_slide("MPI and GPU lanes: built against the system MPI", row_h=0.278, sections=[
     ("MPI data chains: same pairing rule as serial", BLUE, [
         ("hdf5",           "2.1.0 · 1.14.6", "+mpi +fortran +cxx +hl"),
         ("netcdf-c",       "4.10.0 · 4.9.3", "+mpi +parallel-netcdf, paired to hdf5 2.1.0 / 1.14.6"),
@@ -519,9 +519,9 @@ appendix_slide("MPI and GPU lanes: built against the system MPI", row_h=0.295, s
         ("dakota", "6.24.0 · 6.23.0", "+mpi; heaviest build in the roster"),
     ]),
     ("GPU lane: selects the full MPI roster above, plus the GPU payload", VIOLET, [
-        ("tau", "2.35.1", "+mpi +gpu_runtime: its own build, so it can see kernels as well as MPI"),
+        ("tau", "2.35.1", "built with MPI and the lane's GPU backend, so it sees kernels as well as MPI"),
         ("kokkos", "5.1.1 · 5.1.0",
-         "+gpu → expands per lane: +rocm amdgpu_target=<arch> or +cuda cuda_arch=<n>"),
+         "built for the lane's GPU architecture from the probe; new here, it proves the GPU path"),
     ]),
     ("Common compiler-dependent: the Serial-lane build, available here too", GREEN, [
         ("common packages", "see Serial",

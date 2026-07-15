@@ -108,7 +108,23 @@ stop-and-fix, not a fallback.
   lane picks the build, exactly like HDF5 and FFTW. It was briefly
   considered lane-agnostic; being MPI-capable disqualifies it.
 - kokkos is the GPU lane pilot content: unlike a profiler, it compiles
-  device code, which is what actually proves the GPU toolchain works.
+  device code, which is what actually proves the GPU toolchain works. It is
+  new to the roster; the flat stack that came before did not carry it.
+- kokkos stays GPU-lane-only for this pass (decided 2026-07-14), and the
+  reasoning is worth recording because the package invites the opposite
+  conclusion. Kokkos does not link MPI: the recipe has no `mpi` variant and
+  no `depends_on("mpi")`, so it is never an MPI-lane package the way HDF5 is.
+  What it does have is a host backend and an optional device backend, and the
+  recipe requires a host backend in every case
+  (`requires("+serial", when="~hpx ~openmp ~threads")`), so the GPU build
+  already runs on the CPU, single-threaded, today. A CPU build could therefore
+  sit in the serial and MPI lanes under the same clean name, extending the
+  dual-build rule from the MPI boundary to the GPU boundary exactly as boost
+  does. We are not doing that yet: kokkos is here to prove the GPU toolchain
+  rather than to answer a user request, and the reason to hand CPU users a
+  portability layer is performance, which this pass does not chase because
+  every lane builds at the portable baseline. Revisit when target
+  optimization turns on, or when someone asks for Kokkos on CPU.
 - tau carries one version (decided 2026-07-14). The two-version rule exists
   so a user whose code pins an older release can still build; nobody pins a
   profiler, because profiling is work you do with whatever the current tool
