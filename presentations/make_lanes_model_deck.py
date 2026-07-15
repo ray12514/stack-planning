@@ -405,22 +405,26 @@ questions = [
      "OpenBLAS is now the one BLAS and LAPACK, so users get the same library on every system. "
      "Cray LibSci is already on the path on Blueback and Fran, and Intel systems would expect MKL. "
      "Both are registered rather than built, so this is policy per system, not build cost."),
-    (TEAL, "How many compiler surfaces per system?",
-     "CSEinit offers GCC and Intel today. The pilot input builds the system baseline only. "
-     "Adding a surface is a one-line policy change, not a redesign, but it is a decision."),
+    (TEAL, "Which compiler surfaces does the pilot carry?",
+     "The pilot carries two per system: the one the machine blesses as its baseline, plus GCC as "
+     "the portable reference. CSEinit offers GCC and Intel today, so whether Intel is one of the "
+     "two on the systems that have it is the open part."),
     (AMBER, "Does the Serial lane stay?",
-     "An MPI build run on one rank does a serial job. We keep Serial because users ask for plain "
-     "builds, but it is a deliberate cost: a second build of every MPI-capable package."),
-    (VIOLET, "When do we turn on performance targeting?",
-     "Everything builds at the portable baseline today. Tuning for Genoa, Milan, or Cascade Lake "
-     "is a per-lane flag plus a full rebuild, so it is a scheduling question, not a design one."),
+     "Serial exists so users who are not running parallel do not carry the MPI runtime: analysis "
+     "and post-processing on a login node, small tools, anything linking HDF5 or NetCDF without "
+     "wanting libmpi behind it. An MPI build on one rank does the same work, so dropping Serial "
+     "would halve the build matrix and push the MPI runtime onto everyone."),
+    (VIOLET, "Performance targeting: baseline first, tuning after.",
+     "The plan is to build every lane at the portable baseline, prove the model, then turn on "
+     "per-lane tuning for Genoa, Milan, or Cascade Lake. Each target is a flag plus a full "
+     "rebuild, so the open part is when, not whether."),
 ]
 for i, (color, q, detail) in enumerate(questions):
     y = 1.75 + i * 1.18
-    box(s, 0.6, y, 12.13, 1.0, PANEL)
-    box(s, 0.6, y, 0.1, 1.0, color, radius=False)
+    box(s, 0.6, y, 12.13, 1.08, PANEL)
+    box(s, 0.6, y, 0.1, 1.08, color, radius=False)
     txt(s, 0.95, y + 0.14, 11.5, 0.3, [(13.5, INK, True, q)])
-    txt(s, 0.95, y + 0.47, 11.5, 0.46, [(11, MUTED, False, detail)])
+    txt(s, 0.95, y + 0.45, 11.5, 0.58, [(11, MUTED, False, detail)])
 txt(s, 0.6, 6.85, 12.1, 0.4, [(11, MUTED, False,
     "Per-package placement and the full reasoning: docs/package_placement_map_v1.html")])
 

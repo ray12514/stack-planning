@@ -58,6 +58,24 @@ Open team question, recorded not decided: MPI built
 for one rank can subsume a serial build, so the serial tier could in principle
 collapse into MPI; CSE keeps the explicit serial tier for now.
 
+**Why the serial tier exists (expanded 2026-07-14).** The case for it is not
+that serial code cannot run in an MPI lane. It is that an MPI-enabled library
+brings the MPI runtime with it. Linking MPI-built HDF5 or NetCDF puts libmpi
+on the link line, and on a Cray it pulls the whole platform chain behind that:
+libfabric, PMI, and the GTL when GPU-aware. A user reading a NetCDF file on a
+login node, building a small tool, or running an analysis script gets none of
+that from the serial build, and needs no launcher to run it. This is why the
+flat stacks that came before shipped a plain and a parallel HDF5 side by side,
+and why the usage list still asks for both.
+
+The counter-argument is real and worth stating plainly: an MPI build run on
+one rank does the same work, so dropping the tier would halve the build matrix
+for every MPI-capable package (HDF5, NetCDF, FFTW, Boost today). The cost of
+that saving is that everyone carries the MPI runtime, including users who
+never launch a parallel job. CSE keeps Serial because the community it serves
+includes a large share of single-node analysis work; a site whose users are
+uniformly parallel could reasonably decide the other way.
+
 Open team question (2026-07-14, Ravon): GPU-built, non-MPI packages. Today
 the GPU lane is "the MPI roster plus the GPU payload", and its payload
 (kokkos) is MPI-adjacent. Eventually a package will be GPU-accelerated but
