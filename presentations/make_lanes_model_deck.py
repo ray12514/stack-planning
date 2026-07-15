@@ -397,6 +397,35 @@ def appendix_slide(title, sections):
     return s
 
 
+# ------------------------------------------------- 10 · open questions
+s = slide()
+header(s, "Open questions for the team", "Decisions we need · not settled yet")
+questions = [
+    (GREEN, "Which BLAS and LAPACK do users get?",
+     "Today the stack builds OpenBLAS and reference LAPACK. OpenBLAS already provides the LAPACK API, "
+     "so the pair ships it twice. Cray LibSci is on the path already; Intel systems would expect MKL."),
+    (BLUE, "ScaLAPACK is not in the roster.",
+     "Distributed dense solvers need it, and both LibSci and MKL include it. "
+     "It is MPI-only by nature, so the MPI and GPU lanes are its home if we carry it."),
+    (TEAL, "How many compiler surfaces per system?",
+     "CSEinit offers GCC and Intel today. The pilot input builds the system baseline only. "
+     "Adding a surface is a one-line policy change, not a redesign, but it is a decision."),
+    (AMBER, "Does the Serial lane stay?",
+     "An MPI build run on one rank does a serial job. We keep Serial because users ask for plain "
+     "builds, but it is a deliberate cost: a second build of every MPI-capable package."),
+    (VIOLET, "When do we turn on performance targeting?",
+     "Everything builds at the portable baseline today. Tuning for Genoa, Milan, or Cascade Lake "
+     "is a per-lane flag plus a full rebuild, so it is a scheduling question, not a design one."),
+]
+for i, (color, q, detail) in enumerate(questions):
+    y = 1.72 + i * 1.0
+    box(s, 0.6, y, 12.13, 0.88, PANEL)
+    box(s, 0.6, y, 0.1, 0.88, color, radius=False)
+    txt(s, 0.95, y + 0.1, 11.5, 0.3, [(13.5, INK, True, q)])
+    txt(s, 0.95, y + 0.42, 11.5, 0.42, [(11, MUTED, False, detail)])
+txt(s, 0.6, 6.85, 12.1, 0.4, [(11, MUTED, False,
+    "Per-package placement and the full reasoning: docs/package_placement_map_v1.html")])
+
 # ------------------------------------------------- appendix · layer stacking
 s = slide()
 header(s, "What each lane exposes", "Appendix · how the layers stack")
