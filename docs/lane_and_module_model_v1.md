@@ -76,6 +76,23 @@ never launch a parallel job. CSE keeps Serial because the community it serves
 includes a large share of single-node analysis work; a site whose users are
 uniformly parallel could reasonably decide the other way.
 
+**Serial is about linking, not about I/O (recorded 2026-07-14, from the
+model review).** The question that surfaced was whether an MPI application
+doing serial I/O needs the serial HDF5 build, since one rank gathering data
+and writing a single file is a common pattern, as is a file per rank. It does
+not, and the reason matters because "serial lane means serial I/O" is the
+mental model that produces the question. Parallel HDF5 is a superset of the
+serial build: the MPI-IO driver is opt-in through `H5Pset_fapl_mpio`, and an
+application that never selects it gets the same POSIX path the serial build
+uses. An MPI application therefore stays in the MPI lane for every I/O
+pattern it might use.
+
+What the serial tier actually serves is programs that **do not link MPI at
+all**. That is the whole test. If a binary links MPI it is an MPI program and
+the MPI lane's builds serve it, serial I/O included. If it does not, the
+serial build spares it libmpi and, on a Cray, the platform chain behind
+libmpi.
+
 Open team question (2026-07-14, Ravon): GPU-built, non-MPI packages. Today
 the GPU lane is "the MPI roster plus the GPU payload", and its payload
 (kokkos) is MPI-adjacent. Eventually a package will be GPU-accelerated but
