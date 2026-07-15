@@ -1,0 +1,276 @@
+<title>CSE Package Placement Map</title>
+<style>
+  :root {
+    --bg: #ffffff; --panel: #f1f5f9; --panel2: #e2e8f0;
+    --ink: #0f172a; --text: #334155; --muted: #64748b; --line: #dde4ec;
+    --teal: #0d9488; --amber: #d97706; --blue: #2563eb;
+    --violet: #7c3aed; --gray: #475569; --green: #15803d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0e1420; --panel: #16202e; --panel2: #1e2b3c;
+            --ink: #e7edf4; --text: #c2cede; --muted: #8fa1b5; --line: #253243;
+            --teal: #14b8a6; --amber: #f59e0b; --blue: #3b82f6;
+            --violet: #a78bfa; --gray: #64748b; --green: #22a34a; }
+  }
+  :root[data-theme="dark"] { --bg: #0e1420; --panel: #16202e; --panel2: #1e2b3c;
+    --ink: #e7edf4; --text: #c2cede; --muted: #8fa1b5; --line: #253243;
+    --teal: #14b8a6; --amber: #f59e0b; --blue: #3b82f6;
+    --violet: #a78bfa; --gray: #64748b; --green: #22a34a; }
+  :root[data-theme="light"] { --bg: #ffffff; --panel: #f1f5f9; --panel2: #e2e8f0;
+    --ink: #0f172a; --text: #334155; --muted: #64748b; --line: #dde4ec;
+    --teal: #0d9488; --amber: #d97706; --blue: #2563eb;
+    --violet: #7c3aed; --gray: #475569; --green: #15803d; }
+
+  body { background: var(--bg); color: var(--text);
+    font: 15px/1.55 "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0; padding: 2.5rem 1.25rem 5rem; }
+  main { max-width: 60rem; margin: 0 auto; }
+  h1 { color: var(--ink); font-size: 1.9rem; margin: 0 0 .35rem; text-wrap: balance; }
+  .kicker { color: var(--teal); font-weight: 700; font-size: .78rem;
+    letter-spacing: .09em; text-transform: uppercase; margin: 0 0 .5rem; }
+  .lede { color: var(--muted); margin: 0 0 2.5rem; max-width: 46rem; }
+  h2 { color: var(--ink); font-size: 1.2rem; margin: 3rem 0 .75rem; }
+  p { max-width: 46rem; }
+
+  ol.rules { max-width: 46rem; padding-left: 1.2rem; }
+  ol.rules li { margin: .5rem 0; }
+  ol.rules b { color: var(--ink); }
+
+  .layer { margin: 1.5rem 0; border: 1px solid var(--line);
+    border-radius: 9px; overflow: hidden; }
+  .band { padding: .6rem .9rem; color: #fff; }
+  .band h3 { margin: 0; font-size: 1rem; }
+  .band p { margin: .15rem 0 0; font-size: .82rem; opacity: .92; max-width: none; }
+  .t-gray .band { background: var(--gray); }
+  .t-teal .band { background: var(--teal); }
+  .t-amber .band { background: var(--amber); }
+  .t-green .band { background: var(--green); }
+  .t-blue .band { background: var(--blue); }
+  .t-violet .band { background: var(--violet); }
+
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: .74rem;
+    letter-spacing: .05em; text-transform: uppercase;
+    padding: .55rem .9rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: .5rem .9rem; border-bottom: 1px solid var(--line);
+    vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+  td.v { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text); }
+  td.why { color: var(--muted); }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .92em;
+    background: var(--panel); padding: .08em .35em; border-radius: 3px; }
+
+  .note { background: var(--panel); border: 1px solid var(--line);
+    border-radius: 9px; padding: 1rem 1.15rem; margin: 1.25rem 0; }
+  .note h3 { color: var(--ink); margin: 0 0 .4rem; font-size: .95rem; }
+  .note p { margin: .4rem 0 0; font-size: .9rem; }
+  .open { border-left: 3px solid var(--amber); }
+  footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: .8rem; }
+</style>
+
+<main>
+  <p class="kicker">Reference · lane placement</p>
+  <h1>Package placement map</h1>
+  <p class="lede">Every package the curated stack builds, which layer it lives in,
+  and why it lives there. Colours match the lanes-model deck. The rules come from
+  <code>lane_and_module_model_v1.md</code>; the reasoning per package comes from
+  <code>package_build_rationale_v1.md</code>. When a placement changes, change the
+  package set and both of those together.</p>
+
+  <h2>How a package's place is decided</h2>
+  <p>Four questions, asked in order. The first one that fits decides the layer.</p>
+  <ol class="rules">
+    <li><b>Does a user link it without ever choosing it?</b> Build tools and
+      stable-ABI low-level libraries are <b>Foundation</b>: one pinned version,
+      reachable through the compiler surface, never a loadable module. Two
+      versions on a fresh compile's link path would be indistinguishable, so
+      there is deliberately only one.</li>
+    <li><b>Does no MPI implementation exist for it, and is it compiler-agnostic?</b>
+      Then it is <b>Core</b>: loadable, loads with the compiler surface, before
+      any lane is chosen.</li>
+    <li><b>Does no MPI implementation exist, but it must be built with the
+      surface's compiler?</b> Then it is a <b>common compiler-dependent</b>
+      package: built once in the Serial lane, module-visible from every payload
+      lane. It fails the compiler-agnostic test for Core, but has no MPI
+      dimension that would split it per lane.</li>
+    <li><b>Is it MPI-capable?</b> Then it is <b>dual-build</b>: <code>~mpi</code>
+      in Serial, <code>+mpi</code> in MPI and GPU, under the same clean module
+      name. The loaded lane decides which build the name resolves to. A GPU
+      backend on top of that makes it <b>GPU</b> payload.</li>
+  </ol>
+
+  <h2>The layers</h2>
+
+  <section class="layer t-gray">
+    <div class="band">
+      <h3>Foundation</h3>
+      <p>On your paths automatically through the compiler surface. Never a module.</p>
+    </div>
+    <div class="scroll"><table>
+      <tr><th>Package</th><th>Versions</th><th>Why here</th></tr>
+      <tr><td>zlib</td><td class="v">1.3.1</td><td class="why">Linked without being chosen. Single version pinned by <code>require:</code> in the common scope, so every lane resolves the same one whether it is a root or a dependency.</td></tr>
+      <tr><td>xz</td><td class="v">5.4.6</td><td class="why">Same rule.</td></tr>
+      <tr><td>zstd</td><td class="v">1.5.6</td><td class="why">Same rule.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="layer t-teal">
+    <div class="band">
+      <h3>Core</h3>
+      <p>Loads with <code>cse/&lt;Compiler&gt;</code>, before any lane. Compiler-agnostic, or no MPI exists for it.</p>
+    </div>
+    <div class="scroll"><table>
+      <tr><th>Package</th><th>Versions</th><th>Why here</th></tr>
+      <tr><td>cmake</td><td class="v">4.3.3 · 4.2.3</td><td class="why">Build tool, compiler-agnostic.</td></tr>
+      <tr><td>ninja · pkgconf · git</td><td class="v">newest</td><td class="why">Build tools. Unpinned: whatever the pinned recipe generation carries.</td></tr>
+      <tr><td>python</td><td class="v">3.14.5 · 3.13.13</td><td class="why">Compiler-agnostic building block. The two newest supported minor lines.</td></tr>
+      <tr><td>py-numpy</td><td class="v">2.4.6 ×2</td><td class="why">One build per python line. Both roots share a name and version, so the modules carry the line: <code>py-numpy/2.4.6-python3.14.5</code>. Qualified only because they collide.</td></tr>
+      <tr><td>miniforge3</td><td class="v">26.1.1-3</td><td class="why">Single by nature. It is the escape hatch for users who need their own package pairings.</td></tr>
+      <tr><td>gsl</td><td class="v">2.8 · 2.7.1</td><td class="why">No MPI implementation exists, and it behaves as a building block.</td></tr>
+      <tr><td>sqlite</td><td class="v">3.53.1 · 3.51.2</td><td class="why">Same rule.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="layer t-green">
+    <div class="band">
+      <h3>Common compiler-dependent</h3>
+      <p>Built once in the Serial lane. Loadable from Serial, MPI, and GPU alike, through the per-compiler shared module root. Declared as <code>lane_agnostic:</code> in the package set.</p>
+    </div>
+    <div class="scroll"><table>
+      <tr><th>Package</th><th>Versions</th><th>Why here</th></tr>
+      <tr><td>openblas</td><td class="v">0.3.33 · 0.3.32</td><td class="why">No MPI dimension, but compiler- and performance-sensitive, so it fails the Core test. MPI and GPU codes link BLAS constantly and the lanes are exclusive, so without shared exposure an MPI user would have no loadable BLAS at all.</td></tr>
+      <tr><td>netlib-lapack</td><td class="v">3.12.1 · 3.12.0</td><td class="why">Same reasoning. <b>Open question below:</b> openblas already provides the LAPACK API.</td></tr>
+      <tr><td>gnuplot</td><td class="v">6.0.0 · 5.4.10</td><td class="why">User tool with no MPI dimension, but it must be built with the surface's compiler to stay compatible with the libraries it links, so it is payload rather than Core.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="layer t-amber">
+    <div class="band">
+      <h3>Serial lane</h3>
+      <p>MPI-capable packages deliberately built without MPI. Each has a <code>+mpi</code> twin in the MPI and GPU lanes under the same name.</p>
+    </div>
+    <div class="scroll"><table>
+      <tr><th>Package</th><th>Versions</th><th>Built as · pairing</th></tr>
+      <tr><td>hdf5</td><td class="v">2.1.0 · 1.14.6</td><td class="why"><code>~mpi +fortran +cxx +hl</code></td></tr>
+      <tr><td>netcdf-c</td><td class="v">4.10.0 · 4.9.3</td><td class="why"><code>~mpi</code>, each pinned to one hdf5 (see chain pairing below)</td></tr>
+      <tr><td>netcdf-fortran</td><td class="v">4.6.2 · 4.6.1</td><td class="why">Rides its paired netcdf-c and hdf5</td></tr>
+      <tr><td>netcdf-cxx4</td><td class="v">4.3.1</td><td class="why">The recipe generation carries exactly one version; rides the newest chain only</td></tr>
+      <tr><td>fftw</td><td class="v">3.3.11 · 3.3.10</td><td class="why"><code>~mpi</code></td></tr>
+      <tr><td>boost</td><td class="v">1.90.0 · 1.89.0</td><td class="why"><code>~mpi</code>. MPI-capable, so dual-build rather than common</td></tr>
+    </table></div>
+  </section>
+
+  <section class="layer t-blue">
+    <div class="band">
+      <h3>MPI lane</h3>
+      <p>Built against the system MPI, which is always an external and never built.</p>
+    </div>
+    <div class="scroll"><table>
+      <tr><th>Package</th><th>Versions</th><th>Built as · pairing</th></tr>
+      <tr><td>hdf5</td><td class="v">2.1.0 · 1.14.6</td><td class="why"><code>+mpi +fortran +cxx +hl</code></td></tr>
+      <tr><td>netcdf-c</td><td class="v">4.10.0 · 4.9.3</td><td class="why"><code>+mpi +parallel-netcdf</code>, same chain pairing as Serial</td></tr>
+      <tr><td>netcdf-fortran</td><td class="v">4.6.2 · 4.6.1</td><td class="why">Rides its paired chain</td></tr>
+      <tr><td>netcdf-cxx4</td><td class="v">4.3.1</td><td class="why">Newest chain only</td></tr>
+      <tr><td>fftw</td><td class="v">3.3.11 · 3.3.10</td><td class="why"><code>+mpi</code></td></tr>
+      <tr><td>boost</td><td class="v">1.90.0 · 1.89.0</td><td class="why"><code>+mpi</code></td></tr>
+      <tr><td>tau</td><td class="v">2.35.1 · 2.35</td><td class="why"><code>+mpi</code>. Profiler for MPI codes; no serial build offered</td></tr>
+      <tr><td>dakota</td><td class="v">6.24.0 · 6.23.0</td><td class="why"><code>+mpi</code>. Heaviest build in the roster (large Boost-anchored tree)</td></tr>
+    </table></div>
+  </section>
+
+  <section class="layer t-violet">
+    <div class="band">
+      <h3>GPU lane</h3>
+      <p>The full MPI roster above, plus the GPU payload. Identical specs reuse the same installs by hash, so repeating the roster costs lockfile entries and modules, not rebuilds.</p>
+    </div>
+    <div class="scroll"><table>
+      <tr><th>Package</th><th>Versions</th><th>Built as · pairing</th></tr>
+      <tr><td>the MPI roster</td><td class="v">as above</td><td class="why">Selected verbatim, so GPU stays a superset of the MPI lane's runtime surface</td></tr>
+      <tr><td>kokkos</td><td class="v">5.1.1 · 5.1.0</td><td class="why"><code>+gpu</code> expands per lane to <code>+rocm amdgpu_target=&lt;arch&gt;</code> or <code>+cuda cuda_arch=&lt;n&gt;</code>. It compiles device code, which is what proves the GPU toolchain</td></tr>
+    </table></div>
+  </section>
+
+  <h2>Never built: what the system provides</h2>
+  <div class="scroll"><table>
+    <tr><th>Package</th><th>Provenance</th><th>Why external</th></tr>
+    <tr><td>cray-mpich</td><td class="v">Platform-backed</td><td class="why">Fabric- and scheduler-integrated in ways a self-built MPI is not</td></tr>
+    <tr><td>openmpi</td><td class="v">Site-external</td><td class="why">The site's supported MPI on generic Linux</td></tr>
+    <tr><td>openssl · curl</td><td class="v">Site-external</td><td class="why">Track the OS security process, not ours</td></tr>
+    <tr><td>cray-libsci</td><td class="v">system</td><td class="why">Declared consumable on the Cray stacks. Carries BLAS, LAPACK, and ScaLAPACK, tuned for the platform, and the PrgEnv already places it on the path</td></tr>
+  </table></div>
+
+  <h2>Chain pairing</h2>
+  <p>Each netcdf-c version is built against one named hdf5 rather than
+  cross-multiplied, giving coherent stacks instead of untested mixtures. The
+  same pairing holds in both the Serial and MPI forms.</p>
+  <div class="scroll"><table>
+    <tr><th>Chain</th><th>hdf5</th><th>netcdf-c</th><th>netcdf-fortran</th><th>netcdf-cxx4</th></tr>
+    <tr><td>newest</td><td class="v">2.1.0</td><td class="v">4.10.0</td><td class="v">4.6.2</td><td class="v">4.3.1</td></tr>
+    <tr><td>predecessor</td><td class="v">1.14.6</td><td class="v">4.9.3</td><td class="v">4.6.1</td><td class="v">not built</td></tr>
+  </table></div>
+  <p>hdf5 2.1.0 is the new major series and the recipes still mark 1.14.6
+  preferred. If 2.1.0 misbehaves on a real system, the 1.14.6 chain stands
+  alone and 2.1.0 drops without touching anything else.</p>
+
+  <h2>Open questions</h2>
+
+  <div class="note open">
+    <h3>Do we need netlib-lapack at all?</h3>
+    <p>OpenBLAS is a BLAS implementation that also ships LAPACK: the recipe
+    declares <code>provides("blas", "lapack")</code>, and for our versions
+    <code>provides("lapack@3.9.1:")</code>. netlib-lapack is the reference
+    implementation, correct but unoptimized. Anything depending on the
+    <code>lapack</code> virtual is already satisfied by openblas, so the pair
+    ships LAPACK twice: once inside <code>libopenblas.so</code> and once as
+    <code>liblapack.so</code>. A user who links <code>-llapack</code> from a
+    view holding both silently gets the slow one. That is the ambiguity the
+    Foundation pin rule exists to prevent, one layer up. Recommendation: drop
+    netlib-lapack unless someone names a consumer that needs reference LAPACK
+    for numerical validation.</p>
+  </div>
+
+  <div class="note open">
+    <h3>ScaLAPACK is missing</h3>
+    <p>The roster has no distributed dense linear algebra. ScaLAPACK is the
+    natural MPI-lane companion to openblas, and both cray-libsci and MKL
+    include it. If users solve distributed dense systems, this is a gap rather
+    than a decision.</p>
+  </div>
+
+  <div class="note open">
+    <h3>MKL is in CSEinit today, not in this roster</h3>
+    <p>The current flat stack offers MKL. Wheat is an Intel Cascade Lake
+    system, where MKL is the vendor-tuned path. Dropping it silently would be a
+    regression for those users; keeping it is a decision to make on purpose.</p>
+  </div>
+
+  <div class="note open">
+    <h3>Three BLAS on a Cray</h3>
+    <p>On Blueback and Fran the PrgEnv already puts cray-libsci on the path,
+    and we declare it consumable. Adding openblas and netlib-lapack as modules
+    means three implementations are reachable at once. Worth deciding whether
+    LibSci is the answer on Cray with openblas as the portable fallback, or
+    whether the stack's own BLAS should be what users get everywhere for
+    consistency across systems.</p>
+  </div>
+
+  <div class="note open">
+    <h3>AMD-tuned libraries, later</h3>
+    <p>Three of the four pilot systems are AMD EPYC, where AOCL (BLIS plus
+    libFLAME) is the vendor-tuned option. This is the same class of decision as
+    CPU target optimization, which this pass deliberately defers: everything
+    builds at the portable baseline first.</p>
+  </div>
+
+  <footer>
+    Sources: <code>package-sets/core-foundation.yaml</code> and
+    <code>package-sets/science-full.yaml</code> in stack-content;
+    <code>lane_and_module_model_v1.md</code> and
+    <code>package_build_rationale_v1.md</code> in this repo. Recipe facts
+    (openblas virtuals, netcdf-cxx4 version count) read from spack-packages
+    v2026.06.0, the pinned generation. Updated 2026-07-14.
+  </footer>
+</main>
