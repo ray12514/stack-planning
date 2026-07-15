@@ -269,23 +269,22 @@ were built. The soname did not change across that version jump, the default PE
 environment places the new library on the runtime search path, and the loader
 resolves by soname.
 
-Nothing broke, and libfabric's design is why. The project maintains ABI
-compatibility deliberately: it exports only a handful of functions directly,
-routes most calls through static inline functions and provider function
-pointers, and extends structures by appending fields rather than changing
-existing ones, so "compiled applications can continue to work as-is" across
-releases. [35] The 2.0 release was published as a minor ABI revision intended
-as a drop-in replacement for existing 1.x binaries. [36] So this was a
-designed-for outcome rather than luck, and our inspection agreed with it.
+Nothing broke, because libfabric is built to allow this. The project maintains
+ABI compatibility deliberately: it exports only a handful of functions
+directly, routes most calls through static inline functions and provider
+function pointers, and extends structures by appending fields instead of
+changing existing ones, so "compiled applications can continue to work as-is"
+across releases. [35] The 2.0 release was published as a minor ABI revision
+intended as a drop-in replacement for existing 1.x binaries. [36] Our
+inspection matched that: the two versions were ABI compatible in practice.
 
-Two cautions keep it from being a general reassurance. First, 2.0 is ABI
-compatible but **not** API compatible: calls that worked against 1.x can fail
-against 2.x, so the relief applies to already-built binaries, not to the next
-rebuild or to source we compile later. [36] Second, upstream's ABI promise
+That compatibility has two limits. First, 2.0 is ABI compatible but **not**
+API compatible: calls that worked against 1.x can fail against 2.x. [36] The
+guarantee therefore covers binaries we already built, and says nothing about
+the next rebuild or about source we compile later. Second, upstream's promise
 covers upstream's library. The PE ships HPE's libfabric with the CXI provider,
-and provider behavior and performance can move within an ABI-stable release,
-which is a runtime question our acceptance tests answer, not one the soname
-answers.
+and provider behavior and performance can move within an ABI-stable release.
+Our acceptance tests are what confirm that; the soname says nothing about it.
 
 **Why Spack allowed it.** We build against `cray-mpich` as an external.
 Registering an external records that package, not its dependency closure. The
@@ -298,12 +297,12 @@ provides today, and the system can change them underneath an installed stack
 without touching a single Spack-owned file.
 
 The general rule: when you register an external without registering the
-externals it depends on, that dependency closure is resolved by the dynamic
-loader at run time, not by Spack at build time. Build time captures whatever
-was loaded then; run time uses whatever the environment provides now. The
-drift is invisible to the lockfile and to `spack verify manifest`, because no
-installed file changed. Only runtime inspection shows it: `ldd` against the
-recorded runtime fingerprint, or provider diagnostics.
+externals it depends on, the dynamic loader resolves that dependency closure
+at run time. The build records what was loaded on the build host that day, and
+the run uses whatever the environment provides on the day it runs. Nothing in
+the lockfile or in `spack verify manifest` reports the difference, because no
+installed file changed. Runtime inspection is what shows it: `ldd` output
+compared against the recorded runtime fingerprint, or provider diagnostics.
 
 **Mitigation.** This is the concrete case behind the platform runtime
 fingerprint and the transition gate (SOP §7 and
@@ -311,11 +310,12 @@ fingerprint and the transition gate (SOP §7 and
 PE component versions a lane was built and validated against. On a system
 update, diff the fingerprint, then decide per lane: revalidate against the
 new runtime with the acceptance tests, pin the old runtime set explicitly
-where the site still supports it, or rebuild. "Same soname and it still
-starts" is not compatibility evidence. This also sharpens the §6.1 practice:
-`spack verify libraries` will not flag the swap, because the library resolves
-either way. The check that catches it is comparing resolved paths against
-the recorded fingerprint, not checking that resolution succeeds.
+where the site still supports it, or rebuild. A matching soname and a program
+that starts are not evidence that the new runtime is supported. This also
+sharpens the §6.1 practice: `spack verify libraries` will not flag the swap,
+because the library resolves either way. The check that catches it compares
+resolved paths against the recorded fingerprint, rather than checking that
+resolution succeeded at all.
 
 ## 4. What We Learned on Raider (Penguin Solutions)
 
