@@ -289,14 +289,22 @@ txt(s, 0.6, 6.65, 12.1, 0.5, [(12, MUTED, False,
 s = slide()
 header(s, "Four systems will prove the pilot", "Test matrix · breadth by design")
 systems = [
-    ("Blueback", "NAVY · HPE Cray EX4000", "SLES · AMD Instinct MI300A APU · 96 cores",
-     "AI/ML nodes: 4 × AMD MI300A (gfx942)", VIOLET, "Cray PE · AMD APU"),
-    ("Fran", "ARL · HPE Cray EX4000", "RHEL 9 · AMD EPYC Genoa · Slingshot-11",
-     "AI/ML nodes: NVIDIA H200", BLUE, "second Cray site · newest NVIDIA"),
-    ("Raider", "AFRL · Penguin TrueHPC", "RHEL 8 · AMD EPYC 7713 Milan · 128 cores",
-     "MLA nodes: 4 × NVIDIA A100 SXM4", TEAL, "generic Linux · CUDA"),
-    ("Wheat", "ERDC · Liqid composable", "RHEL 8 · Intel Xeon 9242 Cascade Lake · 92 cores",
-     "MLA nodes: 4 or 6 × NVIDIA A100", AMBER, "Intel CPU · composable GPU"),
+    ("Blueback", "NAVY · HPE Cray EX4000 · SLES",
+     "Standard: AMD EPYC 9654 Genoa, 192 cores",
+     "AI/ML: AMD Instinct MI300A APU, 96 cores + 4 × MI300A",
+     VIOLET, "Cray PE · AMD APU"),
+    ("Fran", "ARL · HPE Cray EX4000 · RHEL 9",
+     "Standard: AMD EPYC Genoa, cores TBD",
+     "AI/ML: NVIDIA H200",
+     BLUE, "second Cray site · newest NVIDIA"),
+    ("Raider", "AFRL · Penguin TrueHPC · RHEL 8",
+     "Standard: AMD EPYC 7713 Milan, 128 cores",
+     "AI/ML: same CPU + 4 × NVIDIA A100 SXM4",
+     TEAL, "generic Linux · CUDA"),
+    ("Wheat", "ERDC · Liqid composable · RHEL 8",
+     "Standard: Intel Xeon 9242 Cascade Lake, 92 cores",
+     "AI/ML: same CPU + 4 or 6 × NVIDIA A100",
+     AMBER, "Intel CPU · composable GPU"),
 ]
 for i, (name, platform, cpu, gpu, color, proof) in enumerate(systems):
     x = 0.6 + (i % 2) * 6.25
@@ -312,7 +320,7 @@ for i, (name, platform, cpu, gpu, color, proof) in enumerate(systems):
 boxtxt(s, 0.6, 6.35, 12.13, 0.58, PANEL2, [(13, INK, True,
     "Coverage: SLES + RHEL 8 + RHEL 9 · AMD + Intel CPUs · AMD MI300A + NVIDIA H200 and A100")])
 txt(s, 0.6, 7.02, 12.1, 0.24, [(9.5, MUTED, False,
-    "The accelerated (AI/ML, MLA) node types are the pilot target on each system. "
+    "AI/ML is this deck's label for each site's accelerated node type (named MLA on Raider and Wheat). "
     "Source: centers.hpc.mil hardware inventory, July 2026; Fran accelerator detail from program info.")],
     align=PP_ALIGN.RIGHT)
 
