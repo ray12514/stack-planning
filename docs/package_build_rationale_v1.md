@@ -81,10 +81,22 @@ stop-and-fix, not a fallback.
   column, because MPI and GPU codes link BLAS/LAPACK constantly and lanes
   are exclusive; without the shared exposure an MPI user had no loadable
   BLAS at all.
-- netlib-lapack is built alongside openblas (the usage list names lapack
-  explicitly). openblas already provides LAPACK, so this gives users the
-  reference implementation as well; flagged for team review since it puts
-  two LAPACKs in the view. Lane-agnostic, same reasoning as openblas.
+- netlib-lapack was dropped (decided 2026-07-14, resolving the team review
+  it carried). It was added because the usage list names lapack explicitly,
+  but that requirement is already met: the openblas recipe declares
+  `provides("blas", "lapack")`, and for the versions we carry,
+  `provides("lapack@3.9.1:")`. Shipping both put LAPACK in the view twice,
+  once inside `libopenblas.so` and once as `liblapack.so`, so a user linking
+  `-llapack` would silently get the unoptimized reference build. That is the
+  same ambiguity the foundation single-version pin exists to prevent, one
+  layer up. openblas is the single BLAS and LAPACK implementation. Reference
+  LAPACK returns only if someone names a consumer that needs it for numerical
+  validation.
+- netlib-scalapack sits in the MPI lane (added 2026-07-14). ScaLAPACK is
+  distributed dense linear algebra built on BLACS over MPI, so it has no
+  serial form; a single-rank ScaLAPACK would just be LAPACK. It depends on
+  the lane's blas and lapack, which openblas provides. The GPU lane carries
+  it because that lane repeats the MPI roster.
 - gnuplot placement is decided (2026-07-13, was flagged core-vs-serial):
   it stays in the serial payload because it is **not compiler-agnostic**:
   it must be built with the surface's compiler to stay compatible with the
@@ -97,6 +109,17 @@ stop-and-fix, not a fallback.
   considered lane-agnostic; being MPI-capable disqualifies it.
 - kokkos is the GPU lane pilot content: unlike a profiler, it compiles
   device code, which is what actually proves the GPU toolchain works.
+- tau carries one version (decided 2026-07-14). The two-version rule exists
+  so a user whose code pins an older release can still build; nobody pins a
+  profiler, because profiling is work you do with whatever the current tool
+  is. Same reasoning as miniforge3.
+- tau in the GPU lane is its own build, `+mpi +gpu_runtime`, rather than the
+  MPI lane's `+mpi` (decided 2026-07-14). The plain build cannot see kernels,
+  which makes it useless to a GPU user. The variants are additive, so the
+  GPU-lane build profiles MPI codes, GPU codes, and MPI+GPU codes alike:
+  one build per lane, not two in the GPU lane. Two tau roots of one version
+  in a single lane would also be a hard render error, since nothing but
+  variants would distinguish their module names.
 
 ## Build posture for this pass
 

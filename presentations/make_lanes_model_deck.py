@@ -352,12 +352,12 @@ POLICY_FOOTER = ("Version policy: newest supported + immediate predecessor · "
                  "pinned to spack-packages v2026.06.0 (Spack v1.1.1)")
 
 
-def roster_table(s, y, sections, col_pkg=2.1, col_ver=2.5):
+def roster_table(s, y, sections, col_pkg=2.1, col_ver=2.5, row_h=0.33):
     """One table: lane-colored section divider rows + package rows."""
     x, w = 0.6, 12.13
     nrows = 1 + sum(1 + len(rows) for _, _, rows in sections)
     frame = s.shapes.add_table(nrows, 3, Inches(x), Inches(y), Inches(w),
-                               Inches(0.33 * nrows))
+                               Inches(row_h * nrows))
     tbl = frame.table
     tbl.first_row = False; tbl.horz_banding = False
     tbl.columns[0].width = Inches(col_pkg)
@@ -389,10 +389,10 @@ def roster_table(s, y, sections, col_pkg=2.1, col_ver=2.5):
     return frame
 
 
-def appendix_slide(title, sections):
+def appendix_slide(title, sections, row_h=0.33):
     s = slide()
     header(s, title, "Appendix · exact build roots")
-    roster_table(s, 1.62, sections)
+    roster_table(s, 1.62, sections, row_h=row_h)
     txt(s, 0.6, 7.2, 12.1, 0.28, [(10.5, MUTED, False, POLICY_FOOTER)])
     return s
 
@@ -401,12 +401,10 @@ def appendix_slide(title, sections):
 s = slide()
 header(s, "Open questions for the team", "Decisions we need · not settled yet")
 questions = [
-    (GREEN, "Which BLAS and LAPACK do users get?",
-     "Today the stack builds OpenBLAS and reference LAPACK. OpenBLAS already provides the LAPACK API, "
-     "so the pair ships it twice. Cray LibSci is on the path already; Intel systems would expect MKL."),
-    (BLUE, "ScaLAPACK is not in the roster.",
-     "Distributed dense solvers need it, and both LibSci and MKL include it. "
-     "It is MPI-only by nature, so the MPI and GPU lanes are its home if we carry it."),
+    (GREEN, "Do we offer the vendor's math libraries as well as OpenBLAS?",
+     "OpenBLAS is now the one BLAS and LAPACK, so users get the same library on every system. "
+     "Cray LibSci is already on the path on Blueback and Fran, and Intel systems would expect MKL. "
+     "Both are registered rather than built, so this is policy per system, not build cost."),
     (TEAL, "How many compiler surfaces per system?",
      "CSEinit offers GCC and Intel today. The pilot input builds the system baseline only. "
      "Adding a surface is a one-line policy change, not a redesign, but it is a decision."),
@@ -418,11 +416,11 @@ questions = [
      "is a per-lane flag plus a full rebuild, so it is a scheduling question, not a design one."),
 ]
 for i, (color, q, detail) in enumerate(questions):
-    y = 1.72 + i * 1.0
-    box(s, 0.6, y, 12.13, 0.88, PANEL)
-    box(s, 0.6, y, 0.1, 0.88, color, radius=False)
-    txt(s, 0.95, y + 0.1, 11.5, 0.3, [(13.5, INK, True, q)])
-    txt(s, 0.95, y + 0.42, 11.5, 0.42, [(11, MUTED, False, detail)])
+    y = 1.75 + i * 1.18
+    box(s, 0.6, y, 12.13, 1.0, PANEL)
+    box(s, 0.6, y, 0.1, 1.0, color, radius=False)
+    txt(s, 0.95, y + 0.14, 11.5, 0.3, [(13.5, INK, True, q)])
+    txt(s, 0.95, y + 0.47, 11.5, 0.46, [(11, MUTED, False, detail)])
 txt(s, 0.6, 6.85, 12.1, 0.4, [(11, MUTED, False,
     "Per-package placement and the full reasoning: docs/package_placement_map_v1.html")])
 
@@ -447,7 +445,7 @@ for i, (name, color, content, note) in enumerate(payloads):
     ])
 layers = [
     (GREEN, "Common compiler-dependent packages: loadable from every lane",
-     "openblas · netlib-lapack · gnuplot · one Serial-lane build, one install, shared module root"),
+     "openblas · gnuplot · one Serial-lane build, one install, shared module root"),
     (TEAL, "Core: loads with the compiler surface",
      "cmake · ninja · git · python · py-numpy · miniforge · gsl · sqlite"),
     (GRAY, "Foundation: on your paths automatically, nothing to load",
@@ -497,13 +495,12 @@ appendix_slide("Serial lane: MPI-capable, deliberately built without MPI", [
         ("boost", "1.90.0 · 1.89.0", "~mpi here; the MPI lane carries its own +mpi build"),
     ]),
     ("Common compiler-dependent: built here once, available in every lane", GREEN, [
-        ("openblas",      "0.3.33 · 0.3.32", "performance-sensitive, so payload rather than core; the BLAS every lane links"),
-        ("netlib-lapack", "3.12.1 · 3.12.0", "reference LAPACK alongside openblas (flagged for team review)"),
+        ("openblas",      "0.3.33 · 0.3.32", "the one BLAS and LAPACK: openblas provides both APIs. Payload rather than core: performance-sensitive"),
         ("gnuplot",       "6.0.0 · 5.4.10",  "needs the surface's compiler, so payload rather than core"),
     ]),
 ])
 
-appendix_slide("MPI and GPU lanes: built against the system MPI", [
+appendix_slide("MPI and GPU lanes: built against the system MPI", row_h=0.295, sections=[
     ("MPI data chains: same pairing rule as serial", BLUE, [
         ("hdf5",           "2.1.0 · 1.14.6", "+mpi +fortran +cxx +hl"),
         ("netcdf-c",       "4.10.0 · 4.9.3", "+mpi +parallel-netcdf, paired to hdf5 2.1.0 / 1.14.6"),
@@ -513,16 +510,18 @@ appendix_slide("MPI and GPU lanes: built against the system MPI", [
     ("MPI math and tools", BLUE, [
         ("fftw",   "3.3.11 · 3.3.10", "+mpi"),
         ("boost",  "1.90.0 · 1.89.0", "+mpi; the Serial lane carries its own ~mpi build"),
-        ("tau",    "2.35.1 · 2.35",   "+mpi"),
+        ("netlib-scalapack", "2.2.3 · 2.2.2", "distributed dense solvers; MPI by nature, no serial form"),
+        ("tau",    "2.35.1",   "+mpi; one version, a tool users run"),
         ("dakota", "6.24.0 · 6.23.0", "+mpi; heaviest build in the roster"),
     ]),
     ("GPU lane: selects the full MPI roster above, plus the GPU payload", VIOLET, [
+        ("tau", "2.35.1", "+mpi +gpu_runtime: its own build, so it can see kernels as well as MPI"),
         ("kokkos", "5.1.1 · 5.1.0",
          "+gpu → expands per lane: +rocm amdgpu_target=<arch> or +cuda cuda_arch=<n>"),
     ]),
     ("Common compiler-dependent: the Serial-lane build, available here too", GREEN, [
         ("common packages", "see Serial",
-         "openblas · netlib-lapack · gnuplot: the same modules through the shared root, nothing rebuilt"),
+         "openblas · gnuplot: the same modules through the shared root, nothing rebuilt"),
     ]),
     ("Externals: used from the system, never built", GRAY, [
         ("externals", "system",
