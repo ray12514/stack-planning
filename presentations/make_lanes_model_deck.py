@@ -320,29 +320,32 @@ for i, (name, platform, cpu, gpu, color, proof) in enumerate(systems):
 boxtxt(s, 0.6, 6.35, 12.13, 0.58, PANEL2, [(13, INK, True,
     "Coverage: SLES + RHEL 8 + RHEL 9 · AMD + Intel CPUs · AMD MI300A + NVIDIA H200 and A100")])
 txt(s, 0.6, 7.02, 12.1, 0.24, [(9.5, MUTED, False,
-    "AI/ML is this deck's label for each site's accelerated node type (named MLA on Raider and Wheat). "
-    "Source: centers.hpc.mil hardware inventory, July 2026; Fran accelerator detail from program info.")],
+    "Source: HPC Centers hardware inventory, July 2026")],
     align=PP_ALIGN.RIGHT)
 
 # ------------------------------------------------- 9 · status / next
 s = slide()
-header(s, "Status and next steps", "Where the pipeline is today")
-box(s, 0.6, 1.8, 5.95, 4.9, PANEL)
-txt(s, 0.9, 2.0, 5.4, 0.5, [(17, GREEN, True, "Done")])
-done = ["End-to-end Cray smoke: probe → render → concretize → build (PrgEnv-gnu · cray-mpich · ROCm)",
-        "Second system validated the generic-Linux path and hardened the prober",
-        "Pilot stack renders clean today: four lanes, two-version roster"]
-for i, d in enumerate(done):
-    txt(s, 0.9, 2.6 + i * 1.15, 0.4, 0.5, [(16, GREEN, True, "✓")])
-    txt(s, 1.35, 2.6 + i * 1.15, 4.95, 1.1, [(13, TEXT, False, d)])
-box(s, 6.85, 1.8, 5.85, 4.9, PANEL)
-txt(s, 7.15, 2.0, 5.3, 0.5, [(17, AMBER, True, "Next")])
-nxt = ["Build the pilot stack on Fran, Wheat, Raider, and Blueback; verify the module/view front door",
-       "Encode module compatibility checks for multi-version package chains",
-       "Release process: build caches, lockfiles, release manifest"]
-for i, d in enumerate(nxt):
-    txt(s, 7.15, 2.6 + i * 1.15, 0.4, 0.5, [(16, AMBER, True, "→")])
-    txt(s, 7.6, 2.6 + i * 1.15, 4.85, 1.1, [(13, TEXT, False, d)])
+header(s, "What happens next", "The plan from here")
+steps = [
+    ("Build the pilot stack on the four systems", TEAL,
+     "Probe each machine, render its lanes, concretize, install. The front door is the first real "
+     "test of the naming: one compiler surface, then one lane, then a package."),
+    ("Prove the module contract", BLUE,
+     "Compatible chains load and incompatible mixes fail. Lane purity and version pairing are "
+     "checked in the concretized lockfile, never assumed from the render."),
+    ("Stand up the release process", VIOLET,
+     "Build caches, a lockfile per lane, and a release manifest, so a release can be rebuilt "
+     "exactly, promoted deliberately, and rolled back by moving a pointer."),
+    ("Settle the open decisions", AMBER,
+     "Vendor math libraries, compiler surfaces, the Serial tier, and when performance targeting "
+     "turns on. These shape the roster before it is fixed for v1."),
+]
+for i, (title, color, detail) in enumerate(steps):
+    y = 1.8 + i * 1.32
+    box(s, 0.6, y, 12.13, 1.15, PANEL)
+    boxtxt(s, 0.6, y, 0.62, 1.15, color, [(19, WHITE, True, str(i + 1))])
+    txt(s, 1.45, y + 0.18, 11.0, 0.34, [(15.5, INK, True, title)])
+    txt(s, 1.45, y + 0.58, 11.0, 0.46, [(11.5, MUTED, False, detail)])
 
 # ------------------------------------------------- appendix · build roots
 # Tables mirror stack-content/package-sets/{core-foundation,science-full}.yaml
