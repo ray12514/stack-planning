@@ -294,7 +294,7 @@ systems = [
      "AI/ML: AMD Instinct MI300A APU, 96 cores + 4 × MI300A",
      VIOLET, "Cray PE · AMD APU"),
     ("Fran", "ARL · HPE Cray EX4000 · RHEL 9",
-     "Standard: AMD EPYC Genoa, cores TBD",
+     "Standard: AMD EPYC Genoa, 192 cores",
      "AI/ML: NVIDIA H200",
      BLUE, "second Cray site · newest NVIDIA"),
     ("Raider", "AFRL · Penguin TrueHPC · RHEL 8",
