@@ -75,10 +75,9 @@
   <p class="kicker">Reference · lane placement</p>
   <h1>Package placement map</h1>
   <p class="lede">Every package the curated stack builds, which layer it lives in,
-  and why it lives there. Colours match the lanes-model deck. The rules come from
-  <code>lane_and_module_model_v1.md</code>; the reasoning per package comes from
-  <code>package_build_rationale_v1.md</code>. When a placement changes, change the
-  package set and both of those together.</p>
+  and why it lives there. Colours match the lanes-model deck. This is the
+  companion to that deck: it carries the per-package detail the overview
+  leaves out.</p>
 
   <h2>How a package's place is decided</h2>
   <p>Four questions, asked in order. The first one that fits decides the layer.</p>
@@ -137,7 +136,7 @@
   <section class="layer t-green">
     <div class="band">
       <h3>Common compiler-dependent</h3>
-      <p>Built once in the Serial lane. Loadable from Serial, MPI, and GPU alike, through the per-compiler shared module root. Declared as <code>lane_agnostic:</code> in the package set.</p>
+      <p>Built once in the Serial lane. Loadable from Serial, MPI, and GPU alike, through the compiler's shared module root.</p>
     </div>
     <div class="scroll"><table>
       <tr><th>Package</th><th>Versions</th><th>Why here</th></tr>
@@ -189,7 +188,7 @@
     <div class="scroll"><table>
       <tr><th>Package</th><th>Versions</th><th>Built as · pairing</th></tr>
       <tr><td>the MPI roster</td><td class="v">as above</td><td class="why">Selected verbatim, so GPU stays a superset of the MPI lane's runtime surface</td></tr>
-      <tr><td>tau</td><td class="v">2.35.1</td><td class="why"><code>+mpi +gpu_runtime</code>, its own build rather than the MPI lane's. The variants are additive, so this one profiles MPI codes, GPU codes, and MPI+GPU codes alike. <code>+gpu_runtime</code> renders <code>+rocm</code> or <code>+cuda</code> with no arch flag: tau traces the runtime, it does not compile device code, and its recipe has no arch variant</td></tr>
+      <tr><td>tau</td><td class="v">2.35.1</td><td class="why"><code>+mpi</code> plus the lane's GPU backend (<code>+rocm</code> or <code>+cuda</code>): its own build rather than the MPI lane's, which cannot see kernels. The variants are additive, so this one build profiles MPI codes, GPU codes, and MPI+GPU codes alike. No architecture flag, because tau traces the GPU runtime rather than compiling device code</td></tr>
       <tr><td>kokkos</td><td class="v">5.1.1 · 5.1.0</td><td class="why"><code>+gpu</code> expands per lane to <code>+rocm amdgpu_target=&lt;arch&gt;</code> or <code>+cuda cuda_arch=&lt;n&gt;</code>. It compiles device code, which is what proves the GPU toolchain</td></tr>
     </table></div>
   </section>
@@ -238,11 +237,11 @@
   <div class="note">
     <h3>One TAU, and the GPU lane builds its own <span style="color:var(--green)">· decided 2026-07-14</span></h3>
     <p>One version, because a profiler is a tool users run rather than a
-    library their code carries. The GPU lane builds <code>+mpi +gpu_runtime</code>
-    rather than reusing the MPI lane's <code>+mpi</code>, which cannot see
+    library their code carries. The GPU lane builds its own tau, with MPI and
+    the GPU backend, rather than reusing the MPI lane's build, which cannot see
     kernels. The variants are additive, so one GPU-lane build covers MPI, GPU,
-    and MPI+GPU codes; carrying both in that lane would collide on
-    <code>tau/2.35.1</code> and fail the render.</p>
+    and MPI+GPU codes; carrying both in that lane would collide on the name
+    <code>tau/2.35.1</code> and fail loudly.</p>
   </div>
 
   <h2>Open questions</h2>
@@ -275,11 +274,8 @@
   </div>
 
   <footer>
-    Sources: <code>package-sets/core-foundation.yaml</code> and
-    <code>package-sets/science-full.yaml</code> in stack-content;
-    <code>lane_and_module_model_v1.md</code> and
-    <code>package_build_rationale_v1.md</code> in this repo. Recipe facts
-    (openblas virtuals, netcdf-cxx4 version count) read from spack-packages
-    v2026.06.0, the pinned generation. Updated 2026-07-14 (OpenBLAS decision, ScaLAPACK, TAU).
+    Versions are pinned against a single declared Spack package-recipe release,
+    so the whole roster moves together rather than drifting package by package.
+    Updated 2026-07-14.
   </footer>
 </main>

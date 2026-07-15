@@ -351,8 +351,7 @@ for i, (title, color, detail) in enumerate(steps):
 # Tables mirror stack-content/package-sets/{core-foundation,science-full}.yaml
 # exactly — every root spec appears. Update both together.
 
-POLICY_FOOTER = ("Version policy: newest supported + immediate predecessor · "
-                 "pinned to spack-packages v2026.06.0 (Spack v1.1.1)")
+POLICY_FOOTER = "Version policy: the newest supported release and its immediate predecessor"
 
 
 def roster_table(s, y, sections, col_pkg=2.1, col_ver=2.5, row_h=0.33):
@@ -428,8 +427,6 @@ for i, (color, q, detail) in enumerate(questions):
     box(s, 0.6, y, 0.1, 1.08, color, radius=False)
     txt(s, 0.95, y + 0.14, 11.5, 0.3, [(13.5, INK, True, q)])
     txt(s, 0.95, y + 0.45, 11.5, 0.58, [(11, MUTED, False, detail)])
-txt(s, 0.6, 6.85, 12.1, 0.4, [(11, MUTED, False,
-    "Per-package placement and the full reasoning: docs/package_placement_map_v1.html")])
 
 # ------------------------------------------------- appendix · layer stacking
 s = slide()
