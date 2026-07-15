@@ -3,7 +3,7 @@
 **Systems:** Raider (Penguin Solutions AMD CPU) and Blueback (Cray EX)\
 **Workstream:** CSE iteration work\
 **Author:** Ravon\
-**Updated:** 2026-07-10
+**Updated:** 2026-07-14
 
 This document collects what we learned while building Spack environments on Raider and Blueback. It records what worked, what failed, why the two systems needed different approaches, and what we would do when bringing the same process to another machine. The companion summary covers the main results without the build details.
 
@@ -254,6 +254,68 @@ implementation, including through transitive dependencies. This check caught a
 NetCDF chain whose root requested `~mpi` while a transitive HDF5 dependency was
 still free to select its default `+mpi` variant. Pinning the complete dependency
 chain and auditing the lockfile made the lane definition enforceable.
+
+### 3.9 A PE update silently relinks existing binaries through sonames
+[Observed on Blueback; the mechanism is general]
+
+After the Blueback system update we rebuilt the smoke package set against the
+newer programming environment, and everything built cleanly. The update also
+delivered a newer libfabric, moving from the 1.2x release that shipped with
+the older Cray PE to a 2.x release (it also delivered the ROCm 7 stack, whose
+compatibility limits are covered in §6.2). The finding is about the packages
+built **before** the update: they still ran, but inspection showed them
+resolving the **new** libfabric at run time, not the one present when they
+were built. The soname did not change across that version jump, the default PE
+environment places the new library on the runtime search path, and the loader
+resolves by soname.
+
+Nothing broke, and libfabric's design is why. The project maintains ABI
+compatibility deliberately: it exports only a handful of functions directly,
+routes most calls through static inline functions and provider function
+pointers, and extends structures by appending fields rather than changing
+existing ones, so "compiled applications can continue to work as-is" across
+releases. [35] The 2.0 release was published as a minor ABI revision intended
+as a drop-in replacement for existing 1.x binaries. [36] So this was a
+designed-for outcome rather than luck, and our inspection agreed with it.
+
+Two cautions keep it from being a general reassurance. First, 2.0 is ABI
+compatible but **not** API compatible: calls that worked against 1.x can fail
+against 2.x, so the relief applies to already-built binaries, not to the next
+rebuild or to source we compile later. [36] Second, upstream's ABI promise
+covers upstream's library. The PE ships HPE's libfabric with the CXI provider,
+and provider behavior and performance can move within an ABI-stable release,
+which is a runtime question our acceptance tests answer, not one the soname
+answers.
+
+**Why Spack allowed it.** We build against `cray-mpich` as an external.
+Registering an external records that package, not its dependency closure. The
+PE's MPI carries its own runtime requirements, libfabric among them, and
+because those were not themselves nodes in Spack's graph for our builds,
+nothing was RPATH-pinned to a specific libfabric prefix. They remain
+**unmanaged runtime dependencies**: the package needs them on the runtime
+path to run at all, they are satisfied by whatever the loaded environment
+provides today, and the system can change them underneath an installed stack
+without touching a single Spack-owned file.
+
+The general rule: when you register an external without registering the
+externals it depends on, that dependency closure is resolved by the dynamic
+loader at run time, not by Spack at build time. Build time captures whatever
+was loaded then; run time uses whatever the environment provides now. The
+drift is invisible to the lockfile and to `spack verify manifest`, because no
+installed file changed. Only runtime inspection shows it: `ldd` against the
+recorded runtime fingerprint, or provider diagnostics.
+
+**Mitigation.** This is the concrete case behind the platform runtime
+fingerprint and the transition gate (SOP §7 and
+`platform_runtime_set_design_v1.md`). Record the exact libfabric, CXI, and
+PE component versions a lane was built and validated against. On a system
+update, diff the fingerprint, then decide per lane: revalidate against the
+new runtime with the acceptance tests, pin the old runtime set explicitly
+where the site still supports it, or rebuild. "Same soname and it still
+starts" is not compatibility evidence. This also sharpens the §6.1 practice:
+`spack verify libraries` will not flag the swap, because the library resolves
+either way. The check that catches it is comparing resolved paths against
+the recorded fingerprint, not checking that resolution succeeds.
 
 ## 4. What We Learned on Raider (Penguin Solutions)
 
@@ -635,3 +697,5 @@ External citations support upstream behavior, package constraints, and system ar
 32. Spack Project. [Spack v1.2.0 release notes](https://github.com/spack/spack/releases/tag/v1.2.0).
 33. HPE Cray MPI 9.0.1. Local release notes excerpt showing supported compiler minimums, including GNU 11.2 or later.
 34. HPE Cray MPI 9.1.0. Local release notes excerpt showing supported compiler minimums, including GNU 12.3 or later.
+35. OFI Working Group. [fabric(7): ABI changes and compatibility](https://manpages.debian.org/testing/libfabric-dev/fabric.7.en.html). Documents the versioned-ABI approach: few directly exported symbols, provider function pointers behind static inline calls, and structure extension by appended fields.
+36. OFI Working Group. [libfabric 2.0 release discussion](https://github.com/ofiwg/libfabric/discussions/8049). States 2.0 as a minor ABI revision intended as a drop-in replacement for existing 1.x binaries, with breaking API changes.
