@@ -206,6 +206,32 @@ release).
 
 ---
 
+## Pilot test systems (HPC Centers hardware inventory)
+
+**Source:** [HPC Centers hardware inventory](https://centers.hpc.mil/systems/hardware.html),
+accessed 14 July 2026. The four systems are the first production-test matrix
+for the pilot stack. They were selected to exercise materially different
+platform shapes rather than four copies of the same deployment.
+
+- **Blueback (NAVY DSRC):** HPE Cray EX4000; SLES; AMD EPYC 9654 Genoa
+  standard nodes; AMD MI300A AI/ML nodes and NVIDIA L40 visualization nodes.
+  Proves Cray PE discovery/rendering and a mixed AMD/NVIDIA accelerator site.
+- **Fran (ARL DSRC):** HPE Cray EX4000; 173,184 AMD EPYC Genoa compute cores;
+  12 NVIDIA L40S GPUs; Cray Slingshot-11. Proves a second Cray site and the
+  NVIDIA path without treating Blueback-specific facts as general Cray policy.
+- **Raider (AFRL DSRC):** Penguin Computing TrueHPC; RHEL; AMD EPYC 7713
+  Milan standard nodes; NVIDIA A40 and A100 nodes. Proves the generic-Linux
+  path against a broad site module/compiler/MPI catalog.
+- **Wheat (ERDC DSRC):** Liqid composable system; RHEL 8; Intel 9242 Cascade
+  Lake nodes; NVIDIA A100 GPU nodes. Proves Intel CPU and composable-node
+  behavior on generic Linux.
+
+Together the matrix covers Cray and generic Linux, AMD and Intel CPUs, and AMD
+and NVIDIA accelerators. System-specific facts remain Cluster Inspector output;
+the shared policy and renderer must not hard-code any of these machine names.
+
+---
+
 ## Convergence threads
 
 - **Base/Core built once with a portable baseline, then reused

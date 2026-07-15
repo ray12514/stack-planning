@@ -264,7 +264,7 @@ boxtxt(s, 0.6, 5.75, 12.13, 0.62, PANEL2, [(14, INK, True,
 
 # ------------------------------------------------- 7 · pilot scope
 s = slide()
-header(s, "Pilot scope", "Two compiler surfaces · one Cray system first")
+header(s, "Pilot scope", "Two compiler surfaces · four-system validation")
 for i, (surf, note) in enumerate([
         ("cse/<SystemDefault>", "whatever the machine blesses as its baseline"),
         ("cse/GCC", "the portable reference surface")]):
@@ -285,20 +285,51 @@ for i, n in enumerate(roster):
 txt(s, 0.6, 6.65, 12.1, 0.5, [(12, MUTED, False,
     "Newest-two policy: clean package names · compatible chains load · incompatible mixes fail clearly")])
 
-# ------------------------------------------------- 8 · status / next
+# ------------------------------------------------- 8 · pilot systems
+s = slide()
+header(s, "Four systems will prove the pilot", "Test matrix · breadth by design")
+systems = [
+    ("Blueback", "NAVY · HPE Cray EX4000", "SLES · AMD Instinct MI300A APU · 96 cores",
+     "AI/ML nodes: 4 × AMD MI300A (gfx942)", VIOLET, "Cray PE · AMD APU"),
+    ("Fran", "ARL · HPE Cray EX4000", "RHEL 9 · AMD EPYC Genoa · Slingshot-11",
+     "AI/ML nodes: NVIDIA H200", BLUE, "second Cray site · newest NVIDIA"),
+    ("Raider", "AFRL · Penguin TrueHPC", "RHEL 8 · AMD EPYC 7713 Milan · 128 cores",
+     "MLA nodes: 4 × NVIDIA A100 SXM4", TEAL, "generic Linux · CUDA"),
+    ("Wheat", "ERDC · Liqid composable", "RHEL 8 · Intel Xeon 9242 Cascade Lake · 92 cores",
+     "MLA nodes: 4 or 6 × NVIDIA A100", AMBER, "Intel CPU · composable GPU"),
+]
+for i, (name, platform, cpu, gpu, color, proof) in enumerate(systems):
+    x = 0.6 + (i % 2) * 6.25
+    y = 1.78 + (i // 2) * 2.25
+    box(s, x, y, 5.9, 1.95, PANEL)
+    box(s, x, y, 0.12, 1.95, color, radius=False)
+    txt(s, x + 0.3, y + 0.16, 2.1, 0.4, [(17, INK, True, name)])
+    txt(s, x + 2.35, y + 0.19, 3.25, 0.35, [(11.5, color, True, proof.upper())],
+        align=PP_ALIGN.RIGHT)
+    txt(s, x + 0.3, y + 0.65, 5.3, 0.32, [(12.5, TEXT, True, platform)])
+    txt(s, x + 0.3, y + 1.04, 5.3, 0.3, [(12, MUTED, False, cpu)])
+    txt(s, x + 0.3, y + 1.4, 5.3, 0.3, [(12, MUTED, False, gpu)])
+boxtxt(s, 0.6, 6.35, 12.13, 0.58, PANEL2, [(13, INK, True,
+    "Coverage: SLES + RHEL 8 + RHEL 9 · AMD + Intel CPUs · AMD MI300A + NVIDIA H200 and A100")])
+txt(s, 0.6, 7.02, 12.1, 0.24, [(9.5, MUTED, False,
+    "The accelerated (AI/ML, MLA) node types are the pilot target on each system. "
+    "Source: centers.hpc.mil hardware inventory, July 2026; Fran accelerator detail from program info.")],
+    align=PP_ALIGN.RIGHT)
+
+# ------------------------------------------------- 9 · status / next
 s = slide()
 header(s, "Status and next steps", "Where the pipeline is today")
 box(s, 0.6, 1.8, 5.95, 4.9, PANEL)
 txt(s, 0.9, 2.0, 5.4, 0.5, [(17, GREEN, True, "Done")])
 done = ["End-to-end Cray smoke: probe → render → concretize → build (PrgEnv-gnu · cray-mpich · ROCm)",
         "Second system validated the generic-Linux path and hardened the prober",
-        "Science stack renders clean today: four lanes, two-version roster"]
+        "Pilot stack renders clean today: four lanes, two-version roster"]
 for i, d in enumerate(done):
     txt(s, 0.9, 2.6 + i * 1.15, 0.4, 0.5, [(16, GREEN, True, "✓")])
     txt(s, 1.35, 2.6 + i * 1.15, 4.95, 1.1, [(13, TEXT, False, d)])
 box(s, 6.85, 1.8, 5.85, 4.9, PANEL)
 txt(s, 7.15, 2.0, 5.3, 0.5, [(17, AMBER, True, "Next")])
-nxt = ["Build the science lanes on the Cray and Linux systems; verify the module/view front door",
+nxt = ["Build the pilot stack on Fran, Wheat, Raider, and Blueback; verify the module/view front door",
        "Encode module compatibility checks for multi-version package chains",
        "Release process: build caches, lockfiles, release manifest"]
 for i, d in enumerate(nxt):
