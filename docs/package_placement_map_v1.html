@@ -80,26 +80,40 @@
   leaves out.</p>
 
   <h2>How a package's place is decided</h2>
-  <p>Four questions, asked in order. The first one that fits decides the layer.</p>
+  <p>Three questions, and they are independent. Collapsing them is what makes
+  placement feel arbitrary; asking them separately makes it fall out.</p>
   <ol class="rules">
-    <li><b>Does a user link it without ever choosing it?</b> Build tools and
-      stable-ABI low-level libraries are <b>Foundation</b>: one pinned version,
-      reachable through the compiler surface, never a loadable module. Two
-      versions on a fresh compile's link path would be indistinguishable, so
-      there is deliberately only one.</li>
-    <li><b>Does no MPI implementation exist for it, and is it compiler-agnostic?</b>
-      Then it is <b>Core</b>: loadable, loads with the compiler surface, before
-      any lane is chosen.</li>
-    <li><b>Does no MPI implementation exist, but it must be built with the
-      surface's compiler?</b> Then it is a <b>common compiler-dependent</b>
-      package: built once in the Serial lane, module-visible from every payload
-      lane. It fails the compiler-agnostic test for Core, but has no MPI
-      dimension that would split it per lane.</li>
-    <li><b>Is it MPI-capable?</b> Then it is <b>dual-build</b>: <code>~mpi</code>
-      in Serial, <code>+mpi</code> in MPI and GPU, under the same clean module
-      name. The loaded lane decides which build the name resolves to. A GPU
-      backend on top of that makes it <b>GPU</b> payload.</li>
+    <li><b>Is it compiler-dependent?</b> Must it be built with the surface's
+      compiler to work with that surface's libraries?</li>
+    <li><b>Is it lane-specific?</b> Does its build differ by execution model, or
+      is one build right for Serial, MPI, and GPU alike?</li>
+    <li><b>Is it automatically in the view, or explicitly loaded?</b> Does a user
+      get it on their paths without asking, or do they load a module?</li>
   </ol>
+
+  <div class="scroll"><table>
+    <tr><th>Group</th><th>Compiler-specific</th><th>Lane-specific</th><th>Automatically in view</th></tr>
+    <tr><td><span style="color:var(--gray)">Foundation</span></td><td class="why">in practice yes, built per compiler</td><td class="why">no</td><td class="why"><b style="color:var(--ink)">yes</b></td></tr>
+    <tr><td><span style="color:var(--teal)">Core</span></td><td class="why">not by nature (see below)</td><td class="why">no</td><td class="why">no</td></tr>
+    <tr><td><span style="color:var(--green)">Compiler-common</span></td><td class="why"><b style="color:var(--ink)">yes</b></td><td class="why">no</td><td class="why">no</td></tr>
+    <tr><td><span style="color:var(--amber)">Payload lane</span></td><td class="why"><b style="color:var(--ink)">yes</b></td><td class="why"><b style="color:var(--ink)">yes</b></td><td class="why">no</td></tr>
+  </table></div>
+
+  <p><b>Foundation is defined by exposure behaviour</b>, not by what the
+  packages are. Something is Foundation when we want it silently reachable
+  through the view and never loaded. That is why zlib and OpenBLAS feel alike,
+  since neither has an MPI dimension, yet sit in different groups: one is
+  linked without being chosen, the other is chosen.</p>
+
+  <p><b>On Core and compilers:</b> Core packages are compiler-agnostic by
+  nature, since a cmake is a cmake. We still build a Core per compiler, because
+  one shared view cannot hold two compilers' <code>cmake/4.3.3</code> at the
+  same path. "Not compiler-specific" describes the package, not where it is
+  built.</p>
+
+  <p>Within a payload lane, one more question decides the build: an MPI-capable
+  package is <b>dual-build</b>, <code>~mpi</code> in Serial and <code>+mpi</code>
+  in MPI and GPU, under one clean module name that the loaded lane resolves.</p>
 
   <h2>The layers</h2>
 
@@ -135,13 +149,13 @@
 
   <section class="layer t-green">
     <div class="band">
-      <h3>Common compiler-dependent</h3>
-      <p>Built once in the Serial lane. Loadable from Serial, MPI, and GPU alike, through the compiler's shared module root.</p>
+      <h3>Compiler-common</h3>
+      <p>Built for this compiler, independent of the execution model. Its own group, not part of Serial: load it from Serial, MPI, or GPU and get the same module.</p>
     </div>
     <div class="scroll"><table>
       <tr><th>Package</th><th>Versions</th><th>Why here</th></tr>
-      <tr><td>openblas</td><td class="v">0.3.33 · 0.3.32</td><td class="why">The single BLAS <em>and</em> LAPACK implementation: the recipe declares <code>provides("blas", "lapack")</code>. No MPI dimension, but compiler- and performance-sensitive, so it fails the Core test. MPI and GPU codes link BLAS constantly and the lanes are exclusive, so without shared exposure an MPI user would have no loadable BLAS at all.</td></tr>
-      <tr><td>gnuplot</td><td class="v">6.0.0 · 5.4.10</td><td class="why">User tool with no MPI dimension, but it must be built with the surface's compiler to stay compatible with the libraries it links, so it is payload rather than Core.</td></tr>
+      <tr><td>openblas</td><td class="v">0.3.33 · 0.3.32</td><td class="why">The single BLAS <em>and</em> LAPACK implementation: the recipe declares <code>provides("blas", "lapack")</code>. Compiler-dependent, so not Core; no MPI dimension, so not lane-specific. Every lane's users link BLAS, and the lanes are exclusive, so it has to be reachable from all of them.</td></tr>
+      <tr><td>gnuplot</td><td class="v">6.0.0 · 5.4.10</td><td class="why">User tool. Must be built with the surface's compiler to stay compatible with the libraries it links, which rules out Core; no execution-model dimension, which rules out a lane.</td></tr>
     </table></div>
   </section>
 

@@ -245,8 +245,8 @@ header(s, "Lane vocabulary", "Names carry facts, not contents")
 vocab = [
     ("Core", TEAL, "Compiler-agnostic building blocks and tools. They load with the surface, before any lane is chosen.",
      "cmake · python · miniforge · gsl · sqlite"),
-    ("Serial", AMBER, "Two classes: non-MPI builds of MPI-capable packages, and common compiler-dependent packages that every lane can load.",
-     "hdf5~mpi · fftw~mpi  |  openblas · gnuplot"),
+    ("Serial", AMBER, "MPI-capable packages built without MPI on purpose, for work that never launches a parallel job.",
+     "hdf5~mpi · netcdf~mpi · fftw~mpi · boost~mpi"),
     ("MPI", BLUE, "Built against the system MPI. Qualified only when the system offers more than one.",
      "MPI  ·  or MPI-openmpi / MPI-mpich"),
     ("GPU", VIOLET, "Carries the full MPI roster plus the GPU payload. Load GPU instead of MPI, not in addition to it.",
@@ -448,8 +448,8 @@ for i, (name, color, content, note) in enumerate(payloads):
         (10, WHITE, False, note),
     ])
 layers = [
-    (GREEN, "Common compiler-dependent packages: loadable from every lane",
-     "openblas · gnuplot · one Serial-lane build, one install, shared module root"),
+    (GREEN, "Compiler-common: built for this compiler, independent of the lane",
+     "openblas · gnuplot · load them from Serial, MPI, or GPU alike; one build, one install"),
     (TEAL, "Core: loads with the compiler surface",
      "cmake · ninja · git · python · py-numpy · miniforge · gsl · sqlite"),
     (GRAY, "Foundation: on your paths automatically, nothing to load",
@@ -498,7 +498,7 @@ appendix_slide("Serial lane: MPI-capable, deliberately built without MPI", [
         ("fftw",  "3.3.11 · 3.3.10", "~mpi"),
         ("boost", "1.90.0 · 1.89.0", "~mpi here; the MPI lane carries its own +mpi build"),
     ]),
-    ("Common compiler-dependent: built here once, available in every lane", GREEN, [
+    ("Compiler-common: built for this compiler, loadable from any lane", GREEN, [
         ("openblas",      "0.3.33 · 0.3.32", "the one BLAS and LAPACK: openblas provides both APIs. Payload rather than core: performance-sensitive"),
         ("gnuplot",       "6.0.0 · 5.4.10",  "needs the surface's compiler, so payload rather than core"),
     ]),
@@ -523,9 +523,9 @@ appendix_slide("MPI and GPU lanes: built against the system MPI", row_h=0.278, s
         ("kokkos", "5.1.1 · 5.1.0",
          "built for the lane's GPU architecture from the probe; new here, it proves the GPU path"),
     ]),
-    ("Common compiler-dependent: the Serial-lane build, available here too", GREEN, [
-        ("common packages", "see Serial",
-         "openblas · gnuplot: the same modules through the shared root, nothing rebuilt"),
+    ("Compiler-common: independent of the lane, loadable from any of them", GREEN, [
+        ("compiler-common", "see below",
+         "openblas · gnuplot: its own group, loadable from any lane of this compiler"),
     ]),
     ("Externals: used from the system, never built", GRAY, [
         ("externals", "system",

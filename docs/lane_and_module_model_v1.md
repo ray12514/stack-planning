@@ -37,15 +37,75 @@ GPU archs × runtime nodes). There is no stored lane list. `stack.yaml`
 derivation wouldn't produce. A missing lane means the gap is in `profile.yaml` or
 `defaults.yaml`.
 
+### Three independent questions (refined 2026-07-14)
+
+Placement asks three questions, and they are independent. Earlier revisions of
+this doc collapsed them, which is what produced the recurring confusion about
+where BLAS belongs and why Serial seemed to hold two unrelated things.
+
+1. **Is the package compiler-dependent?** Must it be built with the surface's
+   compiler to be usable with that surface's libraries?
+2. **Is the package lane-specific?** Does its build differ by execution model
+   (serial, MPI, GPU), or is one build correct for all of them?
+3. **Is it automatically in the view, or explicitly loaded?** Does a user get
+   it on their paths without asking, or do they load a module?
+
+Answering them separately gives four groups:
+
+| Group | Compiler-specific | Lane-specific | Automatically in view |
+|---|---|---|---|
+| **Foundation** | in practice yes, built per compiler | no | **yes** |
+| **Core** | not by nature; see the note below | no | no |
+| **compiler-common** | **yes** | no | no |
+| **payload lane** (serial / mpi / gpu) | **yes** | **yes** | no |
+
+Foundation is defined by its **exposure behaviour**, not by what the packages
+are. A package is Foundation when we want it silently reachable through the
+view (`PATH`, `LD_LIBRARY_PATH`, `CPATH`, `PKG_CONFIG_PATH`,
+`CMAKE_PREFIX_PATH`) and never loaded. That is why zlib and OpenBLAS feel
+alike (neither has an MPI dimension) yet belong in different groups: one is
+linked without being chosen, the other is chosen.
+
+Note on Core and compilers: Core packages are compiler-agnostic *by nature*
+(a cmake is a cmake), but the committed v1 model still **builds** a Core per
+compiler, because a shared view cannot hold two compilers' `cmake/4.3.3` at
+one path. "Not compiler-specific" describes the package, not where it is
+built. The eventual shared, compiler-agnostic Core is recorded in
+`foundation_core_view_semantics_note_v1.md`.
+
 ### Lane kinds (tiers)
 
 | Kind | Purpose | Built/exposed |
 |---|---|---|
-| **foundation** | build tools + stable-ABI low-level libs (cmake, ninja, pkgconf, zlib, xz, zstd) | once per compiler; **view**-exposed (+compiler) |
-| **core** | only-serial-by-nature packages (`gsl`; no MPI implementation exists) plus compiler-agnostic building blocks (`python`, `miniforge`, `cmake`) | compiler-init **view**; tools loadable |
+| **foundation** | stable-ABI low-level libs (zlib, xz, zstd) | once per compiler; **view**-exposed, never a module |
+| **core** | compiler-agnostic building blocks and tools (`python`, `miniforge`, `cmake`), plus only-serial-by-nature blocks (`gsl`, `sqlite`) | compiler-init **view**; tools loadable |
+| **compiler-common** | built for one compiler family, independent of the execution model (`openblas`, `gnuplot`) | module, from **every** payload lane of that compiler |
 | **serial** | MPI-*capable* package built without MPI by choice (`hdf5~mpi`) | module |
 | **mpi** | built with MPI (osu, `hdf5+mpi`) | module |
 | **gpu** | GPU backend (`+rocm`/`+cuda`), over GPU-aware MPI | module |
+
+The user-facing shape that falls out:
+
+```text
+CSE
+└── GCC                                  the compiler surface
+    ├── Foundation      already in the view, nothing to load
+    ├── Core            modules available
+    ├── GCC-common      modules available from any lane below
+    └── select exactly one:
+        ├── Serial      hdf5~mpi · netcdf~mpi · fftw~mpi · boost~mpi
+        ├── MPI         the MPI implementation · hdf5+mpi · netcdf+mpi · fftw+mpi · scalapack
+        └── GPU         the MPI roster · the GPU toolkit · kokkos
+```
+
+A compiler-common package is **not inherited from Serial**. It is its own
+group, exposed to every compatible lane of that compiler:
+
+```text
+module load cse/GCC
+module load MPI          # or Serial, or GPU
+module load openblas     # the same module either way
+```
 
 Placement rules (2026-07-08): serial means the package *could* build against
 MPI and the stack deliberately offers the MPI-less build too; a package with no
@@ -101,10 +161,31 @@ GPU-analog of the serial/common split?), what does its kind derivation look
 like, and does the common-compiler-dependent exposure rule need a GPU
 counterpart? Needs semantics before the first such package lands.
 
-**Lane-agnostic payload exposure (decided 2026-07-13).** Where a package is
-*built* and where it is *visible* are separate axes. Packages that are
-non-core (not compiler-agnostic: compiler- or performance-sensitive) but
-lane-agnostic (no MPI implementation exists for `openblas`, `netlib-lapack`,
+**Superseded 2026-07-14 by the compiler-common group above.** The section
+below described the first implementation, which hung these packages off the
+serial lane: they were declared in the serial kind, built by the serial lane's
+environment, and exposed from a shared module root that the serial lane owned.
+That worked, but it made the packages conceptually part of Serial when they
+are not, and it forced two special cases that only existed because of the
+ownership: a warning when a compiler column derives no serial lane to own the
+root, and a hard error when two serial lanes both claim it.
+
+The model is now that **compiler-common is its own group**, a sibling of Core
+and the payload lanes rather than a tenant of Serial. Its packages are built
+once per compiler, in their own environment, and exposed to every payload lane
+of that compiler. Neither special case survives the change, because there is
+no owner to be ambiguous about.
+
+**The implementation still hangs it off Serial and must follow this doc.**
+Until it does, `stack-content` declares these packages in the serial kind with
+`lane_agnostic:`, and the renderer emits their modules from the serial lane's
+environment into `<compiler>/shared`. The user-visible behaviour is already
+correct; the structure behind it is not.
+
+**Original section (2026-07-13), kept for the reasoning it records.** Where a
+package is *built* and where it is *visible* are separate axes. Packages that
+are non-core (not compiler-agnostic: compiler- or performance-sensitive) but
+lane-agnostic (no MPI implementation exists for `openblas`,
 `gnuplot`, so serial and MPI code link the same build) build
 exactly once, in the compiler column's serial lane, and are module-exposed in
 *every* payload lane of that column: Serial, MPI, and GPU. No rebuild, no new
