@@ -9,20 +9,21 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt
 
-# palette — light professional
+# palette — navy/gold, tuned to the HPCMP identity
 BG = RGBColor(0xFF, 0xFF, 0xFF)
-PANEL = RGBColor(0xF1, 0xF5, 0xF9)     # slate-100
-PANEL2 = RGBColor(0xE2, 0xE8, 0xF0)    # slate-200
-INK = RGBColor(0x0F, 0x17, 0x2A)       # slate-900
-TEXT = RGBColor(0x33, 0x41, 0x55)      # slate-700
-MUTED = RGBColor(0x64, 0x74, 0x8B)     # slate-500
+PANEL = RGBColor(0xF2, 0xF4, 0xF7)     # cool paper
+PANEL2 = RGBColor(0xE3, 0xE7, 0xEE)
+INK = RGBColor(0x16, 0x24, 0x3D)       # deep navy
+TEXT = RGBColor(0x3B, 0x4A, 0x63)
+MUTED = RGBColor(0x6E, 0x7B, 0x90)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-TEAL = RGBColor(0x0D, 0x94, 0x88)      # core
-AMBER = RGBColor(0xD9, 0x77, 0x06)     # serial
-BLUE = RGBColor(0x25, 0x63, 0xEB)      # mpi
-VIOLET = RGBColor(0x7C, 0x3A, 0xED)    # gpu
-GRAY = RGBColor(0x47, 0x55, 0x69)      # foundation
-GREEN = RGBColor(0x15, 0x80, 0x3D)
+GOLD = RGBColor(0x8C, 0x6D, 0x1F)      # kicker / accent
+TEAL = RGBColor(0x1D, 0x6E, 0x6A)      # core
+AMBER = RGBColor(0xA8, 0x6A, 0x14)     # serial
+BLUE = RGBColor(0x2C, 0x5A, 0xA0)      # mpi
+VIOLET = RGBColor(0x63, 0x4A, 0x94)    # gpu
+GRAY = RGBColor(0x50, 0x60, 0x7A)      # foundation
+GREEN = RGBColor(0x2E, 0x6B, 0x45)     # compiler-common
 
 prs = Presentation()
 prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
@@ -90,9 +91,8 @@ def arrow(s, x1, y1, x2, y2, color=MUTED, w=2.25):
 
 def header(s, title, kicker=None):
     if kicker:
-        txt(s, 0.6, 0.28, 12, 0.4, [(13, TEAL, True, kicker.upper())])
+        txt(s, 0.6, 0.28, 12, 0.4, [(13, GOLD, True, kicker.upper())])
     txt(s, 0.6, 0.62, 12.1, 0.8, [(30, INK, True, title)])
-    box(s, 0.62, 1.42, 1.6, 0.045, TEAL, radius=False)
 
 
 def chip(s, x, y, w, label, h=0.42, size=12):
@@ -103,7 +103,6 @@ def chip(s, x, y, w, label, h=0.42, size=12):
 s = slide()
 box(s, 0, 6.9, 13.333, 0.6, PANEL, radius=False)
 txt(s, 0.9, 2.2, 11.5, 1.2, [(46, INK, True, "The CSE Software Stack")])
-box(s, 0.95, 3.35, 2.4, 0.06, TEAL, radius=False)
 txt(s, 0.9, 3.6, 11.5, 1.4, [
     (22, TEXT, False, "One clean build surface per compiler, MPI, and GPU: the lanes model"),
     (15, MUTED, False, "How we got here, what the community runs, and where we're going"),
@@ -169,8 +168,7 @@ cards = [
 for i, (org, color, stat, lines) in enumerate(cards):
     x = 0.6 + i * 4.18
     box(s, x, 1.75, 3.95, 3.9, PANEL)
-    box(s, x, 1.75, 3.95, 0.09, color, radius=False)
-    txt(s, x + 0.25, 2.0, 3.5, 0.55, [(14.5, INK, True, org)])
+    txt(s, x + 0.25, 2.0, 3.5, 0.55, [(14.5, color, True, org)])
     txt(s, x + 0.25, 2.62, 3.5, 0.75, [(16, color, True, stat)])
     txt(s, x + 0.25, 3.55, 3.5, 2.0,
         [(12.5, TEXT, False, ln) for ln in lines])
@@ -318,8 +316,7 @@ for i, (name, platform, cpu, gpu, color, proof) in enumerate(systems):
     x = 0.6 + (i % 2) * 6.25
     y = 1.78 + (i // 2) * 2.25
     box(s, x, y, 5.9, 1.95, PANEL)
-    box(s, x, y, 0.12, 1.95, color, radius=False)
-    txt(s, x + 0.3, y + 0.16, 2.1, 0.4, [(17, INK, True, name)])
+    txt(s, x + 0.3, y + 0.16, 2.1, 0.4, [(17, color, True, name)])
     txt(s, x + 2.35, y + 0.19, 3.25, 0.35, [(11.5, color, True, proof.upper())],
         align=PP_ALIGN.RIGHT)
     txt(s, x + 0.3, y + 0.65, 5.3, 0.32, [(12.5, TEXT, True, platform)])
@@ -432,8 +429,7 @@ questions = [
 for i, (color, q, detail) in enumerate(questions):
     y = 1.75 + i * 1.18
     box(s, 0.6, y, 12.13, 1.08, PANEL)
-    box(s, 0.6, y, 0.1, 1.08, color, radius=False)
-    txt(s, 0.95, y + 0.14, 11.5, 0.3, [(13.5, INK, True, q)])
+    txt(s, 0.95, y + 0.14, 11.5, 0.3, [(13.5, color, True, q)])
     txt(s, 0.95, y + 0.45, 11.5, 0.58, [(11, MUTED, False, detail)])
 
 # ------------------------------------------------- appendix · layer stacking
