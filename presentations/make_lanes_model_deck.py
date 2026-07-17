@@ -17,13 +17,13 @@ INK = RGBColor(0x16, 0x24, 0x3D)       # deep navy
 TEXT = RGBColor(0x3B, 0x4A, 0x63)
 MUTED = RGBColor(0x6E, 0x7B, 0x90)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-GOLD = RGBColor(0x8C, 0x6D, 0x1F)      # kicker / accent
-TEAL = RGBColor(0x1D, 0x6E, 0x6A)      # core
-AMBER = RGBColor(0xA8, 0x6A, 0x14)     # serial
-BLUE = RGBColor(0x2C, 0x5A, 0xA0)      # mpi
-VIOLET = RGBColor(0x63, 0x4A, 0x94)    # gpu
+GOLD = RGBColor(0x9A, 0x76, 0x14)      # kicker / accent
+TEAL = RGBColor(0x11, 0x7A, 0x72)      # core
+AMBER = RGBColor(0xBA, 0x74, 0x0E)     # serial
+BLUE = RGBColor(0x2B, 0x62, 0xB8)      # mpi
+VIOLET = RGBColor(0x6D, 0x4E, 0xAA)    # gpu
 GRAY = RGBColor(0x50, 0x60, 0x7A)      # foundation
-GREEN = RGBColor(0x2E, 0x6B, 0x45)     # compiler-common
+GREEN = RGBColor(0x2C, 0x7A, 0x4B)     # compiler-common
 
 prs = Presentation()
 prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
@@ -295,19 +295,19 @@ txt(s, 0.6, 6.65, 12.1, 0.5, [(12, MUTED, False,
 s = slide()
 header(s, "Four systems will prove the pilot", "Test matrix · breadth by design")
 systems = [
-    ("Blueback", "NAVY · HPE Cray EX4000 · SLES",
+    ("Blueback", "NAVY · HPE Cray EX4000 · SLES · Slurm",
      "Standard: AMD EPYC 9654 Genoa, 192 cores",
      "AI/ML: AMD Instinct MI300A APU, 96 cores + 4 × MI300A",
      VIOLET, "Cray PE · AMD APU"),
-    ("Fran", "ARL · HPE Cray EX4000 · RHEL 9",
+    ("Fran", "ARL · HPE Cray EX4000 · RHEL 9 · Slurm",
      "Standard: AMD EPYC Genoa, 192 cores",
      "AI/ML: NVIDIA H200",
      BLUE, "second Cray site · newest NVIDIA"),
-    ("Raider", "AFRL · Penguin TrueHPC · RHEL 8",
+    ("Raider", "AFRL · Penguin TrueHPC · RHEL 8 · Slurm",
      "Standard: AMD EPYC 7713 Milan, 128 cores",
      "AI/ML: same CPU + 4 × NVIDIA A100 SXM4",
      TEAL, "generic Linux · CUDA"),
-    ("Wheat", "ERDC · Liqid composable · RHEL 8",
+    ("Wheat", "ERDC · Liqid composable · RHEL 8 · PBS",
      "Standard: Intel Xeon 9242 Cascade Lake, 92 cores",
      "AI/ML: same CPU + 4 or 6 × NVIDIA A100",
      AMBER, "Intel CPU · composable GPU"),
@@ -323,7 +323,7 @@ for i, (name, platform, cpu, gpu, color, proof) in enumerate(systems):
     txt(s, x + 0.3, y + 1.04, 5.3, 0.3, [(12, MUTED, False, cpu)])
     txt(s, x + 0.3, y + 1.4, 5.3, 0.3, [(12, MUTED, False, gpu)])
 boxtxt(s, 0.6, 6.35, 12.13, 0.58, PANEL2, [(13, INK, True,
-    "Coverage: SLES + RHEL 8 + RHEL 9 · AMD + Intel CPUs · AMD MI300A + NVIDIA H200 and A100")])
+    "Coverage: SLES + RHEL 8/9 · AMD + Intel CPUs · MI300A + H200 + A100 · Slurm + PBS")])
 txt(s, 0.6, 7.02, 12.1, 0.24, [(9.5, MUTED, False,
     "Source: HPC Centers hardware inventory, July 2026")],
     align=PP_ALIGN.RIGHT)

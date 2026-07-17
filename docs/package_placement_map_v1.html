@@ -1,32 +1,33 @@
 <title>CSE Package Placement Map</title>
 <style>
   :root {
-    --bg: #ffffff; --panel: #f1f5f9; --panel2: #e2e8f0;
-    --ink: #0f172a; --text: #334155; --muted: #64748b; --line: #dde4ec;
-    --teal: #0d9488; --amber: #d97706; --blue: #2563eb;
-    --violet: #7c3aed; --gray: #475569; --green: #15803d;
+    --bg: #ffffff; --panel: #f2f4f7; --panel2: #e3e7ee;
+    --ink: #16243d; --text: #3b4a63; --muted: #6e7b90; --line: #dbe1ea;
+    --teal: #117a72; --amber: #ba740e; --blue: #2b62b8;
+    --violet: #6d4eaa; --gray: #50607a; --green: #2c7a4b;
+    --gold: #9a7614;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #0e1420; --panel: #16202e; --panel2: #1e2b3c;
-            --ink: #e7edf4; --text: #c2cede; --muted: #8fa1b5; --line: #253243;
-            --teal: #14b8a6; --amber: #f59e0b; --blue: #3b82f6;
-            --violet: #a78bfa; --gray: #64748b; --green: #22a34a; }
+    :root { --bg: #101623; --panel: #182132; --panel2: #202c41;
+            --ink: #e8edf5; --text: #c3cddd; --muted: #8f9cb2; --line: #273349;
+            --teal: #2aa79c; --amber: #d99b3a; --blue: #5b8bd6;
+            --violet: #9d82cf; --gray: #6e7b90; --green: #4d9c6c; --gold: #cfa43a; }
   }
-  :root[data-theme="dark"] { --bg: #0e1420; --panel: #16202e; --panel2: #1e2b3c;
-    --ink: #e7edf4; --text: #c2cede; --muted: #8fa1b5; --line: #253243;
-    --teal: #14b8a6; --amber: #f59e0b; --blue: #3b82f6;
-    --violet: #a78bfa; --gray: #64748b; --green: #22a34a; }
-  :root[data-theme="light"] { --bg: #ffffff; --panel: #f1f5f9; --panel2: #e2e8f0;
-    --ink: #0f172a; --text: #334155; --muted: #64748b; --line: #dde4ec;
-    --teal: #0d9488; --amber: #d97706; --blue: #2563eb;
-    --violet: #7c3aed; --gray: #475569; --green: #15803d; }
+  :root[data-theme="dark"] { --bg: #101623; --panel: #182132; --panel2: #202c41;
+    --ink: #e8edf5; --text: #c3cddd; --muted: #8f9cb2; --line: #273349;
+    --teal: #2aa79c; --amber: #d99b3a; --blue: #5b8bd6;
+    --violet: #9d82cf; --gray: #6e7b90; --green: #4d9c6c; --gold: #cfa43a; }
+  :root[data-theme="light"] { --bg: #ffffff; --panel: #f2f4f7; --panel2: #e3e7ee;
+    --ink: #16243d; --text: #3b4a63; --muted: #6e7b90; --line: #dbe1ea;
+    --teal: #117a72; --amber: #ba740e; --blue: #2b62b8;
+    --violet: #6d4eaa; --gray: #50607a; --green: #2c7a4b; --gold: #9a7614; }
 
   body { background: var(--bg); color: var(--text);
     font: 15px/1.55 "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     margin: 0; padding: 2.5rem 1.25rem 5rem; }
   main { max-width: 60rem; margin: 0 auto; }
   h1 { color: var(--ink); font-size: 1.9rem; margin: 0 0 .35rem; text-wrap: balance; }
-  .kicker { color: var(--teal); font-weight: 700; font-size: .78rem;
+  .kicker { color: var(--gold); font-weight: 700; font-size: .78rem;
     letter-spacing: .09em; text-transform: uppercase; margin: 0 0 .5rem; }
   .lede { color: var(--muted); margin: 0 0 2.5rem; max-width: 46rem; }
   h2 { color: var(--ink); font-size: 1.2rem; margin: 3rem 0 .75rem; }
