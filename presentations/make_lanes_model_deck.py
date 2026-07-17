@@ -132,8 +132,9 @@ box(s, 6.85, 1.75, 5.85, 5.15, PANEL)
 txt(s, 7.1, 1.95, 5.4, 0.5, [(17, INK, True, "The lanes model")])
 boxtxt(s, 7.4, 2.55, 4.75, 0.5, WHITE, [(13, INK, True, "module load cse/GCC")], line=PANEL2)
 arrow(s, 9.775, 3.05, 9.775, 3.35, TEAL)
-boxtxt(s, 7.4, 3.35, 2.3, 0.62, TEAL, [(12.5, WHITE, True, "Core (automatic)")])
-boxtxt(s, 9.85, 3.35, 2.3, 0.62, GRAY, [(12.5, WHITE, True, "Foundation (on the path)")])
+boxtxt(s, 7.4, 3.35, 1.5, 0.62, TEAL, [(11.5, WHITE, True, "Core"), (9.5, WHITE, False, "modules")])
+boxtxt(s, 9.0, 3.35, 1.5, 0.62, GREEN, [(11.5, WHITE, True, "Common"), (9.5, WHITE, False, "modules")])
+boxtxt(s, 10.6, 3.35, 1.55, 0.62, GRAY, [(11.5, WHITE, True, "Foundation"), (9.5, WHITE, False, "on the path")])
 arrow(s, 9.775, 3.97, 9.775, 4.27, TEAL)
 txt(s, 7.4, 4.27, 4.9, 0.35, [(11.5, MUTED, True, "CHOOSE EXACTLY ONE")], align=PP_ALIGN.CENTER)
 boxtxt(s, 7.4, 4.62, 1.5, 0.6, AMBER, [(12.5, WHITE, True, "Serial")])
@@ -216,19 +217,23 @@ cx = 6.666
 boxtxt(s, cx - 2.5, 1.8, 5.0, 0.62, WHITE,
        [(16, INK, True, "$ module load cse/GCC")], line=PANEL2)
 arrow(s, cx, 2.42, cx, 2.82, TEAL)
-boxtxt(s, cx - 4.3, 2.82, 4.1, 1.0, TEAL, [
-    (14.5, WHITE, True, "Core: loads automatically"),
-    (11.5, WHITE, False, "cmake · python · miniforge · gsl"),
+boxtxt(s, 0.75, 2.82, 3.8, 1.0, TEAL, [
+    (13, WHITE, True, "Core: modules available"),
+    (10.5, WHITE, False, "cmake · python · miniforge · gsl"),
 ])
-boxtxt(s, cx + 0.2, 2.82, 4.1, 1.0, GRAY, [
-    (14.5, WHITE, True, "Foundation: on your paths automatically"),
-    (11.5, WHITE, False, "zlib · xz · zstd · one pinned version"),
+boxtxt(s, 4.77, 2.82, 3.8, 1.0, GREEN, [
+    (13, WHITE, True, "GCC Common: modules available"),
+    (10.5, WHITE, False, "openblas · gnuplot"),
+])
+boxtxt(s, 8.79, 2.82, 3.8, 1.0, GRAY, [
+    (13, WHITE, True, "Foundation: on your paths"),
+    (10.5, WHITE, False, "zlib · xz · zstd · one pinned version"),
 ])
 arrow(s, cx, 3.82, cx, 4.32, TEAL)
 txt(s, cx - 2.5, 4.32, 5.0, 0.38, [(12.5, MUTED, True, "CHOOSE EXACTLY ONE LANE")],
     align=PP_ALIGN.CENTER)
 for i, (name, color, content) in enumerate([
-        ("Serial", AMBER, "non-MPI hdf5 · fftw · boost, plus openblas · gnuplot"),
+        ("Serial", AMBER, "non-MPI hdf5 · netcdf · fftw · boost"),
         ("MPI", BLUE, "Cray MPICH · hdf5+mpi · fftw+mpi · boost+mpi · tau"),
         ("GPU", VIOLET, "the MPI roster plus kokkos +rocm gfx942")]):
     x = 0.75 + i * 4.0
@@ -243,22 +248,24 @@ boxtxt(s, 0.75, 6.1, 11.85, 0.85, PANEL, [
 s = slide()
 header(s, "Lane vocabulary", "Names carry facts, not contents")
 vocab = [
-    ("Core", TEAL, "Compiler-agnostic building blocks and tools. They load with the surface, before any lane is chosen.",
-     "cmake · python · miniforge · gsl · sqlite"),
+    ("Core", TEAL, "Compiler-agnostic building blocks and tools. Available as soon as the surface loads.",
+     "cmake · python · miniforge · gsl"),
+    ("Common", GREEN, "Built for this compiler, one build for every lane. Available with the surface, like Core.",
+     "openblas · gnuplot"),
     ("Serial", AMBER, "MPI-capable packages built without MPI on purpose, for work that never launches a parallel job.",
-     "hdf5~mpi · netcdf~mpi · fftw~mpi · boost~mpi"),
+     "hdf5~mpi · fftw~mpi · boost~mpi"),
     ("MPI", BLUE, "Built against the system MPI. Qualified only when the system offers more than one.",
-     "MPI  ·  or MPI-openmpi / MPI-mpich"),
-    ("GPU", VIOLET, "Carries the full MPI roster plus the GPU payload. Load GPU instead of MPI, not in addition to it.",
-     "GPU  ·  or GPU-gfx90a / GPU-gfx942"),
+     "MPI · or MPI-openmpi / MPI-mpich"),
+    ("GPU", VIOLET, "The full MPI roster plus the GPU payload. Load GPU instead of MPI, not in addition.",
+     "GPU · or GPU-gfx90a / GPU-gfx942"),
 ]
 for i, (name, color, desc, ex) in enumerate(vocab):
-    x = 0.6 + i * 3.22
-    box(s, x, 1.8, 3.0, 3.55, PANEL)
-    box(s, x, 1.8, 3.0, 0.75, color)
-    txt(s, x + 0.15, 1.92, 2.7, 0.55, [(17, WHITE, True, name)], align=PP_ALIGN.CENTER)
-    txt(s, x + 0.22, 2.75, 2.6, 1.7, [(12.5, TEXT, False, desc)])
-    txt(s, x + 0.22, 4.55, 2.6, 0.7, [(11.5, MUTED, False, ex)])
+    x = 0.6 + i * 2.36
+    box(s, x, 1.8, 2.24, 3.75, PANEL)
+    box(s, x, 1.8, 2.24, 0.65, color)
+    txt(s, x + 0.1, 1.94, 2.04, 0.5, [(15, WHITE, True, name)], align=PP_ALIGN.CENTER)
+    txt(s, x + 0.16, 2.6, 1.95, 2.1, [(11, TEXT, False, desc)])
+    txt(s, x + 0.16, 4.75, 1.95, 0.7, [(10, MUTED, False, ex)])
 boxtxt(s, 0.6, 5.75, 12.13, 0.62, PANEL2, [(14, INK, True,
     "Modules: cse/<Compiler>/<Lane>. Short names for users; dependency compatibility is enforced by module metadata.")])
 
@@ -272,8 +279,9 @@ for i, (surf, note) in enumerate([
     box(s, x, 1.8, 5.9, 2.9, PANEL)
     txt(s, x + 0.25, 1.98, 5.4, 0.5, [(16, INK, True, surf)])
     txt(s, x + 0.25, 2.5, 5.4, 0.4, [(12, MUTED, False, note)])
-    boxtxt(s, x + 0.3, 3.0, 2.55, 0.55, TEAL, [(12, WHITE, True, "Core (automatic)")])
-    boxtxt(s, x + 3.0, 3.0, 2.55, 0.55, GRAY, [(12, WHITE, True, "Foundation (on the path)")])
+    boxtxt(s, x + 0.3, 3.0, 1.65, 0.55, TEAL, [(11, WHITE, True, "Core")])
+    boxtxt(s, x + 2.1, 3.0, 1.65, 0.55, GREEN, [(11, WHITE, True, "Common")])
+    boxtxt(s, x + 3.9, 3.0, 1.65, 0.55, GRAY, [(11, WHITE, True, "Foundation")])
     boxtxt(s, x + 0.3, 3.72, 1.65, 0.62, AMBER, [(12, WHITE, True, "Serial")])
     boxtxt(s, x + 2.1, 3.72, 1.65, 0.62, BLUE, [(12, WHITE, True, "MPI")])
     boxtxt(s, x + 3.9, 3.72, 1.65, 0.62, VIOLET, [(12, WHITE, True, "GPU")])
