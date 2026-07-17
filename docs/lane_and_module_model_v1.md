@@ -79,7 +79,7 @@ built. The eventual shared, compiler-agnostic Core is recorded in
 |---|---|---|
 | **foundation** | stable-ABI low-level libs (zlib, xz, zstd) | once per compiler; **view**-exposed, never a module |
 | **core** | compiler-agnostic building blocks and tools (`python`, `miniforge`, `cmake`), plus only-serial-by-nature blocks (`gsl`, `sqlite`) | compiler-init **view**; tools loadable |
-| **compiler-common** | built for one compiler family, independent of the execution model (`openblas`, `gnuplot`) | module, from **every** payload lane of that compiler |
+| **compiler-common** | built for one compiler family, independent of the execution model (`openblas`, `gnuplot`) | module, loadable as soon as the compiler surface loads |
 | **serial** | MPI-*capable* package built without MPI by choice (`hdf5~mpi`) | module |
 | **mpi** | built with MPI (osu, `hdf5+mpi`) | module |
 | **gpu** | GPU backend (`+rocm`/`+cuda`), over GPU-aware MPI | module |
@@ -91,7 +91,7 @@ CSE
 └── GCC                                  the compiler surface
     ├── Foundation      already in the view, nothing to load
     ├── Core            modules available
-    ├── GCC-common      modules available from any lane below
+    ├── GCC-common      modules available, before any lane
     └── select exactly one:
         ├── Serial      hdf5~mpi · netcdf~mpi · fftw~mpi · boost~mpi
         ├── MPI         the MPI implementation · hdf5+mpi · netcdf+mpi · fftw+mpi · scalapack
@@ -111,9 +111,10 @@ Placement rules (2026-07-08): serial means the package *could* build against
 MPI and the stack deliberately offers the MPI-less build too; a package with no
 MPI implementation at all is core, not serial. Edge cases are decided by the
 second core criterion (compiler-agnostic): `openblas` has no MPI but is
-compiler/performance-sensitive, so it stays payload-serial; `gnuplot` likewise
-(decided 2026-07-13); it must be built with the surface's compiler for
-library compatibility, so it is not compiler-agnostic and cannot be Core.
+compiler/performance-sensitive, so it is compiler-common rather than Core;
+`gnuplot` likewise (decided 2026-07-13); it must be built with the surface's
+compiler for library compatibility, so it is not compiler-agnostic and cannot
+be Core.
 Open team question, recorded not decided: MPI built
 for one rank can subsume a serial build, so the serial tier could in principle
 collapse into MPI; CSE keeps the explicit serial tier for now.
@@ -176,11 +177,12 @@ once per compiler, in their own environment, and exposed to every payload lane
 of that compiler. Neither special case survives the change, because there is
 no owner to be ambiguous about.
 
-**The implementation still hangs it off Serial and must follow this doc.**
-Until it does, `stack-content` declares these packages in the serial kind with
-`lane_agnostic:`, and the renderer emits their modules from the serial lane's
-environment into `<compiler>/shared`. The user-visible behaviour is already
-correct; the structure behind it is not.
+**Implemented 2026-07-14.** `common` is a build kind beside core, serial,
+mpi, and gpu. It fans out on compilers alone, gets its own environment and
+module root (`<compiler>/common`), and the compiler surface prepends that
+root beside Core's, so its modules are loadable the moment the surface loads
+and before any lane is chosen. The `lane_agnostic:` declaration, the shared
+module root, and both special cases are gone.
 
 **Original section (2026-07-13), kept for the reasoning it records.** Where a
 package is *built* and where it is *visible* are separate axes. Packages that
@@ -208,10 +210,11 @@ lane_agnostic name with root specs in any non-serial kind is a render error.
 contains two distinct classes of software: common compiler-dependent
 packages, and non-MPI configurations of packages that also support MPI.
 
-Common compiler-dependent packages (BLAS/LAPACK, gnuplot) are made
-available in the Serial, MPI, and GPU lanes, because the lanes are mutually
-exclusive and applications in each lane may require those packages. They
-are built once, in the Serial lane, and every lane sees the same install.
+Common compiler-dependent packages (BLAS/LAPACK, gnuplot) are available as
+soon as the compiler surface loads, before and regardless of the lane choice,
+because the lanes are mutually exclusive and applications in each lane may
+require those packages. They are built once per compiler, in their own group,
+and every lane sees the same install.
 
 Non-MPI configurations are not automatically propagated beyond the Serial
 lane. When an MPI-enabled configuration of the same package is selected for

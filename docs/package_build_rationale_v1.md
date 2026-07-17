@@ -74,13 +74,12 @@ stop-and-fix, not a fallback.
 
 - gsl and sqlite sit in Core: no MPI implementation exists for them and
   they behave as building blocks.
-- openblas stays in the serial payload despite having no MPI: it is
+- openblas is compiler-common despite having no MPI: it is
   compiler- and performance-sensitive, which fails the compiler-agnostic
-  test for Core. It is declared lane-agnostic (2026-07-13): one serial-lane
-  build whose modules are exposed in every payload lane of the compiler
-  column, because MPI and GPU codes link BLAS/LAPACK constantly and lanes
-  are exclusive; without the shared exposure an MPI user had no loadable
-  BLAS at all.
+  test for Core. It sits in the compiler-common group (2026-07-13, group
+  formalised 2026-07-14): one build per compiler, loadable from the surface
+  before any lane, because MPI and GPU codes link BLAS/LAPACK constantly and
+  lanes are exclusive; without it an MPI user had no loadable BLAS at all.
 - netlib-lapack was dropped (decided 2026-07-14, resolving the team review
   it carried). It was added because the usage list names lapack explicitly,
   but that requirement is already met: the openblas recipe declares
@@ -98,10 +97,10 @@ stop-and-fix, not a fallback.
   the lane's blas and lapack, which openblas provides. The GPU lane carries
   it because that lane repeats the MPI roster.
 - gnuplot placement is decided (2026-07-13, was flagged core-vs-serial):
-  it stays in the serial payload because it is **not compiler-agnostic**:
+  it is compiler-common because it is **not compiler-agnostic**:
   it must be built with the surface's compiler to stay compatible with the
   lane libraries it links, so it fails the Core test the same way openblas
-  does. Lane-agnostic exposure keeps it visible to every lane's users.
+  does. The compiler-common group keeps it visible to every lane's users.
 - boost is a dual-build package (decided 2026-07-13): it **can be built
   with an MPI backend**, so the stack builds it both ways: ~mpi in the
   serial lane and +mpi in the MPI lane, same clean module name, the loaded

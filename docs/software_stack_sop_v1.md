@@ -209,8 +209,8 @@ matters.
 User exposure policies:
 
 - A user loads one compiler surface, then one lane under that compiler. The lane
-  exposes its own package module root plus the compiler's shared root for
-  common compiler-dependent packages (below).
+  exposes its own package module root; the compiler surface already exposed
+  Core and the common compiler-dependent packages (below).
 - Serial, MPI, and GPU lanes conflict as public entry points. Users do not load
   MPI and GPU lanes together.
 - A GPU lane is a complete MPI-capable GPU surface when the stack selected a
@@ -229,12 +229,12 @@ User exposure policies:
   compiler-dependent packages** and **non-MPI configurations of packages
   that also support MPI**.
 - Common compiler-dependent packages (BLAS/LAPACK, gnuplot; no MPI
-  implementation exists for them) are available in the Serial, MPI, and GPU
-  lanes, because the lanes are mutually exclusive and applications in each
-  lane may require them. They are built once, in the Serial lane. An MPI or
-  GPU user loads the same `openblas` module a Serial user does and gets the
-  same install. Nothing is rebuilt and there is no extra lane to load. The
-  package set declares these under `lane_agnostic:`.
+  implementation exists for them) are loadable as soon as the compiler
+  surface loads, before and regardless of the lane choice, because the lanes
+  are mutually exclusive and applications in each lane may require them. They
+  are built once per compiler, in their own group beside Core. An MPI or GPU
+  user loads the same `openblas` module a Serial user does and gets the same
+  install. Nothing is rebuilt and there is no extra lane to load.
 - Non-MPI configurations are not propagated beyond the Serial lane. When an
   MPI-enabled configuration of the same package is selected for the MPI or
   GPU lane, that configuration is the one those users see, under the same
