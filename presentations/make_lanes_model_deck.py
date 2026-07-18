@@ -425,10 +425,10 @@ questions = [
      "The plan is to build every lane at the portable baseline, prove the model, then turn on "
      "per-lane tuning for Genoa, Milan, or Cascade Lake. Each target is a flag plus a full "
      "rebuild, so the open part is when, not whether."),
-    (GOLD, "What is CSE promising: the same interface, or the same binaries?",
-     "The lanes already give every DSRC the same front door, names, and rosters, with the "
-     "native MPI behind them. A stock MPICH lane with ABI substitution on the Crays would add "
-     "binary-level consistency, and a pinned CSE GCC would anchor the compilers."),
+    (GOLD, "What is CSE promising: same interface, same build steps, or same binaries?",
+     "The lanes give every DSRC the same front door and rosters, and the same spec plus the "
+     "same steps already build on any system, with that system's MPI and compiler underneath. "
+     "Same binaries is the open part: a stock MPICH lane with ABI substitution on the Crays."),
 ]
 for i, (color, q, detail) in enumerate(questions):
     y = 1.66 + i * 1.06

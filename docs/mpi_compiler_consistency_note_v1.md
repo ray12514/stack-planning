@@ -21,10 +21,10 @@ site's MPI knows its fabric, its scheduler, and its GPUs. Building our own
 maximises consistency: the same compiler and the same MPI everywhere, at the
 cost of proving fabric, launch, and GPU integration ourselves on each system.
 
-## Two different promises
+## Three different promises
 
-It helps to name what "consistent" means, because there are two versions and
-they serve different users.
+It helps to name what "consistent" means, because there are three versions
+and they serve different people.
 
 **Interface consistency.** The same front door, the same lane names, the same
 rosters, and the same module names on every system, with the native provider
@@ -32,15 +32,25 @@ behind the `MPI` name. The lanes model already delivers this. A user who
 learns `module load cse/GCC` then `MPI` on Raider needs no new knowledge on
 Blueback. What changes underneath is a platform fact, not a user-facing one.
 
+**Build consistency.** The same steps and the same spec work on every
+system. A builder writes `hdf5 +mpi`, includes the system's catalog scopes,
+and runs the same commands everywhere; the result works on each machine but
+is not the same binary, because the dependencies underneath resolve to that
+machine's compiler, MPI, and fabric. This is Spack's own split between the
+abstract spec and its concretization, and the model already delivers it: the
+stack file and package sets are identical on every DSRC, the fact sheets are
+what differ, and render binds one to the other. This tier serves every app
+manager and costs nothing new.
+
 **Binary consistency.** The same build artifact runs on every system. This
 matters to a narrower group: teams that ship prebuilt codes, containerised
 workflows, and users who hop between systems mid-project. Interface
 consistency does nothing for them, because their binaries are linked against
 one specific MPI.
 
-The two can coexist. Interface consistency stays the default story; binary
-consistency can be an additional lane for the users who need it, not a
-replacement for the native one.
+The three can coexist. Interface and build consistency are delivered today
+and stay the default story; binary consistency can be an additional lane for
+the users who need it, not a replacement for the native one.
 
 ## Compilers: build them
 
@@ -113,5 +123,5 @@ On Blueback, in rough order of information value:
 ## Decision needed
 
 Which consistency is CSE promising, to whom, and on what timeline. Interface
-consistency is delivered; binary consistency is buildable; the two-surface
-compiler story is cheap. The team owns the ordering.
+and build consistency are delivered; binary consistency is buildable; the
+two-surface compiler story is cheap. The team owns the ordering.
