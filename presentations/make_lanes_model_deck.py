@@ -425,10 +425,11 @@ questions = [
      "The plan is to build every lane at the portable baseline, prove the model, then turn on "
      "per-lane tuning for Genoa, Milan, or Cascade Lake. Each target is a flag plus a full "
      "rebuild, so the open part is when, not whether."),
-    (GOLD, "What is CSE promising: same interface, same build steps, or same binaries?",
-     "The lanes give every DSRC the same front door and rosters, and the same spec plus the "
-     "same steps already build on any system, with that system's MPI and compiler underneath. "
-     "Same binaries is the open part: a stock MPICH lane with ABI substitution on the Crays."),
+    (GOLD, "Consistency means the same functionality, not the same implementations.",
+     "A user builds and runs the same way on every system: same front door, same rosters, "
+     "same workflow, with each machine's native MPI and compiler underneath. The open part is "
+     "the floor: which capabilities every system must provide, and whether one pinned CSE GCC "
+     "anchors the compilers."),
 ]
 for i, (color, q, detail) in enumerate(questions):
     y = 1.66 + i * 1.06

@@ -21,36 +21,35 @@ site's MPI knows its fabric, its scheduler, and its GPUs. Building our own
 maximises consistency: the same compiler and the same MPI everywhere, at the
 cost of proving fabric, launch, and GPU integration ourselves on each system.
 
-## Three different promises
+## Who this is for, and what is promised
 
-It helps to name what "consistent" means, because there are three versions
-and they serve different people.
+CSE's lanes serve end users who build and run their own code on these
+systems. App managers with their own software are a different audience: they
+have the platform catalog, they build and expose their packages however they
+choose, and they never enter a lane. The consistency promise is owed to the
+first group only.
 
-**Interface consistency.** The same front door, the same lane names, the same
-rosters, and the same module names on every system, with the native provider
-behind the `MPI` name. The lanes model already delivers this. A user who
-learns `module load cse/GCC` then `MPI` on Raider needs no new knowledge on
-Blueback. What changes underneath is a platform fact, not a user-facing one.
+For that user, consistency means **the same functionality, reached the same
+way, on every system**. The same front door and lane names; the same roster
+of capabilities (a working MPI, HDF5, NetCDF, FFTW, BLAS, the same versions);
+the same workflow of load, compile, link, and run. Their source builds the
+same way everywhere. What sits underneath, cray-mpich here and Open MPI
+there, is a platform fact the promise deliberately does not extend to. Same
+functionality, not same implementations by name.
 
-**Build consistency.** The same steps and the same spec work on every
-system. A builder writes `hdf5 +mpi`, includes the system's catalog scopes,
-and runs the same commands everywhere; the result works on each machine but
-is not the same binary, because the dependencies underneath resolve to that
-machine's compiler, MPI, and fabric. This is Spack's own split between the
-abstract spec and its concretization, and the model already delivers it: the
-stack file and package sets are identical on every DSRC, the fact sheets are
-what differ, and render binds one to the other. This tier serves every app
-manager and costs nothing new.
+**Binary consistency is out of scope.** The same artifact running on every
+system would require one MPI implementation everywhere or ABI substitution,
+and no user need for it has been identified: this is a build-and-run
+environment, not a binary distribution channel. The mechanism is recorded in
+route 2 below in case a need ever appears, and until one does it is not the
+plan.
 
-**Binary consistency.** The same build artifact runs on every system. This
-matters to a narrower group: teams that ship prebuilt codes, containerised
-workflows, and users who hop between systems mid-project. Interface
-consistency does nothing for them, because their binaries are linked against
-one specific MPI.
-
-The three can coexist. Interface and build consistency are delivered today
-and stay the default story; binary consistency can be an additional lane for
-the users who need it, not a replacement for the native one.
+The visible seams in functional consistency today, in rough order of user
+impact: the scheduler (srun on the Slurm systems, PBS on Wheat, which changes
+how jobs launch), the compiler version behind each surface, and capability
+gaps between MPI implementations (GPU-awareness, MPI standard level). The
+first is a site property the lanes cannot hide. The other two are ours to
+close, which is what the rest of this note is about.
 
 ## Compilers: build them
 
@@ -95,9 +94,12 @@ system. The costs: OpenMPI has its own ABI, so no vendor compatibility layer
 exists and we own fabric validation on every machine; and GPU-aware MPI on
 the Crays reopens the GTL problem.
 
-Routes 2 and 3 are not exclusive with route 1. The likely end state is route
-1 as the performance default with route 2 as the portability lane, if the
-validation holds.
+Route 1 is the plan: the native provider delivers the functionality promise
+with the platform's own integration. Route 3 is the fallback where a system
+lacks a suitable native MPI, and the capability floor is the test either
+way: GPU-aware MPI where the hardware calls for it, and a common MPI
+standard level. Route 2 stays recorded because the mechanism is real, but it
+serves binary portability, which is out of scope until a user need appears.
 
 ## What this changes in the model
 
@@ -111,17 +113,21 @@ rewritten to say what it actually is: pilot policy, per system, revisitable.
 
 On Blueback, in rough order of information value:
 
-1. `cray-mpich-abi` against a stock-MPICH-built binary: does the swap work,
-   does the launch path behave, what breaks with GPU-aware codes.
-2. Spack splicing on a small case: splice cray-mpich in place of mpich and
-   diff the result against a native build.
+1. A stack-built GCC at the pinned version: build one lane with it end to
+   end and compare against the platform GCC lane. This is the compiler half
+   of the functionality promise.
+2. The capability floor across the four systems: MPI standard level and
+   GPU-aware MPI availability per system, recorded as facts next to the
+   fact sheets.
 3. OpenMPI over CXI: build, run the fabric checks, measure enough to know
-   whether it is a viable default or an emergency fallback.
-4. A stack-built GCC at the pinned version: build one lane with it end to
-   end and compare against the platform GCC lane.
+   whether it is a viable fallback where a native MPI falls short.
+4. Only if a binary-portability need ever surfaces: `cray-mpich-abi` against
+   a stock-MPICH-built binary, and Spack splicing on a small case.
 
 ## Decision needed
 
-Which consistency is CSE promising, to whom, and on what timeline. Interface
-and build consistency are delivered; binary consistency is buildable; the
-two-surface compiler story is cheap. The team owns the ordering.
+Agree the functionality floor: which capabilities every system's lanes must
+provide, and whether one pinned CSE GCC anchors the compilers. The interface
+and workflow are delivered; the floor and the compiler pin are the open
+parts. Binary consistency stays out of scope until someone names a user who
+needs it.
