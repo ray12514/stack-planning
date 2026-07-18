@@ -59,6 +59,14 @@ process, not ours. The build must use these: a build that starts compiling
 its own MPI or OpenSSL means the inputs were wrong, and that is treated as a
 stop-and-fix, not a fallback.
 
+Pilot policy, not doctrine (reframed 2026-07-14). "Never built" describes
+this pass, where externals were the fast, safe route on the Cray systems.
+The renderer treats providers as policy, so building a pinned compiler or an
+MPI is a defaults change plus validation, not a redesign. The longer-term
+question of what CSE promises across DSRCs, and which of these components
+should be stack-built for consistency, is worked through in
+`mpi_compiler_consistency_note_v1.md`.
+
 ## One version rule per layer
 
 - Foundation libraries (zlib, xz, zstd): exactly one pinned version,

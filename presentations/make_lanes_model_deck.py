@@ -425,12 +425,16 @@ questions = [
      "The plan is to build every lane at the portable baseline, prove the model, then turn on "
      "per-lane tuning for Genoa, Milan, or Cascade Lake. Each target is a flag plus a full "
      "rebuild, so the open part is when, not whether."),
+    (GOLD, "What is CSE promising: the same interface, or the same binaries?",
+     "The lanes already give every DSRC the same front door, names, and rosters, with the "
+     "native MPI behind them. A stock MPICH lane with ABI substitution on the Crays would add "
+     "binary-level consistency, and a pinned CSE GCC would anchor the compilers."),
 ]
 for i, (color, q, detail) in enumerate(questions):
-    y = 1.75 + i * 1.18
-    box(s, 0.6, y, 12.13, 1.08, PANEL)
-    txt(s, 0.95, y + 0.14, 11.5, 0.3, [(13.5, color, True, q)])
-    txt(s, 0.95, y + 0.45, 11.5, 0.58, [(11, MUTED, False, detail)])
+    y = 1.66 + i * 1.06
+    box(s, 0.6, y, 12.13, 0.98, PANEL)
+    txt(s, 0.95, y + 0.1, 11.5, 0.3, [(13, color, True, q)])
+    txt(s, 0.95, y + 0.41, 11.5, 0.54, [(10.5, MUTED, False, detail)])
 
 # ------------------------------------------------- appendix · layer stacking
 s = slide()
