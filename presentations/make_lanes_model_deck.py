@@ -406,64 +406,66 @@ def appendix_slide(title, sections, row_h=0.33):
 
 # ------------------------------------------------- 10 · open questions
 s = slide()
-header(s, "Open questions for the team", "Decisions we need · not settled yet")
+header(s, "Open questions for the team", "Decisions we need \u00b7 not settled yet")
 questions = [
     (GREEN, "Do we offer the vendor's math libraries as well as OpenBLAS?",
-     "OpenBLAS is now the one BLAS and LAPACK, so users get the same library on every system. "
-     "Cray LibSci is already on the path on Blueback and Fran, and Intel systems would expect MKL. "
-     "Both are registered rather than built, so this is policy per system, not build cost."),
+     "OpenBLAS is the one BLAS and LAPACK today. Cray LibSci is already on the path on the Cray "
+     "systems, and Intel systems expect MKL. Both are registered rather than built, so this is "
+     "policy per system, not build cost."),
     (TEAL, "Which compiler surfaces does the pilot carry?",
-     "The pilot carries two per system: the one the machine blesses as its baseline, plus GCC as "
-     "the portable reference. CSEinit offers GCC and Intel today, so whether Intel is one of the "
-     "two on the systems that have it is the open part."),
+     "Two per system: the one the machine blesses as its baseline, plus GCC as the portable "
+     "reference. CSEinit offers GCC and Intel today, so whether Intel stays one of the two on the "
+     "systems that have it is the open part."),
+    (BLUE, "Do we anchor the older version to what the systems run today?",
+     "Each package carries two versions, and the newer is always the newest release. The older is "
+     "the open part: match what is deployed on the systems now so existing code keeps building, or "
+     "just carry the previous release and move users up. Decide before the roster locks."),
     (AMBER, "Does the Serial lane stay?",
-     "Serial exists so users who are not running parallel do not carry the MPI runtime: analysis "
-     "and post-processing on a login node, small tools, anything linking HDF5 or NetCDF without "
-     "wanting libmpi behind it. An MPI build on one rank does the same work, so dropping Serial "
-     "would halve the build matrix and push the MPI runtime onto everyone."),
+     "Serial spares non-parallel users the MPI runtime: analysis, post-processing, small tools, "
+     "anything linking HDF5 or NetCDF without libmpi behind it. An MPI build on one rank does the "
+     "same work, so dropping Serial halves the build matrix but pushes the MPI runtime onto everyone."),
     (VIOLET, "Performance targeting: baseline first, tuning after.",
-     "The plan is to build every lane at the portable baseline, prove the model, then turn on "
-     "per-lane tuning for Genoa, Milan, or Cascade Lake. Each target is a flag plus a full "
-     "rebuild, so the open part is when, not whether."),
+     "Build every lane at the portable baseline, prove the model, then turn on per-lane tuning for "
+     "Genoa, Milan, or Cascade Lake. Each target is a flag plus a full rebuild, so the open part is "
+     "when, not whether."),
     (GOLD, "Consistency means the same functionality, not the same implementations.",
-     "A user builds and runs the same way on every system: same front door, same rosters, "
-     "same workflow, with each machine's native MPI and compiler underneath. The open part is "
-     "the floor: which capabilities every system must provide, and whether one pinned CSE GCC "
-     "anchors the compilers."),
+     "Same front door, same rosters, same workflow on every system, with each machine's native MPI "
+     "and compiler underneath. The open part is the floor: which capabilities every system must "
+     "provide, and whether one pinned CSE GCC anchors the compilers."),
 ]
 for i, (color, q, detail) in enumerate(questions):
-    y = 1.66 + i * 1.06
-    box(s, 0.6, y, 12.13, 0.98, PANEL)
-    txt(s, 0.95, y + 0.1, 11.5, 0.3, [(13, color, True, q)])
-    txt(s, 0.95, y + 0.41, 11.5, 0.54, [(10.5, MUTED, False, detail)])
+    y = 1.6 + i * 0.965
+    box(s, 0.6, y, 12.13, 0.9, PANEL)
+    txt(s, 0.95, y + 0.09, 11.5, 0.3, [(13, color, True, q)])
+    txt(s, 0.95, y + 0.4, 11.5, 0.5, [(10, MUTED, False, detail)])
 
 # ------------------------------------------------- 11 · starter questions
 s = slide()
 header(s, "If we start building: what has to be decided?", "Discussion \u00b7 starter questions for the build")
 starters = [
     (TEAL, "Which compiler anchors each system's stack?",
-     "Every package on a system builds against this choice, so it comes first. The system's own "
-     "compiler, one common version everywhere, or something else?"),
-    (BLUE, "Which MPI pairs with it on each system?",
-     "Whatever we pick has to work with each machine's fabric and job launcher. Do we take what "
-     "each site provides, and what do we do where that answer is unclear?"),
-    (AMBER, "What CPU baseline do we build for?",
-     "One portable target that runs on every pilot system, or per-system tuning from day one? "
-     "This sets how many builds exist and where they can run."),
-    (VIOLET, "Where does the software live on each system?",
-     "Install locations, and who owns them, per system. Nothing installs until someone can answer "
-     "this for their machine."),
-    (GOLD, "What has to pass before a build counts as done?",
-     "A shared finish line, agreed before the first build starts: what compiles, what runs, and "
-     "what we can rebuild from scratch."),
+     "It comes first, because everything else on the system is built with it. Each machine's own "
+     "compiler, one shared version across systems, or a mix?"),
+    (GREEN, "Which components do we take from the system instead of building?",
+     "OpenSSL and curl look like clear cases to start. Which others do we commit to as "
+     "system-provided rather than build ourselves?"),
+    (BLUE, "Which MPI do we use on each system?",
+     "cray-mpich on the Cray machines, once we confirm we can build against it; OpenMPI on the "
+     "rest, ideally the same one across them."),
+    (AMBER, "What CPU baseline do we set?",
+     "We name the target rather than let the tools choose it. Which baseline, and where do we "
+     "allow per-system tuning later?"),
+    (VIOLET, "Where does the stack live, and which Spack builds it?",
+     "Install locations per system, most likely the CSE directory, and the Spack version we "
+     "standardize on for the pilot."),
+    (GOLD, "What counts as done?",
+     "The packages built and tested, or the full user environment stood up and ready to load?"),
 ]
 for i, (color, q, detail) in enumerate(starters):
-    y = 1.66 + i * 1.06
-    box(s, 0.6, y, 12.13, 0.98, PANEL)
-    txt(s, 0.95, y + 0.1, 11.5, 0.3, [(13, color, True, q)])
-    txt(s, 0.95, y + 0.41, 11.5, 0.54, [(10.5, MUTED, False, detail)])
-boxtxt(s, 0.6, 6.98, 12.13, 0.42, PANEL2, [(12, INK, True,
-    "And just as useful: which of these can wait until after the first builds?")])
+    y = 1.6 + i * 0.965
+    box(s, 0.6, y, 12.13, 0.9, PANEL)
+    txt(s, 0.95, y + 0.09, 11.5, 0.3, [(13, color, True, q)])
+    txt(s, 0.95, y + 0.4, 11.5, 0.5, [(10, MUTED, False, detail)])
 
 # ------------------------------------------------- appendix · layer stacking
 s = slide()
