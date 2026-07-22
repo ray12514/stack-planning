@@ -406,12 +406,8 @@ def appendix_slide(title, sections, row_h=0.33):
 
 # ------------------------------------------------- 10 · open questions
 s = slide()
-header(s, "Open questions for the team", "Decisions we need \u00b7 not settled yet")
+header(s, "Bigger questions to settle together", "Scope and policy \u00b7 not settled yet")
 questions = [
-    (TEAL, "Which compiler surfaces does the pilot carry?",
-     "Two per system: the one the machine blesses as its baseline, plus GCC as the portable "
-     "reference. CSEinit offers GCC and Intel today, so whether Intel stays one of the two on the "
-     "systems that have it is the open part."),
     (BLUE, "Do we anchor the older version to what the systems run today?",
      "Each package carries two versions, and the newer is always the newest release. The older is "
      "the open part: match what is deployed on the systems now so existing code keeps building, or "
@@ -430,18 +426,19 @@ questions = [
      "MPI and compiler, or a pinned CSE compiler and a shared MPI? Which promise do we make?"),
 ]
 for i, (color, q, detail) in enumerate(questions):
-    y = 1.66 + i * 1.06
-    box(s, 0.6, y, 12.13, 0.98, PANEL)
-    txt(s, 0.95, y + 0.1, 11.5, 0.3, [(13, color, True, q)])
-    txt(s, 0.95, y + 0.41, 11.5, 0.54, [(10.5, MUTED, False, detail)])
+    y = 1.75 + i * 1.28
+    box(s, 0.6, y, 12.13, 1.12, PANEL)
+    txt(s, 0.95, y + 0.14, 11.5, 0.3, [(13, color, True, q)])
+    txt(s, 0.95, y + 0.48, 11.5, 0.56, [(10.5, MUTED, False, detail)])
 
 # ------------------------------------------------- 11 · starter questions
 s = slide()
-header(s, "If we start building: what has to be decided?", "Discussion \u00b7 starter questions for the build")
+header(s, "If we start building: what has to be decided?", "Setup \u00b7 what blocks the first build")
 starters = [
     (TEAL, "Which compiler anchors each system's stack?",
-     "It comes first, because everything else on the system is built with it. Each machine's own "
-     "compiler, one shared version across systems, or a mix?"),
+     "It comes first, because everything else on the system is built with it: each machine's own "
+     "compiler, one shared version across systems, or a mix. Whether Intel stays a surface where it "
+     "still exists is part of this."),
     (GREEN, "Which components do we take from the system instead of building?",
      "OpenSSL and curl look like clear cases to start. Which others do we commit to as "
      "system-provided rather than build ourselves?"),
