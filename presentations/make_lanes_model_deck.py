@@ -408,30 +408,30 @@ def appendix_slide(title, sections, row_h=0.33):
 s = slide()
 header(s, "Open questions for the team", "Decisions we need \u00b7 not settled yet")
 questions = [
-    (GREEN, "Do we offer the vendor's math libraries as well as OpenBLAS?",
-     "OpenBLAS is the one BLAS and LAPACK today. Cray LibSci is already on the path on the Cray "
-     "systems, and Intel systems expect MKL. Both are registered rather than built, so this is "
-     "policy per system, not build cost."),
     (TEAL, "Which compiler surfaces does the pilot carry?",
      "Two per system: the one the machine blesses as its baseline, plus GCC as the portable "
      "reference. CSEinit offers GCC and Intel today, so whether Intel stays one of the two on the "
      "systems that have it is the open part."),
+    (AMBER, "Is a separate Serial lane worth its own builds?",
+     "Serial spares users who are not running parallel from the MPI runtime: login-node analysis, "
+     "post-processing, small tools, anything linking HDF5 or NetCDF without libmpi behind it. The "
+     "cost is a second build of those packages. Worth it, or does one MPI build on a single rank cover them?"),
     (BLUE, "Do we anchor the older version to what the systems run today?",
      "Each package carries two versions, and the newer is always the newest release. The older is "
      "the open part: match what is deployed on the systems now so existing code keeps building, or "
      "just carry the previous release and move users up. Decide before the roster locks."),
-    (AMBER, "Does the Serial lane stay?",
-     "Serial spares non-parallel users the MPI runtime: analysis, post-processing, small tools, "
-     "anything linking HDF5 or NetCDF without libmpi behind it. An MPI build on one rank does the "
-     "same work, so dropping Serial halves the build matrix but pushes the MPI runtime onto everyone."),
+    (GREEN, "Do we offer the vendor's math libraries as well as OpenBLAS?",
+     "OpenBLAS is the one BLAS and LAPACK today. Cray LibSci is already on the path on the Cray "
+     "systems, and Intel systems expect MKL. Both are registered rather than built, so this is "
+     "policy per system, not build cost."),
     (VIOLET, "Performance targeting: baseline first, tuning after.",
      "Build every lane at the portable baseline, prove the model, then turn on per-lane tuning for "
      "Genoa, Milan, or Cascade Lake. Each target is a flag plus a full rebuild, so the open part is "
      "when, not whether."),
-    (GOLD, "Consistency means the same functionality, not the same implementations.",
-     "Same front door, same rosters, same workflow on every system, with each machine's native MPI "
-     "and compiler underneath. The open part is the floor: which capabilities every system must "
-     "provide, and whether one pinned CSE GCC anchors the compilers."),
+    (GOLD, "What does consistency promise across systems?",
+     "Users build, link, and run the same way everywhere: same front door, same rosters, same "
+     "workflow. That much is the goal. The open part is what sits underneath: each machine's native "
+     "MPI and compiler, or a pinned CSE compiler and a shared MPI? Which promise do we make?"),
 ]
 for i, (color, q, detail) in enumerate(questions):
     y = 1.6 + i * 0.965
