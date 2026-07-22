@@ -412,10 +412,6 @@ questions = [
      "Two per system: the one the machine blesses as its baseline, plus GCC as the portable "
      "reference. CSEinit offers GCC and Intel today, so whether Intel stays one of the two on the "
      "systems that have it is the open part."),
-    (AMBER, "Is a separate Serial lane worth its own builds?",
-     "Serial spares users who are not running parallel from the MPI runtime: login-node analysis, "
-     "post-processing, small tools, anything linking HDF5 or NetCDF without libmpi behind it. The "
-     "cost is a second build of those packages. Worth it, or does one MPI build on a single rank cover them?"),
     (BLUE, "Do we anchor the older version to what the systems run today?",
      "Each package carries two versions, and the newer is always the newest release. The older is "
      "the open part: match what is deployed on the systems now so existing code keeps building, or "
@@ -434,10 +430,10 @@ questions = [
      "MPI and compiler, or a pinned CSE compiler and a shared MPI? Which promise do we make?"),
 ]
 for i, (color, q, detail) in enumerate(questions):
-    y = 1.6 + i * 0.965
-    box(s, 0.6, y, 12.13, 0.9, PANEL)
-    txt(s, 0.95, y + 0.09, 11.5, 0.3, [(13, color, True, q)])
-    txt(s, 0.95, y + 0.4, 11.5, 0.5, [(10, MUTED, False, detail)])
+    y = 1.66 + i * 1.06
+    box(s, 0.6, y, 12.13, 0.98, PANEL)
+    txt(s, 0.95, y + 0.1, 11.5, 0.3, [(13, color, True, q)])
+    txt(s, 0.95, y + 0.41, 11.5, 0.54, [(10.5, MUTED, False, detail)])
 
 # ------------------------------------------------- 11 · starter questions
 s = slide()
