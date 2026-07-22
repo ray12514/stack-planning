@@ -437,6 +437,38 @@ for i, (color, q, detail) in enumerate(questions):
     txt(s, 0.95, y + 0.1, 11.5, 0.3, [(13, color, True, q)])
     txt(s, 0.95, y + 0.41, 11.5, 0.54, [(10.5, MUTED, False, detail)])
 
+# ------------------------------------------------- 11 · starting the builds
+s = slide()
+header(s, "Starting the builds: what to decide together", "Discussion \u00b7 from model to first installs")
+txt(s, 0.6, 1.62, 5.9, 0.4, [(15, GREEN, True, "What I'm bringing")])
+ready = [
+    ("Pilot systems and order", "Blueback first, then Raider and Wheat; Fran when it arrives"),
+    ("A package roster with versions", "newest supported release plus its predecessor, variants written down"),
+    ("A baseline CPU target", "x86_64_v3 runs natively on every pilot system; tuning is a later flag"),
+    ("A draft definition of done", "five checks, spelled out below"),
+]
+for i, (t, d) in enumerate(ready):
+    y = 2.12 + i * 1.10
+    txt(s, 0.6, y, 0.4, 0.4, [(15, GREEN, True, "\u2713")])
+    txt(s, 1.05, y, 5.5, 0.32, [(13, INK, True, t)])
+    txt(s, 1.05, y + 0.34, 5.5, 0.62, [(11, MUTED, False, d)])
+txt(s, 6.85, 1.62, 5.9, 0.4, [(15, GOLD, True, "What I need from you")])
+decide = [
+    ("Which GCC on each system", "the system's own, or one version built everywhere; every package rests on this"),
+    ("MPI pairing on Raider and Wheat", "the Crays point at cray-mpich; the others need the site MPI confirmed"),
+    ("System details and install paths", "each system needs its facts confirmed and locations chosen, with an owner"),
+    ("Agreement on the definition of done", "so the first build has a finish line"),
+]
+for i, (t, d) in enumerate(decide):
+    y = 2.12 + i * 1.10
+    txt(s, 6.85, y, 0.4, 0.4, [(15, GOLD, True, "\u2192")])
+    txt(s, 7.3, y, 5.4, 0.32, [(13, INK, True, t)])
+    txt(s, 7.3, y + 0.34, 5.4, 0.62, [(11, MUTED, False, d)])
+boxtxt(s, 0.6, 6.5, 12.13, 0.78, PANEL2, [
+    (12.5, INK, True, "Draft definition of done: packages build \u00b7 sample C, C++, and Fortran codes compile and run \u00b7"),
+    (12.5, INK, True, "MPI jobs run across nodes \u00b7 a rebuild reproduces the result \u00b7 installs come from the build cache"),
+])
+
 # ------------------------------------------------- appendix · layer stacking
 s = slide()
 header(s, "What each lane exposes", "Appendix · how the layers stack")
