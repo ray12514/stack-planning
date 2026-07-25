@@ -8,9 +8,21 @@
 | Companion | `cray_mpich_gcc_compatibility_v1.md` for the compiler and MPI pairing rule |
 
 Each template is a `spack.yaml` for one surface on one system. Two surfaces per
-system: the platform's blessed compiler, and GCC as the portable reference.
+system:
+
+- **The CSE GCC surface.** One GCC version, built by the stack, the same on
+  every system. This is the consistency anchor: a user meets the same compiler
+  everywhere. The MPI underneath stays each machine's own, so the surface is
+  consistent in compiler and workflow, not in MPI implementation.
+- **The platform baseline surface.** The compiler the machine blesses, CCE on
+  the Crays and AOCC on the AMD systems, with the MPI that pairs with it.
+
 Both surfaces build the same package roster, so a difference in results is a
 difference in toolchain and nothing else.
+
+What gets built therefore differs per system. On the Crays the CSE surface
+builds only the compiler, because cray-mpich is consumed. On the generic Linux
+systems it builds the compiler and the MPI.
 
 ## Reading the catalog first
 
@@ -46,10 +58,65 @@ ls /opt/cray/pe/mpich/<version>/ofi/gnu
    prefix. To build our own instead, leave that one scope out and name the
    compiler in the specs.
 
-## Blueback, surface 1: platform GCC with cray-mpich
+## Blueback, surface 1: stack-built GCC with cray-mpich
 
-Both the compiler and the MPI come from the platform. Nothing is built except
-the payload.
+This is the consistency surface. The same GCC version is built on every system
+in the pilot, so a user meets one compiler everywhere, while the MPI stays each
+machine's own. On the Crays that means our GCC on top of the platform's
+cray-mpich.
+
+The compiler scope is left out, which is what makes GCC buildable. The MPI
+scope is included, so cray-mpich is consumed as an external at the flavor
+prefix.
+
+```yaml
+spack:
+  include::
+  - <catalog>/scopes/common
+  - <catalog>/scopes/mpi/cray-mpich/<mpich-version>/gcc-<flavor-gcc-version>
+  # compilers scope deliberately omitted: GCC is built here
+
+  specs:
+  - group: compiler
+    specs:
+    - gcc@<cse-gcc-version>
+
+  - group: apps
+    needs: [compiler]
+    specs:
+    - hdf5@<version> +mpi +fortran %gcc@<cse-gcc-version>
+    - netcdf-c@<version> +mpi %gcc@<cse-gcc-version>
+    - netcdf-fortran@<version> %gcc@<cse-gcc-version>
+    - fftw@<version> +mpi %gcc@<cse-gcc-version>
+    - openblas@<version> %gcc@<cse-gcc-version>
+    - netlib-scalapack@<version> %gcc@<cse-gcc-version>
+    - boost@<version> +mpi %gcc@<cse-gcc-version>
+
+  concretizer:
+    unify: false
+    reuse: true
+```
+
+`<cse-gcc-version>` is the one CSE version, the same on every system.
+`<flavor-gcc-version>` is whatever that machine's cray-mpich was built with,
+and it selects which MPI scope to include. They are different values and the
+rule between them is one-directional: the CSE version must be at or above the
+flavor version, never below.
+
+This combination is verified. A stack-built GCC 14.3.0 against a `gnu/13.3`
+cray-mpich flavor concretizes with cray-mpich bound as an external at the
+flavor prefix and its module, and the whole payload built against the stack
+compiler.
+
+If the machine's only GNU flavor turns out to be above the chosen CSE version,
+this surface cannot be built as written. That is the pairing constraint showing
+up for real, and the options are to raise the CSE version or to treat that
+system's GCC surface as platform-provided instead.
+
+### Variant: platform GCC instead
+
+If the pilot decides a system should consume its own GCC rather than the CSE
+one, include the compiler scope and drop the groups:
 
 ```yaml
 spack:
@@ -60,20 +127,11 @@ spack:
 
   specs:
   - hdf5@<version> +mpi +fortran
-  - netcdf-c@<version> +mpi
-  - netcdf-fortran@<version>
-  - fftw@<version> +mpi
-  - openblas@<version>
-  - netlib-scalapack@<version>
-  - boost@<version> +mpi
-
-  concretizer:
-    unify: false
-    reuse: true
+  # ... same roster, no %compiler needed
 ```
 
-The compiler scope and the MPI scope must name the same GCC version. The MPI
-scope path states which one it was built with; that pairing is not optional.
+Here the two scopes must name the same GCC version, since the platform
+compiler is the one the MPI was built with.
 
 ## Blueback, surface 2: CCE with cray-mpich
 
