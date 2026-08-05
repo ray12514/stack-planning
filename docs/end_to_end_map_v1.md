@@ -15,6 +15,25 @@ This is the consolidated overview. For depth, follow the cross-references:
 
 No v1 stack release has been deployed yet. This map is changeable pre-v1.
 
+## Two Stack Composer products
+
+Stack Composer has two distinct render contracts:
+
+- `render-static` produces a **catalog tree** of reusable, include-ready Spack
+  configuration scopes from `profile.yaml` plus path-independent site policy.
+  It does not accept package intent or deployment paths and does not generate
+  an environment `spack.yaml`, operational `modules.yaml`, views, lanes, or a
+  build workspace. A package manager includes selected catalog scopes from a
+  manually owned `spack.yaml`.
+- `render` produces the **full build workspace** described by the managed flow
+  below. It combines profile facts, stack intent, package sets, policy, and
+  `deployment.yaml` to generate selected config scopes, environment
+  `spack.yaml` and `modules.yaml` files, views, module exposure artifacts,
+  reports, and the release manifest.
+
+The products share platform-resolution helpers, not an output contract. See
+`manual_config_catalog_note_v1.md` for the static catalog contract.
+
 ## Actors and tools
 
 | Actor / tool | Role |

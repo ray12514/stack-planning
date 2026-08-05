@@ -10,26 +10,55 @@ No v1 stack release has been deployed yet. This note is changeable pre-v1.
 Keep the **manual config catalog** separate from the existing managed workspace
 render.
 
-The current managed render remains:
+The full managed render remains:
 
 ```text
-profile.yaml + deployment.yaml + stack.yaml + templates
-  -> rendered workspace
-  -> generated lane spack.yaml files
-  -> build path
+profile.yaml + deployment.yaml + stack.yaml + package sets + policy
+  -> selected platform config scopes
+  -> generated environment spack.yaml and modules.yaml files
+  -> complete build workspace
 ```
 
 The manual config catalog is a separate flow:
 
 ```text
-profile.yaml + deployment.yaml/site policy + templates
-  -> complete reusable Spack config YAML files for the system
+profile.yaml + defaults/site policy
+  -> complete reusable Spack config scopes for the system
   -> manual users/package managers include those files from their own spack.yaml
 ```
 
 The two flows may reuse implementation helpers, especially normalized external
 rendering for compilers, MPI, GPU toolkits, and system externals. They must not
 share one user-facing interface or one output contract.
+
+## Product contract: catalog tree versus build workspace
+
+The static output is a **catalog tree**. It is not a lane workspace, module
+tree, or directly buildable Spack environment. The full output is a **build
+workspace** containing everything the downstream build path needs.
+
+| Contract | `stack-composer render-static` | `stack-composer render` |
+|---|---|---|
+| Platform facts | reads `profile.yaml`; never probes | reads `profile.yaml`; never probes |
+| Package intent | none; independent of a stack | reads `stack.yaml` and package sets |
+| Deployment paths | not accepted or materialized | required from `deployment.yaml` |
+| Reusable config scopes | all maintainer-supported safe choices | only scopes selected for the resolved environments |
+| Environment `spack.yaml` | no | yes, one per rendered environment |
+| Operational `modules.yaml` | no | yes, one complete native policy per environment |
+| Named views | no | yes |
+| Front-door and lane module artifacts | no | yes |
+| Direct build handoff | no; a user must author an environment | yes |
+| Owner of root specs | manual user/package manager | full renderer from stack intent |
+
+Static output may publish path-independent module guidance as documentation or
+catalog metadata. It must not publish an operational `modules.yaml` whose view,
+module-root, or projection paths are unknown. Those paths become known only in
+the full render through `deployment.yaml` and the resolved environment plan.
+
+Both products should derive compiler, MPI, GPU, runtime, and external choices
+from a shared internal platform plan. `render-static` serializes the complete
+safe catalog; `render` selects from that plan and materializes buildable
+environments. This is implementation reuse, not a shared output contract.
 
 ## Purpose
 
@@ -52,8 +81,12 @@ The catalog owns:
 - reusable GPU toolkit external config;
 - curated system externals such as OpenSSL, curl, fabric libraries, and
   platform math/runtime libraries when policy selects them;
-- common config such as install tree/cache/mirror/concretizer defaults if the
-  site chooses to publish those.
+- path-independent common config such as provider, target, repository,
+  mirror, and concretizer policy when the site chooses to publish it.
+
+The catalog does not own install trees, build stages, view roots, module roots,
+or filesystem permissions. Those are deployment decisions owned by the full
+renderer.
 
 ## Non-goals
 
@@ -64,34 +97,29 @@ The catalog owns:
 - Do not publish every discovered fact blindly. The catalog should publish only
   facts that pass site policy and render-safety validation.
 
-## Expected shape
+## Static catalog shape
 
 The exact layout can change, but the output should be a versioned system-local
 tree with one copy also committed or published through the source repository:
 
 ```text
-stack-config-catalog/
+rendered-static/
   <system>/
-    releases/
+    static/
       2026.09/
-        common/
-          config.yaml
-          packages.yaml
-          repos.yaml
-        compilers/
-          packages.yaml
-        mpi/
-          packages.yaml
-        gpu/
-          rocm/packages.yaml
-          cuda/packages.yaml
-        os/
-          packages.yaml
-        targets/
-          packages.yaml
+        README.md
+        manifest.yaml
+        reports/
+          static-plan.yaml
+        scopes/
+          common/
+          compilers/<compiler>/<version>/
+          mpi/<provider>/<version>/<compiler-version>/
+          gpu/cuda/<version>/
+          gpu/rocm/<version>/
+          platform/<provider-family>/
         examples/
           gnu-cray-mpich-spack.yaml
-    current -> releases/2026.09
 ```
 
 The important property is that each file is a complete valid Spack config YAML,
@@ -102,10 +130,10 @@ Example manual environment:
 ```yaml
 spack:
   include:
-  - /apps/cse/spack-config-catalog/blueback/current/common
-  - /apps/cse/spack-config-catalog/blueback/current/compilers
-  - /apps/cse/spack-config-catalog/blueback/current/mpi
-  - /apps/cse/spack-config-catalog/blueback/current/gpu/rocm
+  - /apps/cse/spack-config-catalog/blueback/current/scopes/common
+  - /apps/cse/spack-config-catalog/blueback/current/scopes/compilers/gcc/14.3.0
+  - /apps/cse/spack-config-catalog/blueback/current/scopes/mpi/cray-mpich/9.1.0/gcc-14.3.0
+  - /apps/cse/spack-config-catalog/blueback/current/scopes/gpu/rocm/7.0.0
   specs:
   - hdf5+mpi
   - netcdf-c+mpi
@@ -124,8 +152,8 @@ for the system, independent of one `stack.yaml`.
 
 | Product | Primary user | User owns specs? | Stack Composer writes environment `spack.yaml`? | Output |
 |---|---|---:|---:|---|
-| Managed workspace render | Curated stack maintainers | mostly no | yes | lane environments + selected config scopes + manifest |
-| Manual config catalog | Package managers / advanced users | yes | no | complete reusable Spack config YAML files |
+| Full build-workspace render | Curated stack maintainers | mostly no | yes | buildable environments + selected config scopes + modules/views + manifest |
+| Static config catalog | Package managers / advanced users | yes | no | include-ready, path-independent Spack config scopes + manifest/examples |
 
 ## Open policy questions
 
@@ -136,8 +164,8 @@ These should be resolved before publishing a catalog:
 2. Should there be both strict and advisory catalog variants?
 3. Should compiler, MPI, and GPU config be rendered as one full file per class
    or split further into one file per provider?
-4. Which deployment fields are safe to publish to manual users by default
-   (install tree, cache, mirrors, build stage, modules)?
+4. Which path-independent site fields are safe to publish to manual users by
+   default (mirrors, repository pins, targets, concretizer policy)?
 5. How should provenance be recorded for catalog files published to the shared
    filesystem and source repository?
 
