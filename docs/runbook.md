@@ -68,6 +68,11 @@ The table selects the platform checklist, not provider versions. Every
 compiler, MPI, GPU, prefix, and module value must come from the live system's
 reviewed profile and generated catalog.
 
+Use Blueback and Raider as the two lead systems. Bring both through reviewed
+lockfiles first so the Cray and generic-Linux paths are exercised early. Then
+complete Blueback through cache-only publication, complete Raider, continue to
+Wheat, and finish with Fran when its access and platform facts are ready.
+
 ## Pilot storage and control policy
 
 Keep tools, source, raw probes, and editable inputs under the pilot operator's
@@ -151,6 +156,84 @@ Do not advance past a failed gate.
   --use-buildcache=only`; no source fallback occurs.
 - [ ] Published hashes match the restricted build hashes, and user-facing views
   and modules pass from a clean session.
+
+## Resume and recovery policy
+
+Every run is a sequence of durable checkpoints. Record the last successful
+checkpoint in the system notes before starting the next one.
+
+| Checkpoint | State | Durable evidence |
+|---:|---|---|
+| 1 | Profile verified | reviewed `profile.yaml` and probe evidence |
+| 2 | Catalog reviewed | static manifest, plan, and selected scopes |
+| 3 | Restricted workspace initialized | build values, workspace manifest, configs, and modules |
+| 4 | Locks reviewed | five approved restricted `spack.lock` files |
+| 5 | Lanes validated | per-lane build logs and target runtime results |
+| 6 | Cache complete | signed binaries, verified index, and approved hashes |
+| 7 | Cache-only publication complete | copied locks, published prefixes, and matching hashes |
+| 8 | Release accepted | clean-shell module/runtime evidence and owner approval |
+
+### Same release or new release
+
+Resume the same release only when all of these are true:
+
+- the profile, catalog, values, roster, package-recipe pin, Spack version, and
+  repository commits are unchanged;
+- the affected lockfile and concrete hashes are unchanged;
+- the failure was operational, such as a scheduler timeout, node loss, network
+  interruption, quota exhaustion, or interrupted cache transfer;
+- no approved published artifact would be edited in place.
+
+Create a new catalog release and a new pilot release when observed system facts
+or reusable static scopes change. Create a new pilot release when the compiler,
+MPI, GPU, toolchain, specs, variants, values, roster, package recipes, Spack
+version, or any lockfile changes. A module or view correction made after a
+release is accepted also gets a new pilot release, even when package hashes stay
+the same.
+
+A new release does not imply rebuilding every package. It may reuse compatible
+approved binaries already present in the private CSE build cache. The rule is
+about preserving provenance and immutable release records, not discarding safe
+cache reuse.
+
+Use `--overwrite` only before the first lockfile exists and before anything has
+been pushed or published. Once a run reaches checkpoint 4, preserve the failed
+workspace and evidence. Derive a new release for semantic input changes instead
+of deleting or rewriting the old record.
+
+### Recovery matrix
+
+| Failure or change | Resume action |
+|---|---|
+| Scheduler timeout, node failure, temporary network failure, or resolved quota problem with unchanged inputs | Retry only the failed command or environment in the same release. |
+| Source build failure caused by a transient host/tool problem | Retry the failed lane after recording the log; earlier validated lanes remain valid. |
+| Package recipe, patch, variant, compiler, MPI, GPU, or Spack change is required | Create a new pilot release, reconcretize, and revalidate every affected lane. |
+| Cluster Inspector fact or external module/prefix is wrong | Regenerate the profile, create a new catalog release and pilot release, and restart at checkpoint 1. |
+| Static catalog scope or toolchain is wrong | Fix the owning profile/catalog logic, create new catalog and pilot releases, and restart at checkpoint 2. |
+| Restricted workspace template or values are wrong before locks exist | Reinitialize the working release; after locks exist, create a new pilot release. |
+| A later lane fails while earlier lane locks and inputs remain unchanged | Keep the earlier evidence and retry only the failed lane. If a shared upstream hash changes, reconcretize and revalidate every dependent lane in a new release. |
+| Build-cache push, index, or signing operation is interrupted | Retry the cache operation from the installed restricted specs; do not rebuild. |
+| Publication reports a cache miss for an exact approved hash | Return to the restricted workspace, build and validate that exact locked hash, push it, and retry only the failed publication environment. If producing it requires a changed hash, create a new release. |
+| View or module refresh fails before release acceptance and the DAG is unchanged | Correct and rerun only view/module generation, then repeat clean-shell checks. |
+| Published module/view content needs correction after acceptance | Create a new pilot release; do not edit the accepted release in place. |
+| Platform upgrade changes CPE, compiler, MPI, GPU, fabric, OS, or runtime ABI facts | Hold publication and restart with a fresh profile, catalog, locks, and runtime validation. |
+
+### Failure procedure
+
+When a command fails:
+
+1. Stop at that checkpoint. Do not advance the failed lane or its dependents.
+2. Record the exact command, exit status, log/evidence path, last successful
+   checkpoint, and whether any input changed.
+3. Classify the failure as operational, input/DAG-changing, cache promotion, or
+   publication/module exposure.
+4. Fix the owning source: Cluster Inspector facts, static catalog logic, CSE
+   values/roster/blueprint, package recipe, or this process document. Never fix
+   generated `spack.yaml` or `spack.lock` files by hand.
+5. Record `resume same release` or `new release`, the earliest invalid
+   checkpoint, and the exact next command in the system notes.
+6. Preserve the failed workspace and evidence until the replacement release is
+   accepted.
 
 ## 1. Set the system values
 
