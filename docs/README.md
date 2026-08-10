@@ -12,7 +12,7 @@ Human-readable contracts for the stack-planning system. The JSON Schemas in
 | `lane_and_module_model_v1.md` | **Lane + module model.** Lanes, per-compiler Core, the three GPU lane kinds, toolchain binding, externalization, exposure, front-door module anatomy, provenance, build order. |
 | `stack_workspace_lifecycle_v1.md` | Per-stack workspaces, the one shared hash-deduplicated install tree, and the three lifetimes (kept / regenerable / durable). |
 | `end_to_end_map_v1.md` | Point-A-to-point-B map: inputs, producers, outputs, consumers, tools, cadence, worked example. |
-| `runbook.md` | First-iteration operator runbook: probe → compose → build → expose → validate. |
+| `runbook.md` | Canonical CSE static-pilot procedure: probe → static catalog → restricted build/validation → private build cache → cache-only shared publication. |
 | `stack_build_handoff_note_v1.md` | Where render stops; build is a co-equal choice (spacktools / spack-build / Ansible / bare Spack); stack-content + config delivery modes. |
 | `stack_generation_orchestration_note_v1.md` | Render across systems: the intersection model, input cadence, re-render/rebuild triggers, tool-agnostic driver contract. |
 | `deployment_inputs_and_ownership_v1.md` | Auto-vs-explicit ownership and the `deployment.yaml` overlay; the install tree is never auto-derived. |
