@@ -17,6 +17,7 @@ Human-readable contracts for the stack-planning system. The JSON Schemas in
 | `stack_generation_orchestration_note_v1.md` | Render across systems: the intersection model, input cadence, re-render/rebuild triggers, tool-agnostic driver contract. |
 | `deployment_inputs_and_ownership_v1.md` | Auto-vs-explicit ownership and the `deployment.yaml` overlay; the install tree is never auto-derived. |
 | `manual_config_catalog_note_v1.md` | Follow-up manual-user product: render complete reusable Spack config YAML files from profile facts without generating a managed environment. |
+| `spack_1_2_rendered_environment_reference_v1.md` | Spack 1.2 full-render reference: native config-file seam, groups/`needs`, toolchains, Foundation/Core/Common views, modules, and Cray/Linux examples. |
 | `pre_v1_hosting_and_external_inventory_note_v1.md` | Four-repo GitLab layout, the stack-content repo, and the (realized) provider-family generalization. |
 | `cray_runtime_package_repo_note_v1.md` | Follow-up Cray runtime package-repo direction: GTL, PMI/PALS, libfabric/CXI, and removing LD_PRELOAD workarounds. |
 | `cluster_inspector_stack_profile_design_v1.md` | `cluster-inspector` boundary, CLI, packaging. |

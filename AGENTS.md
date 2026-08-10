@@ -42,6 +42,7 @@ design calls for it:
 - `docs/cluster_inspector_stack_profile_design_v1.md` — Go inspector: product boundary, CLI, repo shape.
 - `docs/cluster_inspector_profile_extraction_map_v1.md` — per-field probe map for `profile.yaml`.
 - `docs/foundation_core_view_semantics_note_v1.md` — hardening note for foundation/Core visibility, build-only views, version-collision policy, and whether foundation packages are public modules.
+- `docs/spack_1_2_rendered_environment_reference_v1.md` — target full-render file seam for Spack 1.2, including native `modules.yaml`, groups/`needs`, toolchains, views, and Cray/Linux examples.
 - `docs/pre_v1_hosting_and_external_inventory_note_v1.md` — pre-v1 GitLab/import-path policy and the external-candidate boundary between observed profile facts and Stack Composer policy.
 - `schemas/*-v1.json` — canonical JSON Schemas (Draft 2020-12, strict).
 - `schemas/README.md` — schema conventions and doc-to-schema mapping.
