@@ -111,10 +111,10 @@ $HOME/STACK_TESTING/                         # operator-controlled
   <user>/<system>/<pilot-release>/{build,publish}-stage/
 ```
 
-The Unix group is CSE. Use the site's exact CSE Unix group name; do not invent a
-different group label. During the operator-controlled pilot, the operator owns
-writes and the CSE group has read/execute access. Use
-`permissions.group: <CSE Unix group>`, `permissions.read: group`, and
+The Unix group is lowercase `cse` on every pilot system. During the
+operator-controlled pilot, the operator owns writes and the `cse` group has
+read/execute access. Use
+`permissions.group: cse`, `permissions.read: group`, and
 `permissions.write: user`. Change the write or read audience only through an
 approved release-policy decision.
 
@@ -246,7 +246,7 @@ export SYSTEM_NAME="<system>"
 export STACK_BRANCH="codex/simplified-render-plan"
 export CATALOG_RELEASE="<system>-catalog-001"
 export PILOT_RELEASE="<system>-pilot-001"
-export CSE_GROUP="<approved-cse-unix-group>"
+export CSE_GROUP="cse"
 export CSE_PILOT_ROOT="<approved-shared-cse-path>/cse-pilot"
 
 export INSPECTOR="$WORK_ROOT/cluster-inspector"

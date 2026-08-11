@@ -148,9 +148,10 @@ shared installation without solving or compiling them again.
 
 **Software Bill of Materials (SBOM)**
 : A machine-readable inventory describing installed software and its
-  dependencies. Spack 1.2 writes an SPDX 2.3 SBOM inside each installed package
-  prefix. The SBOM supports inventory and security review; it does not decide
-  whether a package is affected by a vulnerability.
+  dependencies. Spack 1.2 writes an SPDX 2.3 SBOM inside each non-external
+  installed package prefix. System externals are recorded separately. The SBOM
+  supports inventory and security review; it does not decide whether a package
+  is affected by a vulnerability.
 
 **Published release**
 : The shared, read-only user installation created from approved binaries and
