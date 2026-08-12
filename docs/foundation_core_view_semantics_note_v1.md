@@ -60,35 +60,27 @@ tool layer**: build and user tools such as cmake, ninja, pkgconf, git, and the
 miniforge/python user environment (the v6 `core-foundation` package set).
 Core tools are user-facing: users load them (as modules or via the lane
 view's front door) the way ALCF users `module load cmake` from spack-pe-base.
-Core stays single-version ("there is no user reason to expose multiple
-CMakes") and builds at the portable baseline target, not the payload target.
-In the committed v1 model, each compiler's Core is a normal, independently
-concretized environment and carries the foundation roots directly. Reuse
-between Core and payload lanes happens through the foundation buildcache, not
-by including another lane's lockfile. The eventual direction (recorded from
-the start, alongside the per-compiler model) is one **shared, compiler-agnostic
-Core** built with a generic GCC; sequence that with multi-CPE fan-out, where
-per-lane tool rebuilds start multiplying.
+Core version policy is explicit in the roster. Multiple public tool versions
+are allowed when they are intentional and have distinct modules. The Initial
+Conversion Trials expose CMake 3.31.12 and 4.4.2, while package builds pin
+CMake 3.31.12. Core builds at the portable baseline target, not the payload
+target.
 
-The design records two possible deployment shapes, but only Option B is committed for v1:
+The current pre-v1 deployment shape uses one shared GCC-built Core. Foundation
+and Core are groups inside the Core environment. Payload environments repeat
+the shared compiler, Foundation, and required build-tool groups and use Spack
+1.2 `needs` to make those producers available for exact reuse:
 
 ```text
-Option A: separate foundation lane
-
-foundation
-   ↓
-gcc/core
-   ↓
-gcc/serial, gcc/mpi, gcc/gpu
-
-Option B: squeezed foundation + core
-
-gcc/core
-   ↓
-gcc/serial, gcc/mpi, gcc/gpu
+shared GCC producer -> Foundation group -> Core group
+                    \-> GCC Common/Serial/MPI payload groups
+                    \-> platform Common/Serial/MPI payload groups
 ```
 
-The separate foundation lane is a future, evidence-gated optimization. If it is adopted under Spack 1.2+, environment composition uses `spack: include: [/absolute/path/to/spack.lock]`; the deprecated `include_concrete:` key is not used. The squeezed per-compiler Core shape is the committed v1 deployment model.
+There is no separate public Foundation environment or lane. Cross-environment
+reuse is accepted only when the repeated producer hashes match in every
+lockfile. The shared Spack store and build cache then avoid rebuilding those
+exact hashes.
 
 ## Visibility policy
 
@@ -205,7 +197,15 @@ This avoids pretending that every dependency version can be globally unified.
 
 Foundation reuse must be a policy decision, not an accidental consequence of a view path.
 
-The concretizer should reuse foundation packages when the stack explicitly pins them. In the committed v1 model, payload lanes reuse compatible foundation/Core artifacts through configured buildcache mirrors. A future shared-foundation experiment may use Spack 1.2 lockfile inclusion (`spack: include: [...]`), but it is not part of the current per-compiler Core design.
+The concretizer should reuse Foundation and build-tool packages when the stack
+explicitly pins them. A stack-built compiler is first built in its own
+bootstrap environment and exposed at a fixed compiler view. Downstream
+environments model that installation as a non-buildable external, then repeat
+Foundation and build-tool groups with the same specs and Spack 1.2 toolchain.
+`needs` orders those groups within each environment. The lockfile gate verifies
+that the independently concretized environments produced the same external
+compiler identity and Foundation/build-tool hashes. Restricted and publication
+installs reuse those hashes through the shared store and configured build cache.
 
 Do not rely on `PATH`, `LD_LIBRARY_PATH`, or a flat view alone to make payload lanes reuse foundation packages.
 

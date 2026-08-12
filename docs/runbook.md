@@ -1,10 +1,10 @@
-# CSE Static Pilot Runbook
+# CSE Initial Conversion Trials Runbook
 
 ## Purpose
 
 This is the single operator procedure for Blueback, Raider, Wheat, and Fran.
 Run it once per system to move one reviewed Spack 1.2 environment through the
-complete static-pilot sequence:
+complete static sequence:
 
 ```text
 operator-controlled tools and source
@@ -26,14 +26,9 @@ build. The validated `spack.lock` files cross the boundary, and the publication
 install uses `--only-concrete --use-buildcache=only`. A missing binary stops
 promotion.
 
-This is the current pre-v1 static workflow. There is no parallel legacy
-procedure. `render-static` creates reusable platform scopes; it does not create
-a complete environment. `init-workspace` combines an exact catalog selection
-with the CSE pilot blueprint to create the build or publication workspace.
-
-This runbook does not change the full `render` lifecycle. Apply this sequence
-to the static pilot first; update the full-render workflow after it is proven on
-the target systems.
+`render-static` creates reusable platform scopes. `init-workspace` combines an
+exact catalog selection with the CSE Initial Conversion Trials blueprint to
+create the build or publication workspace.
 
 ## What the current direction establishes
 
@@ -44,7 +39,7 @@ or version roster:
 - exercise a lane on its target system before calling it complete;
 - push only approved binaries to a private CSE build cache;
 - install the final shared CSE release from that cache;
-- use Spack 1.2 for the pilot;
+- use Spack 1.2.2 for the initial trials;
 - register selected platform components as externals when policy says the
   platform owns them;
 - keep module naming and layout work moving without treating unfinished polish
@@ -52,20 +47,20 @@ or version roster:
 
 The active package list remains
 `stack-content/pilots/cse-pilot/roster.yaml`. Provider and version choices come
-from the reviewed profile, static catalog, and pilot values. Do not copy the
+from the reviewed profile, static catalog, and trial values. Do not copy the
 provisional package or version list from an email into generated files.
 
-## Pilot order
+## System order
 
 | Order | System | Known family | System delta |
 |---:|---|---|---|
-| 1 | Blueback | Cray PE, Slurm, ROCm | `stack-content/systems/blueback/runbook-notes.md` |
-| 2 | Raider | Generic Linux, Slurm, CUDA | `stack-content/systems/raider/runbook-notes.md` |
+| 1 | Blueback | Cray PE, Slurm | `stack-content/systems/blueback/runbook-notes.md` |
+| 2 | Raider | Generic Linux, Slurm | `stack-content/systems/raider/runbook-notes.md` |
 | 3 | Wheat | Generic Linux, PBS | Create from the system-note template |
 | 4 | Fran | Cray PE; scheduled later | Create from the system-note template |
 
 The table selects the platform checklist, not provider versions. Every
-compiler, MPI, GPU, prefix, and module value must come from the live system's
+compiler, MPI, prefix, and module value must come from the live system's
 reviewed profile and generated catalog.
 
 Use Blueback and Raider as the two lead systems. Bring both through reviewed
@@ -73,9 +68,9 @@ lockfiles first so the Cray and generic-Linux paths are exercised early. Then
 complete Blueback through cache-only publication, complete Raider, continue to
 Wheat, and finish with Fran when its access and platform facts are ready.
 
-## Pilot storage and control policy
+## Storage and control policy
 
-Keep tools, source, raw probes, and editable inputs under the pilot operator's
+Keep tools, source, raw probes, and editable inputs under the trial operator's
 control. Put reviewed build products in a restricted CSE tree and user-facing
 release products in a distinct published CSE tree.
 
@@ -83,36 +78,36 @@ release products in a distinct published CSE tree.
 $HOME/STACK_TESTING/                         # operator-controlled
   cluster-inspector/                         # source + built binary
   stack-composer/                            # source + built pyz/spack-build
-  stack-content/                             # editable pilot inputs
+  stack-content/                             # editable trial inputs
   stack-planning/                            # current runbook/design
   spack/<version>/                           # optional pinned Spack checkout
   probe-work/<system>/<catalog-release>/     # raw fragments/transcripts
 
-<cse-pilot-root>/                            # shared filesystem; CSE group
-  restricted/                                # builders only during pilot
+<cse-trial-root>/                            # shared filesystem; CSE group
+  restricted/                                # builders only during trials
     catalogs/<system>/static/<catalog-release>/
-    workspaces/<system>/cse-pilot/<pilot-release>/
-    releases/<system>/<pilot-release>/
+    workspaces/<system>/initial-conversion-trials/<trial-release>/
+    releases/<system>/<trial-release>/
       spack/opt/                              # source-build install tree
       views/                                  # validation views
       modules/                                # validation package modules
     cache/{source,misc}/
-    buildcache/<system>/<pilot-release>/      # approved binaries only
-    evidence/<system>/<pilot-release>/
+    buildcache/<system>/<trial-release>/      # approved binaries only
+    evidence/<system>/<trial-release>/
   published/                                 # final shared CSE consumption
-    workspaces/<system>/cse-pilot/<pilot-release>/
-    releases/<system>/<pilot-release>/
+    workspaces/<system>/initial-conversion-trials/<trial-release>/
+    releases/<system>/<trial-release>/
       spack/opt/                              # populated from build cache only
       views/                                  # user-facing views
       modules/                                # user-facing package modules
       evidence/
 
 <node-local-or-site-scratch>/
-  <user>/<system>/<pilot-release>/{build,publish}-stage/
+  <user>/<system>/<trial-release>/{build,publish}-stage/
 ```
 
-The Unix group is lowercase `cse` on every pilot system. During the
-operator-controlled pilot, the operator owns writes and the `cse` group has
+The Unix group is lowercase `cse` on every trial system. During the
+operator-controlled trials, the operator owns writes and the `cse` group has
 read/execute access. Use
 `permissions.group: cse`, `permissions.read: group`, and
 `permissions.write: user`. Change the write or read audience only through an
@@ -138,14 +133,15 @@ Do not advance past a failed gate.
 - [ ] All four repositories are synchronized on
   `codex/simplified-render-plan`.
 - [ ] Fresh Cluster Inspector and Stack Composer artifacts run.
-- [ ] The selected Spack is version 1.2 or newer.
+- [ ] The selected Spack is version 1.2.2.
 - [ ] `profile.yaml` verifies and matches the live system.
-- [ ] The static catalog contains one compatible compiler/MPI/GPU tuple.
+- [ ] The static catalog contains the selected platform compiler and compatible
+  MPI scopes.
 - [ ] The restricted values file names only real catalog scopes and approved
   restricted paths.
-- [ ] The restricted workspace generates five environments and five native
+- [ ] The restricted workspace generates eight environments and eight native
   `modules.yaml` files.
-- [ ] All five restricted environments concretize and their lockfiles pass
+- [ ] All eight restricted environments concretize and their lockfiles pass
   review.
 - [ ] Every lane builds and passes its target runtime checks.
 - [ ] Only approved concrete specs are pushed to the private CSE build cache.
@@ -167,7 +163,7 @@ checkpoint in the system notes before starting the next one.
 | 1 | Profile verified | reviewed `profile.yaml` and probe evidence |
 | 2 | Catalog reviewed | static manifest, plan, and selected scopes |
 | 3 | Restricted workspace initialized | build values, workspace manifest, configs, and modules |
-| 4 | Locks reviewed | five approved restricted `spack.lock` files |
+| 4 | Locks reviewed | eight approved restricted `spack.lock` files |
 | 5 | Lanes validated | per-lane build logs and target runtime results |
 | 6 | Cache complete | signed binaries, verified index, and approved hashes |
 | 7 | Cache-only publication complete | copied locks, published prefixes, and matching hashes |
@@ -184,11 +180,11 @@ Resume the same release only when all of these are true:
   interruption, quota exhaustion, or interrupted cache transfer;
 - no approved published artifact would be edited in place.
 
-Create a new catalog release and a new pilot release when observed system facts
-or reusable static scopes change. Create a new pilot release when the compiler,
-MPI, GPU, toolchain, specs, variants, values, roster, package recipes, Spack
+Create a new catalog release and a new trial release when observed system facts
+or reusable static scopes change. Create a new trial release when the compiler,
+MPI, toolchain, specs, variants, values, roster, package recipes, Spack
 version, or any lockfile changes. A module or view correction made after a
-release is accepted also gets a new pilot release, even when package hashes stay
+release is accepted also gets a new trial release, even when package hashes stay
 the same.
 
 A new release does not imply rebuilding every package. It may reuse compatible
@@ -207,16 +203,16 @@ of deleting or rewriting the old record.
 |---|---|
 | Scheduler timeout, node failure, temporary network failure, or resolved quota problem with unchanged inputs | Retry only the failed command or environment in the same release. |
 | Source build failure caused by a transient host/tool problem | Retry the failed lane after recording the log; earlier validated lanes remain valid. |
-| Package recipe, patch, variant, compiler, MPI, GPU, or Spack change is required | Create a new pilot release, reconcretize, and revalidate every affected lane. |
-| Cluster Inspector fact or external module/prefix is wrong | Regenerate the profile, create a new catalog release and pilot release, and restart at checkpoint 1. |
-| Static catalog scope or toolchain is wrong | Fix the owning profile/catalog logic, create new catalog and pilot releases, and restart at checkpoint 2. |
-| Restricted workspace template or values are wrong before locks exist | Reinitialize the working release; after locks exist, create a new pilot release. |
+| Package recipe, patch, variant, compiler, MPI, or Spack change is required | Create a new trial release, reconcretize, and revalidate every affected lane. |
+| Cluster Inspector fact or external module/prefix is wrong | Regenerate the profile, create a new catalog release and trial release, and restart at checkpoint 1. |
+| Static catalog scope or toolchain is wrong | Fix the owning profile/catalog logic, create new catalog and trial releases, and restart at checkpoint 2. |
+| Restricted workspace template or values are wrong before locks exist | Reinitialize the working release; after locks exist, create a new trial release. |
 | A later lane fails while earlier lane locks and inputs remain unchanged | Keep the earlier evidence and retry only the failed lane. If a shared upstream hash changes, reconcretize and revalidate every dependent lane in a new release. |
 | Build-cache push, index, or signing operation is interrupted | Retry the cache operation from the installed restricted specs; do not rebuild. |
 | Publication reports a cache miss for an exact approved hash | Return to the restricted workspace, build and validate that exact locked hash, push it, and retry only the failed publication environment. If producing it requires a changed hash, create a new release. |
 | View or module refresh fails before release acceptance and the DAG is unchanged | Correct and rerun only view/module generation, then repeat clean-shell checks. |
-| Published module/view content needs correction after acceptance | Create a new pilot release; do not edit the accepted release in place. |
-| Platform upgrade changes CPE, compiler, MPI, GPU, fabric, OS, or runtime ABI facts | Hold publication and restart with a fresh profile, catalog, locks, and runtime validation. |
+| Published module/view content needs correction after acceptance | Create a new trial release; do not edit the accepted release in place. |
+| Platform upgrade changes CPE, compiler, MPI, fabric, OS, or runtime ABI facts | Hold publication and restart with a fresh profile, catalog, locks, and runtime validation. |
 
 ### Failure procedure
 
@@ -245,9 +241,9 @@ export WORK_ROOT="$HOME/STACK_TESTING"
 export SYSTEM_NAME="<system>"
 export STACK_BRANCH="codex/simplified-render-plan"
 export CATALOG_RELEASE="<system>-catalog-001"
-export PILOT_RELEASE="<system>-pilot-001"
+export TRIAL_RELEASE="<system>-trial-001"
 export CSE_GROUP="cse"
-export CSE_PILOT_ROOT="<approved-shared-cse-path>/cse-pilot"
+export CSE_TRIAL_ROOT="<approved-shared-cse-path>/initial-conversion-trials"
 
 export INSPECTOR="$WORK_ROOT/cluster-inspector"
 export COMPOSER="$WORK_ROOT/stack-composer"
@@ -257,20 +253,20 @@ export SYSTEM_DIR="$CONTENT/systems/$SYSTEM_NAME"
 export PROBE_DIR="$WORK_ROOT/probe-work/$SYSTEM_NAME/$CATALOG_RELEASE"
 export STACK_COMPOSER="$COMPOSER/dist/stack-composer.pyz"
 
-export CSE_RESTRICTED_ROOT="$CSE_PILOT_ROOT/restricted"
-export CSE_PUBLISHED_ROOT="$CSE_PILOT_ROOT/published"
+export CSE_RESTRICTED_ROOT="$CSE_TRIAL_ROOT/restricted"
+export CSE_PUBLISHED_ROOT="$CSE_TRIAL_ROOT/published"
 export STATIC_ROOT="$CSE_RESTRICTED_ROOT/catalogs"
 export CATALOG="$STATIC_ROOT/$SYSTEM_NAME/static/$CATALOG_RELEASE"
-export BUILD_WORKSPACE="$CSE_RESTRICTED_ROOT/workspaces/$SYSTEM_NAME/cse-pilot/$PILOT_RELEASE"
-export PUBLISH_WORKSPACE="$CSE_PUBLISHED_ROOT/workspaces/$SYSTEM_NAME/cse-pilot/$PILOT_RELEASE"
-export BUILD_RELEASE_ROOT="$CSE_RESTRICTED_ROOT/releases/$SYSTEM_NAME/$PILOT_RELEASE"
-export PUBLISH_RELEASE_ROOT="$CSE_PUBLISHED_ROOT/releases/$SYSTEM_NAME/$PILOT_RELEASE"
-export BUILDCACHE_ROOT="$CSE_RESTRICTED_ROOT/buildcache/$SYSTEM_NAME/$PILOT_RELEASE"
+export BUILD_WORKSPACE="$CSE_RESTRICTED_ROOT/workspaces/$SYSTEM_NAME/initial-conversion-trials/$TRIAL_RELEASE"
+export PUBLISH_WORKSPACE="$CSE_PUBLISHED_ROOT/workspaces/$SYSTEM_NAME/initial-conversion-trials/$TRIAL_RELEASE"
+export BUILD_RELEASE_ROOT="$CSE_RESTRICTED_ROOT/releases/$SYSTEM_NAME/$TRIAL_RELEASE"
+export PUBLISH_RELEASE_ROOT="$CSE_PUBLISHED_ROOT/releases/$SYSTEM_NAME/$TRIAL_RELEASE"
+export BUILDCACHE_ROOT="$CSE_RESTRICTED_ROOT/buildcache/$SYSTEM_NAME/$TRIAL_RELEASE"
 export BUILDCACHE_URL="file://$BUILDCACHE_ROOT"
-export BUILD_EVIDENCE="$CSE_RESTRICTED_ROOT/evidence/$SYSTEM_NAME/$PILOT_RELEASE"
+export BUILD_EVIDENCE="$CSE_RESTRICTED_ROOT/evidence/$SYSTEM_NAME/$TRIAL_RELEASE"
 export PUBLISH_EVIDENCE="$PUBLISH_RELEASE_ROOT/evidence"
-export BUILD_VALUES="$SYSTEM_DIR/cse-pilot-build-values.yaml"
-export PUBLISH_VALUES="$SYSTEM_DIR/cse-pilot-publish-values.yaml"
+export BUILD_VALUES="$SYSTEM_DIR/cse-trials-build-values.yaml"
+export PUBLISH_VALUES="$SYSTEM_DIR/cse-trials-publish-values.yaml"
 
 mkdir -p "$WORK_ROOT" "$PROBE_DIR"
 ```
@@ -349,7 +345,7 @@ python "$STACK_COMPOSER" --help >/dev/null
 deactivate
 ```
 
-Activate the exact Spack checkout selected for the pilot:
+Activate the exact Spack checkout selected for the trials:
 
 ```bash
 source /path/to/spack/share/spack/setup-env.sh
@@ -357,8 +353,9 @@ source /path/to/spack/share/spack/setup-env.sh
 spack --version
 ```
 
-The pilot workspace uses Spack 1.2 `group` and `needs`; stop if Spack is older
-than 1.2. The Spack tool may live under `$WORK_ROOT/spack/<version>` or come
+The trial workspace uses Spack 1.2 `group`, `needs`, and toolchains. Use Spack
+1.2.2 for these trials. The Spack tool may live under
+`$WORK_ROOT/spack/<version>` or come
 from a site module. It is distinct from both Spack install trees.
 
 Record the tool versions and repository commits in the system notes.
@@ -418,9 +415,11 @@ to the node types that exist:
 "$INSPECTOR/cluster-inspector" verify "$PROBE_DIR/profile.yaml"
 ```
 
-Review compiler, MPI, GPU, fabric, runtime, prefix, module, compatibility, and
-node-role facts against the live machine. On Cray systems, select one coherent
-CPE/compiler/Cray MPICH/GPU runtime set. On generic Linux systems, prove the
+Review compiler, MPI, accelerator, fabric, runtime, prefix, module,
+compatibility, and node-role facts against the live machine. Accelerator facts
+remain part of the system profile, but GPU builds are outside these trials. On
+Cray systems, select one coherent CPE/compiler/Cray MPICH set. On generic Linux
+systems, prove the
 compiler pairing for the selected MPI. Preserve incorrect discovery evidence,
 fix the inspector or hints, and regenerate. Do not hand-enter a guess as a
 durable fact.
@@ -443,7 +442,7 @@ the CSE group without granting group write:
 umask 0027
 
 install -d -m 2750 -g "$CSE_GROUP" \
-  "$CSE_PILOT_ROOT" \
+  "$CSE_TRIAL_ROOT" \
   "$CSE_RESTRICTED_ROOT" \
   "$STATIC_ROOT" \
   "$CSE_RESTRICTED_ROOT/workspaces" \
@@ -493,11 +492,11 @@ find "$CATALOG/scopes" -type f | sort
 ```
 
 For the intended tuple, inspect every `packages.yaml` and `toolchains.yaml`.
-Confirm external specs, prefixes, modules, compiler stamps, MPI requirements,
-and GPU packages against the reviewed profile.
+Confirm external specs, prefixes, modules, compiler stamps, and MPI
+requirements against the reviewed profile.
 
-Gate: the catalog contains the exact compatible compiler, MPI, GPU, common, and
-platform scopes needed by the pilot. Fix the profile or catalog logic when a
+Gate: the catalog contains the exact compatible compiler, MPI, common, and
+platform scopes needed by the trials. Fix the profile or catalog logic when a
 scope is missing; do not type a nonexistent path into a values file.
 
 ## 7. Create the restricted build values
@@ -507,27 +506,46 @@ cp "$CONTENT/pilots/cse-pilot/site-values.example.yaml" "$BUILD_VALUES"
 ```
 
 Edit the copy. Use only the current profile, catalog, approved paths, and active
-pilot roster.
+trial roster.
 
 | Values | Restricted build setting |
 |---|---|
 | `workspace.role` | `build` |
-| system/release | current profile/catalog plus `PILOT_RELEASE` |
-| compiler/MPI/GPU | exact selected tuple and modules |
+| system/release | current profile/catalog plus `TRIAL_RELEASE` |
+| `shared.compiler` | GCC 12.5.0, `source: build`, and no catalog scope |
+| `shared.mpi` | OpenMPI 4.1.8 built with GCC, or the selected compatible external MPI |
+| `platform.compiler` | use the catalog manifest's Spack `package` name, exact version, toolchain, module chain, and observed compiler scope path |
+| `platform.mpi` | use the catalog manifest's Spack `package` name; build OpenMPI 4.1.8 on non-Cray systems, or select the matching external Cray MPICH 9.x/Intel MPI scope |
 | `catalog_scopes.*` | exact relative paths below `$CATALOG` |
 | install tree | `$BUILD_RELEASE_ROOT/spack/opt` |
 | build stage | approved build scratch path |
 | source/misc caches | `$CSE_RESTRICTED_ROOT/cache/{source,misc}` |
 | views/modules roots | `$BUILD_RELEASE_ROOT/{views,modules}` |
-| build-cache name | `cse-pilot` |
+| build-cache name | `cse-initial-conversion-trials` |
 | build-cache URL | `$BUILDCACHE_URL` expanded to an absolute `file:///...` URL |
 | permissions | CSE group, group read, user write |
-| package repository | reviewed pilot recipe pin |
+| package repository | reviewed trial recipe pin |
+
+The roster installs CMake 3.31.12 and 4.4.2. CMake 3.31.12 is the preferred
+build tool and is an explicit dependency of the CMake-built trial roots. CMake
+4.4.2 is the second public version. Both versions come from the rendered local
+recipe extension layered over `spack-packages v2026.06.0`.
+
+The selected platform compiler scope is the explicit bootstrap compiler for
+the GCC 12.5.0 producer. The generated `gcc/bootstrap` environment must include
+that scope. The other seven environments use the generated shared-compiler
+scope, which points at the fixed GCC compiler view. Do not let Spack add an
+ambient compiler during concretization.
 
 Toolchain names may contain only letters, digits, and underscores. Their
 versions must match the catalog tuple. Use `source: external` for the first
 platform surface unless a reviewed experiment explicitly builds that provider.
 Do not insert dummy catalog scopes.
+
+Observed provider names and Spack package names can differ. Classic Intel is
+reported as `intel` under `scopes/compilers/intel/...`, but the values file uses
+`intel-oneapi-compilers-classic`. Intel MPI is reported under
+`scopes/mpi/intel-mpi/...`, but the values file uses `intel-oneapi-mpi`.
 
 Record the selected tuple, roots, cache URL, and values path in the system
 notes.
@@ -555,15 +573,16 @@ cat "$BUILD_WORKSPACE/configs/common/mirrors.yaml"
 ```
 
 Verify every include path, provider selection, deployment path, native
-`modules.yaml`, and private build-cache URL. Serial must contain no MPI scope;
-MPI and GPU must share the selected compatible MPI tuple.
+`modules.yaml`, and private build-cache URL. Serial must contain no MPI scope.
+Each MPI environment must use the MPI provider paired with its compiler
+surface.
 
 Snapshot the reviewed inputs and tool identities:
 
 ```bash
 mkdir -p "$BUILD_WORKSPACE/inputs"
 cp "$SYSTEM_DIR/profile.yaml" "$BUILD_WORKSPACE/inputs/profile.yaml"
-cp "$BUILD_VALUES" "$BUILD_WORKSPACE/inputs/cse-pilot-build-values.yaml"
+cp "$BUILD_VALUES" "$BUILD_WORKSPACE/inputs/cse-trials-build-values.yaml"
 cp "$CATALOG/manifest.yaml" "$BUILD_WORKSPACE/inputs/catalog-manifest.yaml"
 cp "$CATALOG/reports/static-plan.yaml" "$BUILD_WORKSPACE/inputs/static-plan.yaml"
 git -C "$INSPECTOR" rev-parse HEAD > "$BUILD_WORKSPACE/inputs/cluster-inspector.commit"
@@ -577,23 +596,39 @@ spack --version > "$BUILD_WORKSPACE/inputs/spack.version"
 Set the exact names from the build values file:
 
 ```bash
-export COMPILER_NAME="<compiler-name>"
-export MPI_NAME="<mpi-name>"
-export GPU_LANE_SUFFIX="<gpu-lane-suffix>"
+export SHARED_COMPILER_NAME="gcc"
+export SHARED_MPI_NAME="<shared-mpi-name>"
+export PLATFORM_COMPILER_NAME="<platform-compiler-name>"
+export PLATFORM_MPI_NAME="<platform-mpi-name>"
 
 ENVIRONMENTS=(
-  "$COMPILER_NAME/core"
-  "$COMPILER_NAME/common"
-  "$COMPILER_NAME/serial"
-  "$COMPILER_NAME/mpi-$MPI_NAME"
-  "$COMPILER_NAME/gpu-$MPI_NAME-$GPU_LANE_SUFFIX"
+  "$SHARED_COMPILER_NAME/bootstrap"
+  "$SHARED_COMPILER_NAME/core"
+  "$SHARED_COMPILER_NAME/common"
+  "$SHARED_COMPILER_NAME/serial"
+  "$SHARED_COMPILER_NAME/mpi-$SHARED_MPI_NAME"
+  "$PLATFORM_COMPILER_NAME/common"
+  "$PLATFORM_COMPILER_NAME/serial"
+  "$PLATFORM_COMPILER_NAME/mpi-$PLATFORM_MPI_NAME"
 )
 ```
 
-Concretize every restricted environment:
+Concretize, install, and expose the shared compiler first. The downstream
+compiler scope points at this exact view and is intentionally non-buildable:
 
 ```bash
-for environment in "${ENVIRONMENTS[@]}"; do
+export BUILD_JOBS="<approved-job-count>"
+BOOTSTRAP_ENV="$BUILD_WORKSPACE/environments/$SHARED_COMPILER_NAME/bootstrap"
+spack -e "$BOOTSTRAP_ENV" concretize --fresh -j 1
+spack -e "$BOOTSTRAP_ENV" install -j "$BUILD_JOBS" --fail-fast
+spack -e "$BOOTSTRAP_ENV" env view regenerate
+spack -e "$BOOTSTRAP_ENV" module tcl refresh --delete-tree -y
+```
+
+Concretize the remaining restricted environments:
+
+```bash
+for environment in "${ENVIRONMENTS[@]:1}"; do
   echo "Concretizing $environment"
   spack -e "$BUILD_WORKSPACE/environments/$environment" \
     concretize --force -j 1 || break
@@ -607,23 +642,30 @@ for environment in "${ENVIRONMENTS[@]}"; do
   test -f "$BUILD_WORKSPACE/environments/$environment/spack.lock" || break
   spack -e "$BUILD_WORKSPACE/environments/$environment" find -lv
 done
+
+python3 "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
 ```
 
 Confirm that externals remain external, producer groups exist only where
-intended, Serial contains no MPI, MPI/GPU preserve the selected toolchain, and
+intended, Serial contains no MPI, MPI preserves the selected toolchain, and
 version-paired package roots preserve their pairings. Save solver output and fix
 the owning profile, catalog, values, roster, or blueprint. Never patch a lock.
 
-Gate: all five restricted lockfiles exist and pass review.
+Confirm that the downstream GCC external and Foundation/build-tool hashes are
+identical across the seven downstream
+lockfiles. Confirm that every CMake dependency selected for the trial payload is
+CMake 3.31.12; CMake 4.4.2 should appear only as its explicit public root.
+
+Gate: all eight restricted lockfiles exist and pass review.
 
 ## 10. Build and exercise every restricted lane
 
-Build Core, Common, Serial, MPI, then GPU:
+The GCC bootstrap was installed above. Build the shared GCC Core, Common,
+Serial, and MPI environments next. Then build the platform Common, Serial, and
+MPI environments:
 
 ```bash
-export BUILD_JOBS="<approved-job-count>"
-
-for environment in "${ENVIRONMENTS[@]}"; do
+for environment in "${ENVIRONMENTS[@]:1}"; do
   echo "Building $environment"
   spack -e "$BUILD_WORKSPACE/environments/$environment" fetch -D || break
   spack -e "$BUILD_WORKSPACE/environments/$environment" \
@@ -637,8 +679,8 @@ done
 
 Apply the platform checklist after installation. A lane is not approved merely
 because compilation finished. Exercise its compiler/wrappers, representative
-libraries, module exposure, and applicable single-node, multi-node, GPU, and
-GPU-aware MPI behavior on the target system.
+libraries, module exposure, and applicable single-node and multi-node MPI
+behavior on the target system.
 
 Record each lane as `built`, `runtime-passed`, or `held` in the system notes.
 Only `runtime-passed` lanes may enter the build cache.
@@ -681,7 +723,7 @@ The cache is a promotion boundary, not a general scratch mirror. Do not push a
 held lane, overwrite an approved binary, or expand the package set without a
 new reviewed release record.
 
-Gate: the index verifies and every approved root/dependency needed by the five
+Gate: the index verifies and every approved root/dependency needed by the eight
 lockfiles is available to the publication install.
 
 ## 12. Create and initialize the publication workspace
@@ -738,7 +780,7 @@ for environment in "${ENVIRONMENTS[@]}"; do
 done
 ```
 
-Gate: the publication workspace has the same five concrete DAGs as the
+Gate: the publication workspace has the same eight concrete DAGs as the
 restricted build workspace.
 
 ## 14. Install the shared release from the build cache only
@@ -804,8 +846,8 @@ module avail
 module load Serial
 ```
 
-Repeat separately for `MPI` and `GPU`. Loading a conflicting second lane must
-fail. Verify package-module visibility after installation, view regeneration,
+Repeat separately for `MPI`. Loading a conflicting second lane must fail.
+Verify package-module visibility after installation, view regeneration,
 and module refresh. Apply `cray_pe_acceptance_checklist_v1.md` on Cray PE and
 `generic_linux_acceptance_checklist_v1.md` on generic Linux.
 
@@ -813,8 +855,8 @@ Snapshot the publication inputs and provenance:
 
 ```bash
 mkdir -p "$PUBLISH_WORKSPACE/inputs"
-cp "$PUBLISH_VALUES" "$PUBLISH_WORKSPACE/inputs/cse-pilot-publish-values.yaml"
-cp "$BUILD_VALUES" "$PUBLISH_WORKSPACE/inputs/cse-pilot-build-values.yaml"
+cp "$PUBLISH_VALUES" "$PUBLISH_WORKSPACE/inputs/cse-trials-publish-values.yaml"
+cp "$BUILD_VALUES" "$PUBLISH_WORKSPACE/inputs/cse-trials-build-values.yaml"
 cp "$CATALOG/manifest.yaml" "$PUBLISH_WORKSPACE/inputs/catalog-manifest.yaml"
 cp "$CATALOG/reports/static-plan.yaml" "$PUBLISH_WORKSPACE/inputs/static-plan.yaml"
 git -C "$COMPOSER" rev-parse HEAD > "$PUBLISH_WORKSPACE/inputs/stack-composer.commit"
