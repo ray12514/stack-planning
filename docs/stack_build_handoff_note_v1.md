@@ -66,6 +66,16 @@ consumer must root the **whole tree** where Spack can read the included scopes.
 The `include::` list, not ambient `~/.spack`, site, or system scopes, is the
 production isolation boundary, so the tree must travel intact.
 
+The CSE Initial Conversion Trials initializer applies the same rule to a
+workspace assembled from `render-static`. It snapshots the static catalog tree
+under `catalog/` and emits relative paths from each environment to
+`catalog/scopes/...` and `configs/...`. The source catalog path remains in the
+workspace manifest as provenance, but it is not a runtime dependency of the
+initialized build handoff. For this temporary initializer only, the static
+manifest also preserves the profile's node-type stage facts so a reviewed build
+node choice can become an ordered `build_stage::` list without probing the host
+or manually retyping scratch paths.
+
 ## Co-equal build paths
 
 The render step ends at the workspace. The build half (concretize, fetch,

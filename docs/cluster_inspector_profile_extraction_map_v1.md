@@ -288,6 +288,7 @@ fabric externalization.
 | `fabric.userspace[*].name` | probe-system | `fi_info`, `ucx_info`, module candidates. | `libfabric`, `ucx`, etc. | `probed` | empty list |
 | `fabric.userspace[*].version` | probe-system | `fi_info --version`, `ucx_info -v`, module version, package manager. | version string | `probed` | unknown omitted unless externalization needs it |
 | `fabric.userspace[*].prefix` | probe-system | `command -v`, module env, package file list. | absolute path | `probed` | `/usr` when system package-backed |
+| `system_externals[ucx].variants` | probe-system | `ucx_info -v` plus the UCX development surface. | `+thread_multiple` when the configure line contains `--enable-mt`; `~thread_multiple` when it contains `--disable-mt`; omitted when neither can be verified. | `probed` | no inferred variant |
 | `filesystem.install_tree_candidates[*].path` | probe-system + hints | Operator hints are primary; optional scan of known roots like `/shared/stack/spack/opt`, `/apps/spack/opt`, `/opt/spack/opt`. | absolute path | `inferred` from hint, `probed` when path exists | validation failure if none supplied/found |
 | `filesystem.install_tree_candidates[*].type` | probe-system | `findmnt -n -o FSTYPE --target <path>`. | filesystem type | `probed` | `unknown` |
 | `filesystem.install_tree_candidates[*].locks_honored` | probe-system | Local `flock` test; optional cross-node lock test if a peer node runner is available. | boolean | `probed` for local, `inferred` for known FS defaults | false/unknown triggers warning |

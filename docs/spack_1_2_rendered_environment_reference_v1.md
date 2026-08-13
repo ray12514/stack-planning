@@ -227,16 +227,31 @@ still has no generated package modules. The `cse_modules` view is deliberately
 projected by package and version because generated Core modules need unique,
 stable package roots.
 
-For a stack-built compiler, render a separate bootstrap environment first. It
-builds the compiler with an external platform compiler and projects the result
-to a fixed compiler view:
+For a stack-built compiler, repeat one exact compiler producer group in every
+environment on that compiler surface. The producer is built with an explicit
+verified seed compiler from the platform catalog; it is not discovered from
+ambient state:
 
 ```yaml
 spack:
+  include::
+  - /catalog/scopes/compilers/gcc/11.5.0
   specs:
   - group: compiler
     specs:
-    - gcc@13.3.1 %platform_compiler
+    - gcc@13.3.1 languages='c,c++,fortran' %gcc@11.5.0
+  - group: foundation
+    needs: [compiler]
+    specs:
+    - matrix:
+      - [$foundation]
+      - ['%gcc@13.3.1']
+  - group: core
+    needs: [compiler, foundation]
+    specs:
+    - matrix:
+      - [$core]
+      - ['%gcc@13.3.1']
   view:
     compiler:
       root: /shared/cse/views/gcc/compiler
@@ -244,42 +259,12 @@ spack:
       group: compiler
 ```
 
-After that environment is installed and its view regenerated, downstream
-environments declare the projected compiler as a non-buildable external. They
-then use `needs` for Foundation, Core/build tools, MPI, and payload ordering:
-
-```yaml
-packages:
-  gcc:
-    buildable: false
-    externals:
-    - spec: gcc@13.3.1
-      prefix: /shared/cse/views/gcc/compiler
-      extra_attributes:
-        compilers:
-          c: /shared/cse/views/gcc/compiler/bin/gcc
-          cxx: /shared/cse/views/gcc/compiler/bin/g++
-          fortran: /shared/cse/views/gcc/compiler/bin/gfortran
-specs:
-  - group: foundation
-    specs:
-    - matrix:
-      - [$foundation]
-      - ['%gcc1331']
-  - group: core
-    needs: [foundation]
-    specs:
-    - matrix:
-      - [$core]
-      - ['%gcc1331']
-```
-
-This split is required because a new solve accepts only external or already
-concrete language providers. The bootstrap lock records how the compiler was
-built; each downstream lock records the same external compiler prefix. The
-groups are environment-local. Separate lane environments repeat Foundation,
-Core/build-tool, and MPI producer groups when needed; the shared store and
-build cache reuse their concrete hashes.
+The groups are environment-local. Separate Core, Common, Serial, MPI, and GPU
+environments repeat the compiler, Foundation, build-tool, and MPI producer
+groups they need. Exact producer specs generate exact hashes across independent
+locks; the shared store and build cache reuse those concrete prefixes. Install
+Core first on the initial pass, but all environments may be concretized before
+the compiler is installed.
 
 ## Compiler-only toolchain
 
@@ -324,7 +309,7 @@ shared toolchain selector.
 
 Cray consumes the selected compiler, Cray MPICH flavor, and GPU runtime as
 externals from profile-derived configuration scopes. It does not create
-compiler bootstrap or MPI producer groups.
+compiler or MPI producer groups.
 
 The pinned Cray MPICH recipe also depends directly on `libfabric` and
 `cray-pmi`. The common profile-derived scope owns the selected platform
@@ -403,10 +388,10 @@ GPU and MPI surfaces instead of combining them.
 
 ## Generic Linux stack-built GCC/OpenMPI environments
 
-On a generic Linux system where both GCC and OpenMPI are stack-built, build and
-install the GCC bootstrap environment first. Its fixed compiler view becomes a
-non-buildable GCC external scope for the remaining environments. Spack 1.2
-groups then express MPI and payload ordering inside each downstream environment.
+On a generic Linux system where both GCC and OpenMPI are stack-built, every GCC
+environment repeats the exact GCC producer group and binds downstream roots to
+it. MPI environments also contain an OpenMPI producer group. Spack 1.2 groups
+express that ordering inside each independent environment.
 
 ```yaml
 # configs/mpi/openmpi/5.0.8/gcc-13.3.1/toolchains.yaml
@@ -484,7 +469,7 @@ spack:
 ```
 
 If GCC and OpenMPI are trusted site externals, include their catalog scopes and
-drop the bootstrap environment and `mpi` producer group. The payload matrix
+drop the compiler and `mpi` producer groups. The payload matrix
 and native toolchain remain the same.
 
 ## What changes from the current renderer
@@ -493,7 +478,7 @@ and native toolchain remain the same.
 |---|---|
 | module-generation policy embedded in `spack.yaml` | native environment-local `modules.yaml` |
 | repeated compiler/MPI selectors on roots | definitions plus matrices selecting `%toolchain` once |
-| producer ordering inferred outside the manifest | explicit compiler bootstrap environment plus native spec groups with `needs` for Foundation, Core/build tools, MPI, and payloads |
+| producer ordering inferred outside the manifest | repeated compiler/MPI producer groups plus native spec groups with `needs` for Foundation, Core/build tools, MPI, and payloads |
 | provider requirements mixed into environment data | native `packages.yaml` scope |
 | one view serving ambient paths and generated modules | flat Foundation view plus projected module-only views |
 
@@ -512,17 +497,16 @@ stay isolated by lane.
 
 Keep the rendered environments separate:
 
-1. `bootstrap/spack.yaml` owns a stack-built compiler when needed;
-2. `core/spack.yaml` owns the Foundation and Core groups;
-3. `common/spack.yaml` owns compiler-common libraries;
-4. `serial/spack.yaml` owns serial payloads;
-5. `mpi-<provider>/spack.yaml` owns MPI payloads;
-6. `gpu-<provider>-<arch>/spack.yaml` owns the compatible MPI-plus-GPU
+1. `core/spack.yaml` owns the repeated compiler producer, Foundation, and Core groups;
+2. `common/spack.yaml` owns repeated producers plus compiler-common libraries;
+3. `serial/spack.yaml` owns repeated producers plus serial payloads;
+4. `mpi-<provider>/spack.yaml` owns repeated producers plus MPI payloads;
+5. `gpu-<provider>-<arch>/spack.yaml` owns repeated producers plus the compatible MPI-plus-GPU
    payload.
 
-The normal build order is compiler bootstrap, Core, Common, Serial, MPI, then
-GPU. Common and Serial may run concurrently after the compiler bootstrap is
-installed and exposed.
+The normal first-pass install order is Core, Common, Serial, MPI, then GPU.
+Concretize and verify every lock first. Enable concurrent environment installs
+only after verifying that the actual shared store honors Spack's file locks.
 Independent manifests preserve failure, rebuild, lockfile, view, and module
 publication boundaries. Exact specs, shared configuration policy, one Spack
 install store, and build-cache reuse prevent identical dependencies from being
@@ -533,8 +517,9 @@ for a build dependency.
 Spec-group `needs` applies inside one environment. It does not create an edge
 between separate `spack.yaml` files, and it is not transitive between groups.
 A group that uses a stack-built MPI provider lists that producer group
-directly, even when another needed group already depends on it. The stack-built
-compiler is an external in every downstream environment. Stack Composer's handoff or the external
+directly, even when another needed group already depends on it. A stack-built
+compiler is a repeated producer group in every environment on that surface.
+Stack Composer's handoff or the external
 build driver owns the environment build order. Spack 1.2's jobserver supplies
 package-level concurrency within an install invocation; scheduler-level work
 across multiple nodes remains an external orchestration concern.
@@ -542,12 +527,11 @@ across multiple nodes remains an external orchestration concern.
 The full renderer should therefore produce:
 
 ```text
-Bootstrap: stack-built compiler -> fixed compiler view
-Core:      Foundation group -> Core group
-Common:    Foundation/build tools -> Common payload
-Serial:    Foundation/build tools -> Serial payload
-MPI:       Foundation/build tools -> MPI producer when needed -> MPI payload
-GPU:       Foundation/build tools -> MPI producer when needed -> MPI + GPU payload
+Core:      compiler producer when needed -> Foundation -> Core
+Common:    compiler producer when needed -> Foundation/build tools -> Common payload
+Serial:    compiler producer when needed -> Foundation/build tools -> Serial payload
+MPI:       compiler producer when needed -> Foundation/build tools -> MPI producer when needed -> MPI payload
+GPU:       compiler producer when needed -> Foundation/build tools -> MPI producer when needed -> MPI + GPU payload
 ```
 
 ## Toolchain boundary
@@ -575,8 +559,8 @@ coherent render update:
 3. keep named views in `spack.yaml` and point `modules.yaml:use_view` at the
    module-only view;
 4. render Foundation and Core as Spack 1.2 groups in one Core environment;
-5. render a separate bootstrap environment for a stack-built compiler, and an
-   MPI producer group with `needs` when MPI is stack-built;
+5. repeat an exact compiler producer group when the compiler is stack-built,
+   and an MPI producer group with `needs` when MPI is stack-built;
 6. apply compiler-only or compiler-plus-MPI toolchains to package lists through
    definitions and matrices;
 7. expose Foundation through the compiler-init view, Core and Common through
@@ -602,10 +586,10 @@ For both Cray and generic Linux fixtures:
 - Serial, MPI, and GPU payload modules remain hidden until the matching lane is
   loaded;
 - GPU exposes the compatible MPI payload when policy combines them;
-- a stack-built generic compiler bootstrap concretizes first, and a downstream
-  compiler/MPI fixture consumes its external view under Spack 1.2;
+- repeated stack-built compiler roots resolve to one concrete hash across Core,
+  Common, Serial, and MPI fixtures under Spack 1.2;
 - a Cray fixture consumes external compiler, MPI, and GPU scopes without a
-  compiler bootstrap or MPI producer group;
+  compiler or MPI producer group;
 - public module paths resolve through projected views, not hashed Spack install
   prefixes.
 

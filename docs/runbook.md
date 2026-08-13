@@ -121,10 +121,13 @@ The private build cache is private because of filesystem or service access
 controls. Spack's `buildcache push --private` option concerns redistribution of
 non-redistributable packages; it is not an access-control mechanism.
 
-Generate catalogs and workspaces directly at their final paths. Their manifests
-and `include::` entries contain absolute paths, so moving them afterward breaks
-the workspace. Build stages are disposable and belong on node-local or site
-scratch.
+Generate catalogs and workspaces directly at their final paths. The initialized
+workspace snapshots the static catalog configuration it consumes and uses
+relative `include::` paths for its catalog and workspace-owned scopes. The whole
+workspace can therefore be handed to another builder or archived without
+depending on the original catalog path. Deployment paths inside `config.yaml`
+remain deliberate absolute paths and must still name the approved shared trees.
+Build stages are disposable and belong on node-local or site scratch.
 
 The catalog becomes read-only after review. The restricted workspace stays
 operator-writable through lock generation and evidence capture. The published
@@ -273,6 +276,12 @@ export BUILD_EVIDENCE="$CSE_RESTRICTED_ROOT/evidence/$SYSTEM_NAME/$TRIAL_RELEASE
 export PUBLISH_EVIDENCE="$PUBLISH_RELEASE_ROOT/evidence"
 export BUILD_VALUES="$SYSTEM_DIR/cse-trials-build-values.yaml"
 export PUBLISH_VALUES="$SYSTEM_DIR/cse-trials-publish-values.yaml"
+
+: "${WORKDIR:?WORKDIR must be set by the site environment}"
+case "$WORKDIR" in
+  /*) ;;
+  *) echo "WORKDIR must be absolute: $WORKDIR" >&2; return 2 2>/dev/null || exit 2 ;;
+esac
 
 mkdir -p "$WORK_ROOT" "$PROBE_DIR"
 ```
@@ -554,24 +563,74 @@ independent of the CSE trial initializer.
 
 ## 7. Create the restricted build values
 
+Set the small provider tuple selected during catalog review. The common runbook
+does not infer this policy from the machine. The system note gives the exact
+exports for the current trial selection.
+
+Review the available node-type keys and their stage facts before selecting the
+build node:
+
 ```bash
-cp "$CONTENT/pilots/cse-pilot/site-values.example.yaml" "$BUILD_VALUES"
+sed -n '/^  node_types:/,/^template_set:/p' "$CATALOG/manifest.yaml"
 ```
 
-Edit the copy. Use only the current profile, catalog, approved paths, and active
-trial roster.
+`shared` means the CSE-standard compiler surface within this system's
+workspace. GCC 12.5.0 is standardized across the four systems, but the selected
+MPI provider is system-specific: normally external Cray MPICH on Cray systems
+and build-sourced OpenMPI on non-Cray systems. It does not mean that one binary
+installation or one MPI provider is shared across all systems.
+
+```bash
+export CSE_SHARED_COMPILER_REF="gcc@12.5.0"
+export CSE_SHARED_MPI_REF="<provider>@<version>"
+export CSE_SHARED_MPI_SOURCE="<external|build>"
+export CSE_PLATFORM_COMPILER_REF="<observed-provider>@<version>"
+export CSE_PLATFORM_COMPILER_PUBLIC_NAME="<module-front-door-name>"
+export CSE_PLATFORM_MPI_REF="<provider>@<version>"
+export CSE_PLATFORM_MPI_SOURCE="<external|build>"
+export CSE_BUILD_NODE_TYPE="<reviewed-profile-node-type>"
+export BUILD_JOBS="<approved-job-count>"
+```
+
+Generate the complete values file from those selections, the static catalog,
+and the roots already exported in Step 1:
+
+```bash
+"$COMPOSER/.venv/bin/python" \
+  "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
+
+sed -n '1,260p' "$BUILD_VALUES"
+```
+
+The helper expands `BUILD_RELEASE_ROOT`, `CSE_RESTRICTED_ROOT`, and
+`BUILDCACHE_URL` into literal durable values. `${WORKDIR}` remains only in the
+last build-stage fallback so the handoff uses the current builder's site work
+directory; the generated setup script validates it before Spack runs.
+It resolves the observed provider names to the catalog's Spack package names,
+selects the compatible compiler/MPI scope, copies exact module prerequisites,
+and fails if the named scope is absent. Do not type a guessed scope path into
+the generated file.
+
+`CSE_BUILD_NODE_TYPE` is the node class on which the builds will run, such as
+`cpu_compute`. It must be an exact key under the catalog manifest's
+`profile_facts.node_types`. The helper converts that reviewed choice into the
+complete ordered `paths.build_stage` list. It keeps inspected writable,
+executable candidates, puts temporary/node-local storage first, then other
+inspected scratch paths, and adds `${WORKDIR}` last. Every path is namespaced
+by the Spack user, system, and trial release. Do not type or approve one manual
+stage path in place of this list.
 
 | Values | Restricted build setting |
 |---|---|
 | `workspace.role` | `build` |
 | system/release | current profile/catalog plus `TRIAL_RELEASE` |
-| `shared.compiler` | GCC 12.5.0, `source: build`, and no catalog scope |
+| `shared.compiler` | GCC 12.5.0, `source: build`, plus the verified older compiler selected to build the GCC producer |
 | `shared.mpi` | OpenMPI 4.1.8 built with GCC, or the selected compatible external MPI |
-| `platform.compiler` | use the catalog manifest's Spack `package` name, exact version, toolchain, module chain, and observed compiler scope path |
+| `platform.compiler` | use the catalog manifest's observed provider name and exact version; the helper copies its Spack package name, module chain, and compiler scope path |
 | `platform.mpi` | use the catalog manifest's Spack `package` name; build OpenMPI 4.1.8 on non-Cray systems, or select the matching external Cray MPICH 9.x/Intel MPI scope |
 | `catalog_scopes.*` | exact relative paths below `$CATALOG` |
 | install tree | `$BUILD_RELEASE_ROOT/spack/opt` |
-| build stage | approved build scratch path |
+| build node/stages | reviewed profile node type; generated temp, scratch, then `${WORKDIR}` fallback list |
 | source/misc caches | `$CSE_RESTRICTED_ROOT/cache/{source,misc}` |
 | views/modules roots | `$BUILD_RELEASE_ROOT/{views,modules}` |
 | build-cache name | `cse-initial-conversion-trials` |
@@ -584,16 +643,24 @@ build tool and is an explicit dependency of the CMake-built trial roots. CMake
 4.4.2 is the second public version. Both versions come from the rendered local
 recipe extension layered over `spack-packages v2026.06.0`.
 
-The selected platform compiler scope is the explicit bootstrap compiler for
-the GCC 12.5.0 producer. The generated `gcc/bootstrap` environment must include
-that scope. The other seven environments use the generated shared-compiler
-scope, which points at the fixed GCC compiler view. Do not let Spack add an
-ambient compiler during concretization.
+The helper selects the newest verified older GCC compiler scope as the compiler
+that builds the GCC 12.5.0 producer. Set `CSE_SHARED_COMPILER_SEED_REF` only to
+choose a different reviewed compiler from the catalog. This is a compiler
+dependency inside each GCC environment, not a separate preparatory environment
+or user-facing surface. Every GCC producer root is the same explicit spec, so
+all four GCC lockfiles must record the same hash.
 
-Toolchain names may contain only letters, digits, and underscores. Their
-versions must match the catalog tuple. Use `source: external` for the first
-platform surface unless a reviewed experiment explicitly builds that provider.
-Do not insert dummy catalog scopes.
+For build-sourced OpenMPI, the helper converts verified common-scope facts into
+one explicit spec. It selects UCX only when the catalog contains
+`ucx+thread_multiple`; otherwise it selects verified libfabric/OFI. It selects
+exactly one verified scheduler (`slurm` or `pbs`), enables Lustre/ROMIO only
+when the Lustre development external is present, and never uses
+`fabrics=auto`. Resolve an ambiguity with the documented `CSE_OPENMPI_*`
+exports; do not depend on ambient configure detection.
+
+Use `source: external` for the platform compiler and for platform-provided MPI.
+Use `source: build` only for the selected MPI implementation that CSE will
+build, such as OpenMPI on a non-Cray system. Do not insert dummy catalog scopes.
 
 Observed provider names and Spack package names can differ. Classic Intel is
 reported as `intel` under `scopes/compilers/intel/...`, but the values file uses
@@ -613,6 +680,11 @@ python "$STACK_COMPOSER" init-workspace \
   --output "$BUILD_WORKSPACE"
 ```
 
+Initialization copies the rendered static catalog into
+`$BUILD_WORKSPACE/catalog` and renders relative include paths. The resulting
+workspace is the complete Spack build handoff; it does not depend on the
+original `$CATALOG` path after initialization.
+
 Use `--overwrite` only after reviewing and deliberately replacing the existing
 workspace.
 
@@ -620,20 +692,49 @@ workspace.
 cat "$BUILD_WORKSPACE/README.md"
 sed -n '1,260p' "$BUILD_WORKSPACE/workspace-manifest.yaml"
 find "$BUILD_WORKSPACE/environments" -name spack.yaml -print | sort
+find "$BUILD_WORKSPACE/catalog/scopes" -type f -print | sort
 find "$BUILD_WORKSPACE/configs/environments" -name modules.yaml -print | sort
 find "$BUILD_WORKSPACE/modulefiles" -type f -print | sort
+cat "$BUILD_WORKSPACE/env/setup-build-env.sh"
+cat "$BUILD_WORKSPACE/configs/common/config.yaml"
 cat "$BUILD_WORKSPACE/configs/common/mirrors.yaml"
 ```
 
 Verify every include path, provider selection, deployment path, native
 `modules.yaml`, and private build-cache URL. Serial must contain no MPI scope.
 Each MPI environment must use the MPI provider paired with its compiler
-surface.
+surface. Confirm `config.yaml` uses `build_stage::` in the intended order and
+sets `locks: true`.
+
+The one workspace contains eight independent Spack environments:
+
+1. GCC Core;
+2. GCC Common;
+3. GCC Serial;
+4. GCC MPI;
+5. platform-compiler Core;
+6. platform-compiler Common;
+7. platform-compiler Serial; and
+8. platform-compiler MPI.
+
+Common, Serial, and MPI are separate solves for each compiler surface. The
+shared install tree and matching concrete hashes allow them to reuse the GCC,
+Foundation, and build-tool producers without combining the two compiler
+surfaces into one environment.
 
 Checkpoint for the four-system work-tree pass: stop here after the workspace
 and its eight environment/module files have been reviewed. Concretization,
 installation, cache promotion, and publication are later checkpoints. A system
 does not need to wait for another system's build before reaching this point.
+
+This is also the no-build teammate handoff point. Copy or grant access to the
+entire workspace, not an individual `spack.yaml`. A builder needs the pinned
+Spack checkout, the platform module chain recorded in the workspace, and write
+access to the approved restricted install/cache/stage paths. The builder does
+not need Cluster Inspector, Stack Composer, Stack Content, or the original
+static-catalog directory to execute the rendered handoff. The builder must have
+an absolute writable `WORKDIR`; the generated setup script checks it before
+Spack reads the final fallback path.
 
 Snapshot the reviewed inputs and tool identities:
 
@@ -651,45 +752,42 @@ spack --version > "$BUILD_WORKSPACE/inputs/spack.version"
 
 ## 9. Concretize and review the restricted environments
 
-Set the exact names from the build values file:
+There are two supported ownership choices:
+
+- hand off at Step 8 and let the builder perform this entire step; or
+- generate and review all eight locks, then hand the locked workspace to the
+  builder for package installation.
+
+Concretizing all eight environments does not install GCC first. Each GCC
+environment repeats the same GCC 12.5 producer group and uses `needs` to bind
+its Foundation, build-tool, and payload roots to that concrete language
+provider. Exact matching specs produce exact matching hashes across the four
+independent lockfiles.
+
+Load the exact environment names generated from the reviewed values file:
 
 ```bash
-export SHARED_COMPILER_NAME="gcc"
-export SHARED_MPI_NAME="<shared-mpi-name>"
-export PLATFORM_COMPILER_NAME="<platform-compiler-name>"
-export PLATFORM_MPI_NAME="<platform-mpi-name>"
+source "$BUILD_WORKSPACE/env/setup-build-env.sh"
 
 ENVIRONMENTS=(
-  "$SHARED_COMPILER_NAME/bootstrap"
   "$SHARED_COMPILER_NAME/core"
   "$SHARED_COMPILER_NAME/common"
   "$SHARED_COMPILER_NAME/serial"
   "$SHARED_COMPILER_NAME/mpi-$SHARED_MPI_NAME"
+  "$PLATFORM_COMPILER_NAME/core"
   "$PLATFORM_COMPILER_NAME/common"
   "$PLATFORM_COMPILER_NAME/serial"
   "$PLATFORM_COMPILER_NAME/mpi-$PLATFORM_MPI_NAME"
 )
 ```
 
-Concretize, install, and expose the shared compiler first. The downstream
-compiler scope points at this exact view and is intentionally non-buildable:
+Concretize all restricted environments:
 
 ```bash
-export BUILD_JOBS="<approved-job-count>"
-BOOTSTRAP_ENV="$BUILD_WORKSPACE/environments/$SHARED_COMPILER_NAME/bootstrap"
-spack -e "$BOOTSTRAP_ENV" concretize --fresh -j 1
-spack -e "$BOOTSTRAP_ENV" install -j "$BUILD_JOBS" --fail-fast
-spack -e "$BOOTSTRAP_ENV" env view regenerate
-spack -e "$BOOTSTRAP_ENV" module tcl refresh --delete-tree -y
-```
-
-Concretize the remaining restricted environments:
-
-```bash
-for environment in "${ENVIRONMENTS[@]:1}"; do
+for environment in "${ENVIRONMENTS[@]}"; do
   echo "Concretizing $environment"
   spack -e "$BUILD_WORKSPACE/environments/$environment" \
-    concretize --force -j 1 || break
+    concretize --fresh -j 1 || break
 done
 ```
 
@@ -709,21 +807,31 @@ intended, Serial contains no MPI, MPI preserves the selected toolchain, and
 version-paired package roots preserve their pairings. Save solver output and fix
 the owning profile, catalog, values, roster, or blueprint. Never patch a lock.
 
-Confirm that the downstream GCC external and Foundation/build-tool hashes are
-identical across the seven downstream
-lockfiles. Confirm that every CMake dependency selected for the trial payload is
-CMake 3.31.12; CMake 4.4.2 should appear only as its explicit public root.
+Confirm that the GCC producer, Foundation, and build-tool hashes are identical
+across the four GCC lockfiles. Confirm that every CMake dependency selected for
+the trial payload is CMake 3.31.12; CMake 4.4.2 should appear only as its
+explicit public root. Miniforge is a compiler-independent Core root because its
+Spack package declares no compiler-language dependency; do not force
+`%compiler` onto it.
 
 Gate: all eight restricted lockfiles exist and pass review.
 
+After this gate, the teammate builds the approved lockfiles without
+reconcretizing them. A package build failure does not by itself authorize a new
+solve. Diagnose and retry the same lock first. Reconcretize only when an owned
+input or approved package/provider choice must change; then retain the failed
+evidence, regenerate the affected locks, rerun lock verification, and follow
+the same-release/new-release rule in the recovery section.
+
 ## 10. Build and exercise every restricted lane
 
-The GCC bootstrap was installed above. Build the shared GCC Core, Common,
-Serial, and MPI environments next. Then build the platform Common, Serial, and
-MPI environments:
+Build in the listed order. GCC Core installs the repeated GCC, Foundation, and
+Core roots first. Later GCC environments find the identical concrete hashes in
+the shared install tree and reuse them. Platform Core establishes that
+surface's Foundation and Core roots before its payload environments.
 
 ```bash
-for environment in "${ENVIRONMENTS[@]:1}"; do
+for environment in "${ENVIRONMENTS[@]}"; do
   echo "Building $environment"
   spack -e "$BUILD_WORKSPACE/environments/$environment" fetch -D || break
   spack -e "$BUILD_WORKSPACE/environments/$environment" \
@@ -734,6 +842,12 @@ for environment in "${ENVIRONMENTS[@]:1}"; do
     module tcl refresh --delete-tree -y || break
 done
 ```
+
+Use sequential installation for the first pass. Concurrent Spack processes may
+wait on and reuse the same concrete prefix only when they use the same store and
+database, `config:locks:true`, and the actual shared filesystem honors `flock`.
+Validate that behavior on the selected install root before enabling concurrent
+lane installs; concurrent job counts are cumulative across Spack processes.
 
 Apply the platform checklist after installation. A lane is not approved merely
 because compilation finished. Exercise its compiler/wrappers, representative

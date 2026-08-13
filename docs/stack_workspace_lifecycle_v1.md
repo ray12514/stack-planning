@@ -31,6 +31,11 @@ no rebuild, no copy. Separate recipes converge into one deduplicated tree.
 | workspace (`configs/` + `environments/`) | regenerable recipe; keep the `spack.lock` as the build record | render dir / shared FS |
 | install tree + views/modules | durable; what users point at | deployment-chosen roots |
 
+An initialized CSE trial workspace also carries a read-only snapshot of the
+static catalog configuration it selected. The snapshot is regenerable, but it
+travels with the workspace so a second builder does not need the original
+catalog path or any of the tool repositories.
+
 The environment is throwaway scaffolding. The **view** (a merged directory /
 `module load`) is the stable front-door, backed by the install tree, surviving
 re-renders. You can delete and re-render a workspace without touching an
