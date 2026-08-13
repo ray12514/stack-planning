@@ -436,6 +436,14 @@ compiler pairing for the selected MPI. Preserve incorrect discovery evidence,
 fix the inspector or hints, and regenerate. Do not hand-enter a guess as a
 durable fact.
 
+For Cray MPICH, retain the complete observed product-tree flavor map. A path
+such as `ofi/gnu/12.3` records the GNU family and its minimum compiler baseline;
+it does not require an installed `gcc@12.3` provider and it is not an exact pin
+for the lane compiler. A platform or CSE-built compiler may use that flavor
+only when it is the same family and its selected version is at or above the
+baseline. The currently loaded/default PrgEnv is evidence to review, not a rule
+that removes the other observed combinations.
+
 Copy only the verified fact sheet into the editable Stack Content checkout:
 
 ```bash
