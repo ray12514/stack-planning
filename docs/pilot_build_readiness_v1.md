@@ -14,9 +14,11 @@
 - **Package set and versions**: the roster is selected, pinned against one
   package-recipe generation, at the newest supported release plus its
   immediate predecessor. Variants are recorded per package.
-- **Baseline CPU target**: `x86_64_v3` on every system. It runs natively on
-  Genoa, Milan, and Cascade Lake, and per-lane tuning is a later flag plus a
-  rebuild, not a design change. Needs ratifying, not deciding.
+- **Baseline CPU target**: one portable target per system across every compiler
+  surface and lane. Select the highest target common to the system's CPU-only
+  build/runtime nodes, capped at `x86_64_v3`; fall back to `x86_64_v2` or
+  `x86_64` only when the inspected system requires it. Per-lane tuning is a
+  later rebuild, not part of these trials.
 - **Acceptance criteria, in substance**: the five checks below already exist
   across the runbook gates and the SOP promotion gate. They need adoption as
   the named pilot gate, not invention.

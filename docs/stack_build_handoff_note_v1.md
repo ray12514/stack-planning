@@ -76,6 +76,13 @@ manifest also preserves the profile's node-type stage facts so a reviewed build
 node choice can become an ordered `build_stage::` list without probing the host
 or manually retyping scratch paths.
 
+For the CPU-only trials, the handoff also owns one explicit portable CPU target
+for the entire initialized workspace. The values helper intersects compatible
+targets from all profiled CPU-only build/runtime node types and caps selection
+at `x86_64_v3`; generated `packages.yaml` applies it to both compiler surfaces
+and every lane. Build-stage or build-node changes are operational and do not
+select another architecture.
+
 ## Co-equal build paths
 
 The render step ends at the workspace. The build half (concretize, fetch,

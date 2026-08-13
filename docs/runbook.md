@@ -146,6 +146,8 @@ Do not advance past a failed gate.
   MPI scopes.
 - [ ] The restricted values file names only real catalog scopes and approved
   restricted paths.
+- [ ] The restricted values file selects one portable CPU target supported by
+  every profiled CPU-only build/runtime node type.
 - [ ] The restricted workspace generates eight environments and eight native
   `modules.yaml` files.
 - [ ] All eight restricted environments concretize and their lockfiles pass
@@ -600,6 +602,10 @@ export CSE_BUILD_NODE_TYPE="<reviewed-profile-node-type>"
 export BUILD_JOBS="<approved-job-count>"
 ```
 
+Do not normally set `CSE_CPU_TARGET`. The helper selects the highest common
+portable target, capped at `x86_64_v3`. Set it only when the team deliberately
+chooses the lower `x86_64_v2` or `x86_64` baseline after reviewing the profile.
+
 Generate the complete values file from those selections, the static catalog,
 and the roots already exported in Step 1:
 
@@ -618,6 +624,14 @@ It resolves the observed provider names to the catalog's Spack package names,
 selects the compatible compiler/MPI scope, copies exact module prerequisites,
 and fails if the named scope is absent. Do not type a guessed scope path into
 the generated file.
+
+The helper independently resolves one CPU target for all eight environments.
+It intersects the detected, preferred, and alternate targets of every
+CPU-only build/runtime node type, then selects `x86_64_v3`, `x86_64_v2`, or
+`x86_64` in that order. This target is architecture policy; it is not derived
+from `CSE_BUILD_NODE_TYPE`, and changing from a compute node to a login node
+does not change it. The helper rejects a requested target that any relevant
+node type cannot run.
 
 `CSE_BUILD_NODE_TYPE` is the node class on which the builds will run, such as
 `cpu_compute`. It must be an exact key under the catalog manifest's
@@ -639,6 +653,7 @@ stage path in place of this list.
 | `catalog_scopes.*` | exact relative paths below `$CATALOG` |
 | install tree | `$BUILD_RELEASE_ROOT/spack/opt` |
 | build node/stages | reviewed profile node type; generated temp, scratch, then `${WORKDIR}` fallback list |
+| CPU architecture | one system-wide portable target for both compiler surfaces and all lanes; highest common support capped at `x86_64_v3` |
 | source/misc caches | `$CSE_RESTRICTED_ROOT/cache/{source,misc}` |
 | views/modules roots | `$BUILD_RELEASE_ROOT/{views,modules}` |
 | build-cache name | `cse-initial-conversion-trials` |
@@ -713,6 +728,13 @@ Verify every include path, provider selection, deployment path, native
 Each MPI environment must use the MPI provider paired with its compiler
 surface. Confirm `config.yaml` uses `build_stage::` in the intended order and
 sets `locks: true`.
+Confirm `configs/common/packages.yaml` contains exactly one
+`packages:all:require` entry for the selected `target=...`; no environment may
+replace it with a native or compiler-specific CPU target. Inspect representative
+environment roots as well: every compiler, Foundation, Core/build-tool, MPI,
+and payload root constraint must include that same target. The explicit root
+constraints prevent package-specific `require` entries from falling back to
+the concretization host's native architecture.
 
 The one workspace contains eight independent Spack environments:
 
@@ -810,7 +832,9 @@ python3 "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
 
 Do not reconcretize. Confirm that the replacement node is permitted for builds,
 can load every recorded compiler/external module, and can execute the target
-architecture already recorded in the locks. Continue with
+architecture already recorded in the locks. The regenerated values file must
+show the same `architecture.target`; only `build.node_type` and stage paths may
+change. Continue with
 `spack install --only-concrete`; successful prefixes in the shared install tree
 are reused, while an unfinished package is restaged under the new node's stage
 root. Do not use `--dont-restage`, delete shared prefix locks, or run a broad

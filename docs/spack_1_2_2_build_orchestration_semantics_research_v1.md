@@ -31,6 +31,36 @@
   invalid `WORKDIR`, exclude known unusable candidates, and emit
   `build_stage::` so the rendered list is complete.
 
+## Initial Conversion Trials CPU-target change assessment
+
+- **Requested change:** build one portable CPU architecture per system rather
+  than allowing each compiler surface or concretization host to select a
+  native target.
+- **Design source:** the trial policy already names a portable baseline and the
+  profile contract records detected, preferred, and compatible alternate CPU
+  targets for each node type.
+- **Ownership:** Cluster Inspector owns observed node compatibility. Trial
+  policy owns the allowed portable baseline family. The values helper resolves
+  one system-wide target. Generated Spack configuration enforces it, and the
+  lock verifier checks the resulting concrete DAGs.
+- **Scope:** every CPU-only Initial Conversion Trials environment, including
+  both GCC and platform-compiler surfaces. GPU work remains out of scope.
+- **Seam:** write the resolved target into the values file, constrain every
+  root group explicitly, retain `packages:all:require: target=...` as the
+  dependency default, combine the target with package-specific requirements,
+  and reject any non-external lockfile node whose target differs.
+- **Risks:** native concretization silently varies with the node that runs it;
+  separately resolved compiler surfaces produce incompatible hashes; and a
+  target chosen from only one node class may not run on another trial node.
+- **Decision:** select the highest target common to all profiled CPU-only
+  build/runtime node types, capped at `x86_64_v3`. The ordered candidates are
+  `x86_64_v3`, `x86_64_v2`, then `x86_64`. Do not select `x86_64_v4`, `zen*`,
+  or another native microarchitecture for these trials. A lower explicit
+  override is valid only when every relevant node type reports support.
+  Spack 1.2.2 testing showed that an `all` requirement alone is insufficient
+  for roots with their own package-specific `require` entries, so the rendered
+  root constraints and lock verifier are mandatory parts of this decision.
+
 ## Conclusions for the pilot
 
 1. `group`/`needs` orders concretization and forces reuse **inside one
