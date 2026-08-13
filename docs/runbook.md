@@ -180,12 +180,19 @@ checkpoint in the system notes before starting the next one.
 
 Resume the same release only when all of these are true:
 
-- the profile, catalog, values, roster, package-recipe pin, Spack version, and
-  repository commits are unchanged;
+- the profile, catalog, semantic provider/package values, roster,
+  package-recipe pin, Spack version, and repository commits are unchanged;
 - the affected lockfile and concrete hashes are unchanged;
 - the failure was operational, such as a scheduler timeout, node loss, network
   interruption, quota exhaustion, or interrupted cache transfer;
 - no approved published artifact would be edited in place.
+
+The selected build node type, its ordered stage roots, and `build_jobs` are
+operational settings. They may change within the same trial release when the
+environment YAML, lockfiles, install tree, and concrete hashes remain
+unchanged. Preserve the original locked workspace and create a sibling
+operational workspace for the replacement node; do not overwrite the locked
+workspace.
 
 Create a new catalog release and a new trial release when observed system facts
 or reusable static scopes change. Create a new trial release when the compiler,
@@ -209,6 +216,7 @@ of deleting or rewriting the old record.
 | Failure or change | Resume action |
 |---|---|
 | Scheduler timeout, node failure, temporary network failure, or resolved quota problem with unchanged inputs | Retry only the failed command or environment in the same release. |
+| Selected build node is unavailable, but another profiled node can build the same locked target | Create a sibling operational workspace for the replacement node, verify every environment YAML is unchanged, transfer the same locks, and continue the same release against the same install tree. |
 | Source build failure caused by a transient host/tool problem | Retry the failed lane after recording the log; earlier validated lanes remain valid. |
 | Package recipe, patch, variant, compiler, MPI, or Spack change is required | Create a new trial release, reconcretize, and revalidate every affected lane. |
 | Cluster Inspector fact or external module/prefix is wrong | Regenerate the profile, create a new catalog release and trial release, and restart at checkpoint 1. |
@@ -750,6 +758,64 @@ git -C "$CONTENT" rev-parse HEAD > "$BUILD_WORKSPACE/inputs/stack-content.commit
 spack --version > "$BUILD_WORKSPACE/inputs/spack.version"
 ```
 
+### Switch to another profiled build node
+
+Before lockfiles exist, set `CSE_BUILD_NODE_TYPE` to the replacement node key,
+regenerate `$BUILD_VALUES`, and deliberately reinitialize the current workspace
+with `--overwrite`. The static catalog does not need to be rerendered when it
+already contains current facts for both node types.
+
+After lockfiles exist or installation has started, preserve the original
+workspace. Generate a sibling workspace that keeps the same `TRIAL_RELEASE`,
+install tree, caches, provider selections, package inputs, and Spack version:
+
+```bash
+export ORIGINAL_BUILD_WORKSPACE="$BUILD_WORKSPACE"
+export CSE_BUILD_NODE_TYPE="login"
+export BUILD_VALUES="$SYSTEM_DIR/cse-trials-build-values.login.yaml"
+export BUILD_WORKSPACE="${ORIGINAL_BUILD_WORKSPACE}.login"
+
+"$COMPOSER/.venv/bin/python" \
+  "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
+
+python "$STACK_COMPOSER" init-workspace \
+  --blueprint "$CONTENT/pilots/cse-pilot" \
+  --catalog "$CATALOG" \
+  --values "$BUILD_VALUES" \
+  --output "$BUILD_WORKSPACE"
+
+source "$BUILD_WORKSPACE/env/setup-build-env.sh"
+ENVIRONMENTS=(
+  "$SHARED_COMPILER_NAME/core"
+  "$SHARED_COMPILER_NAME/common"
+  "$SHARED_COMPILER_NAME/serial"
+  "$SHARED_COMPILER_NAME/mpi-$SHARED_MPI_NAME"
+  "$PLATFORM_COMPILER_NAME/core"
+  "$PLATFORM_COMPILER_NAME/common"
+  "$PLATFORM_COMPILER_NAME/serial"
+  "$PLATFORM_COMPILER_NAME/mpi-$PLATFORM_MPI_NAME"
+)
+
+for environment in "${ENVIRONMENTS[@]}"; do
+  cmp \
+    "$ORIGINAL_BUILD_WORKSPACE/environments/$environment/spack.yaml" \
+    "$BUILD_WORKSPACE/environments/$environment/spack.yaml" || exit 1
+  cp \
+    "$ORIGINAL_BUILD_WORKSPACE/environments/$environment/spack.lock" \
+    "$BUILD_WORKSPACE/environments/$environment/spack.lock" || exit 1
+done
+
+python3 "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
+```
+
+Do not reconcretize. Confirm that the replacement node is permitted for builds,
+can load every recorded compiler/external module, and can execute the target
+architecture already recorded in the locks. Continue with
+`spack install --only-concrete`; successful prefixes in the shared install tree
+are reused, while an unfinished package is restaged under the new node's stage
+root. Do not use `--dont-restage`, delete shared prefix locks, or run a broad
+failure-marker cleanup.
+
 ## 9. Concretize and review the restricted environments
 
 There are two supported ownership choices:
@@ -835,7 +901,7 @@ for environment in "${ENVIRONMENTS[@]}"; do
   echo "Building $environment"
   spack -e "$BUILD_WORKSPACE/environments/$environment" fetch -D || break
   spack -e "$BUILD_WORKSPACE/environments/$environment" \
-    install -j "$BUILD_JOBS" --fail-fast || break
+    install --only-concrete -j "$BUILD_JOBS" --fail-fast || break
   spack -e "$BUILD_WORKSPACE/environments/$environment" \
     env view regenerate || break
   spack -e "$BUILD_WORKSPACE/environments/$environment" \
