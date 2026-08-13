@@ -3,8 +3,8 @@
 ## Purpose
 
 This is the single operator procedure for Blueback, Raider, Wheat, and Fran.
-Run it once per system to move one reviewed Spack 1.2 environment through the
-complete static sequence:
+Run it once per system to move one reviewed Spack 1.2 workspace through the
+complete sequence:
 
 ```text
 operator-controlled tools and source
@@ -26,9 +26,11 @@ build. The validated `spack.lock` files cross the boundary, and the publication
 install uses `--only-concrete --use-buildcache=only`. A missing binary stops
 promotion.
 
-`render-static` creates reusable platform scopes. `init-workspace` combines an
-exact catalog selection with the CSE Initial Conversion Trials blueprint to
-create the build or publication workspace.
+`render-static` creates reusable platform scopes. A package manager may include
+those scopes from a hand-authored `spack.yaml`. `init-workspace` is the CSE
+trial convenience that combines an exact catalog selection with the authored
+Initial Conversion Trials blueprint; it is not required to consume the static
+catalog.
 
 ## What the current direction establishes
 
@@ -56,17 +58,19 @@ provisional package or version list from an email into generated files.
 |---:|---|---|---|
 | 1 | Blueback | Cray PE, Slurm | `stack-content/systems/blueback/runbook-notes.md` |
 | 2 | Raider | Generic Linux, Slurm | `stack-content/systems/raider/runbook-notes.md` |
-| 3 | Wheat | Generic Linux, PBS | Create from the system-note template |
-| 4 | Fran | Cray PE; scheduled later | Create from the system-note template |
+| 3 | Wheat | Generic Linux, PBS | `stack-content/systems/wheat/runbook-notes.md` |
+| 4 | Fran | Cray PE | `stack-content/systems/fran/runbook-notes.md` |
 
 The table selects the platform checklist, not provider versions. Every
 compiler, MPI, prefix, and module value must come from the live system's
 reviewed profile and generated catalog.
 
-Use Blueback and Raider as the two lead systems. Bring both through reviewed
-lockfiles first so the Cray and generic-Linux paths are exercised early. Then
-complete Blueback through cache-only publication, complete Raider, continue to
-Wheat, and finish with Fran when its access and platform facts are ready.
+Take Blueback through profile review, static catalog generation, and workspace
+initialization first. Then repeat those three checkpoints on Raider, Wheat, and
+Fran. This establishes all four work trees without making their build results
+depend on each other. After the work trees are reviewed, return to Blueback for
+the first full concretization/build and use the result to refine the common
+procedure before building the other systems.
 
 ## Storage and control policy
 
@@ -249,6 +253,8 @@ export INSPECTOR="$WORK_ROOT/cluster-inspector"
 export COMPOSER="$WORK_ROOT/stack-composer"
 export CONTENT="$WORK_ROOT/stack-content"
 export PLANNING="$WORK_ROOT/stack-planning"
+export SPACK_VERSION="1.2.2"
+export SPACK_ROOT="$WORK_ROOT/spack/$SPACK_VERSION"
 export SYSTEM_DIR="$CONTENT/systems/$SYSTEM_NAME"
 export PROBE_DIR="$WORK_ROOT/probe-work/$SYSTEM_NAME/$CATALOG_RELEASE"
 export STACK_COMPOSER="$COMPOSER/dist/stack-composer.pyz"
@@ -292,6 +298,11 @@ if [ ! -d "$CONTENT/.git" ]; then
 fi
 if [ ! -d "$PLANNING/.git" ]; then
   git clone https://github.com/ray12514/stack-planning.git "$PLANNING"
+fi
+if [ ! -d "$SPACK_ROOT/.git" ]; then
+  mkdir -p "$(dirname "$SPACK_ROOT")"
+  git clone --branch "v$SPACK_VERSION" --depth 1 \
+    https://github.com/spack/spack.git "$SPACK_ROOT"
 fi
 ```
 
@@ -345,11 +356,12 @@ python "$STACK_COMPOSER" --help >/dev/null
 deactivate
 ```
 
-Activate the exact Spack checkout selected for the trials:
+Verify and activate the pinned Spack checkout selected for the trials:
 
 ```bash
-source /path/to/spack/share/spack/setup-env.sh
-: "${SPACK_ROOT:?SPACK_ROOT is not set}"
+git -C "$SPACK_ROOT" status --short --branch
+test "$(git -C "$SPACK_ROOT" describe --tags --exact-match)" = "v$SPACK_VERSION"
+source "$SPACK_ROOT/share/spack/setup-env.sh"
 spack --version
 ```
 
@@ -499,6 +511,39 @@ Gate: the catalog contains the exact compatible compiler, MPI, common, and
 platform scopes needed by the trials. Fix the profile or catalog logic when a
 scope is missing; do not type a nonexistent path into a values file.
 
+On Cray systems, the common scope must contain the inspected platform
+`libfabric` external. Each Cray MPICH scope must contain the selected
+`cray-mpich` external and the inspected `cray-pmi` external. The pinned
+`cray-mpich` recipe depends on both packages. Stop if either is absent; do not
+allow Spack to substitute a source-built runtime for the active CPE.
+`reports/static-plan.yaml` must show an empty `missing_mpi_dependencies` list.
+
+### Static-catalog handoff without `init-workspace`
+
+The catalog is already usable at this gate. A package manager can create an
+ordinary Spack environment by including the exact generated scopes and writing
+normal Spack specs. For example:
+
+```yaml
+spack:
+  include::
+    - /absolute/catalog/path/scopes/common
+    - /absolute/catalog/path/scopes/compilers/<provider>/<version>
+    - /absolute/catalog/path/scopes/mpi/<provider>/<version>/<compiler-axis>
+
+  concretizer:
+    unify: false
+
+  specs:
+    - hdf5@1.10.6+mpi %<compiler-plus-mpi-toolchain>
+```
+
+Use the toolchain name from the selected scope's `toolchains.yaml`; do not
+retype compiler, MPI, external-prefix, or module policy in the environment.
+For a Serial environment, omit the MPI scope and use the compiler-only
+toolchain. This is the production purpose of `render-static`: its output is
+independent of the CSE trial initializer.
+
 ## 7. Create the restricted build values
 
 ```bash
@@ -576,6 +621,11 @@ Verify every include path, provider selection, deployment path, native
 `modules.yaml`, and private build-cache URL. Serial must contain no MPI scope.
 Each MPI environment must use the MPI provider paired with its compiler
 surface.
+
+Checkpoint for the four-system work-tree pass: stop here after the workspace
+and its eight environment/module files have been reviewed. Concretization,
+installation, cache promotion, and publication are later checkpoints. A system
+does not need to wait for another system's build before reaching this point.
 
 Snapshot the reviewed inputs and tool identities:
 

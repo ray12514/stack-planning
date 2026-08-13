@@ -326,6 +326,13 @@ Cray consumes the selected compiler, Cray MPICH flavor, and GPU runtime as
 externals from profile-derived configuration scopes. It does not create
 compiler bootstrap or MPI producer groups.
 
+The pinned Cray MPICH recipe also depends directly on `libfabric` and
+`cray-pmi`. The common profile-derived scope owns the selected platform
+`libfabric` external. Each Cray MPICH scope owns the inspected, non-buildable
+`cray-pmi` external beside the compiler-specific Cray MPICH external. A Cray
+MPI environment is incomplete if either dependency is absent; it must not let
+Spack replace the active CPE runtime with a source-built package.
+
 ```yaml
 # configs/mpi/cray-mpich/8.1.29/gcc-13.3.0/toolchains.yaml
 toolchains:
@@ -336,7 +343,7 @@ toolchains:
     when: '%cxx'
   - spec: '%fortran=gcc@13.3.0'
     when: '%fortran'
-  - spec: '%mpi=cray-mpich@8.1.29'
+  - spec: '%mpi=cray-mpich@8.1.29+wrappers'
     when: '%mpi'
 ```
 
