@@ -110,12 +110,12 @@ $HOME/STACK_TESTING/                         # operator-controlled
   <user>/<system>/<trial-release>/{build,publish}-stage/
 ```
 
-The Unix group is lowercase `cse` on every trial system. During the
-operator-controlled trials, the operator owns writes and the `cse` group has
-read/execute access. Use
+The Unix group is lowercase `cse` on every trial system. During the restricted
+trials, both assigned builders need read/write access. Use
 `permissions.group: cse`, `permissions.read: group`, and
-`permissions.write: user`. Change the write or read audience only through an
-approved release-policy decision.
+`permissions.write: group`. The published release becomes group-read-only only
+after promotion and acceptance. Change the write or read audience only through
+an approved release-policy decision.
 
 The private build cache is private because of filesystem or service access
 controls. Spack's `buildcache push --private` option concerns redistribution of
@@ -551,14 +551,14 @@ Gate: the profile verifies and the system notes identify the reviewed tuple.
 
 ## 5. Create the restricted and published CSE roots
 
-Confirm the exact CSE group and shared path with the filesystem owner. Use an
-operator-write/group-read umask and setgid directories so new artifacts inherit
-the CSE group without granting group write:
+Confirm the exact CSE group and shared path with the filesystem owner. Use a
+group-collaborative umask and setgid directories so new artifacts inherit the
+CSE group and both assigned builders can update them:
 
 ```bash
-umask 0027
+umask 0007
 
-install -d -m 2750 -g "$CSE_GROUP" \
+install -d -m 2770 -g "$CSE_GROUP" \
   "$CSE_TRIAL_ROOT" \
   "$CSE_RESTRICTED_ROOT" \
   "$STATIC_ROOT" \
@@ -581,6 +581,20 @@ install -d -m 2750 -g "$CSE_GROUP" \
 
 Do not recursively change ownership or permissions on an existing shared tree.
 If the top-level path is site-owned, ask its owner to create the dedicated roots.
+The `s` shown in a directory mode is setgid: it provides group inheritance but
+does not provide group write permission. Do not add the sticky bit inside the
+restricted workspace, Spack store, caches, build cache, views, or module roots.
+Spack and the handoff scripts must be able to rename and clean entries created
+by either builder. Protect against accidental deletion with the restricted/
+published boundary, release snapshots, evidence, and backups instead.
+
+If a dedicated trial tree was previously created with group read-only modes,
+stop all Spack processes and have its owner or filesystem administrator repair
+only that confirmed tree. Set group `cse`, add group read/write/search, remove
+access for others, and restore setgid on every directory. Use a default ACL for
+group `cse` when the filesystem supports it; otherwise every builder must keep
+`umask 0007`. Do not apply a recursive command to `/p/app/CSE` or another
+shared parent containing unrelated releases.
 
 ## 6. Generate and inspect the static catalog
 
@@ -743,7 +757,7 @@ stage path in place of this list.
 | views/modules roots | `$BUILD_RELEASE_ROOT/{views,modules}` |
 | build-cache name | `cse-initial-conversion-trials` |
 | build-cache URL | `$BUILDCACHE_URL` expanded to an absolute `file:///...` URL |
-| permissions | CSE group, group read, user write |
+| permissions | CSE group, group read/write during restricted build and publication assembly; published release frozen group-read-only after acceptance |
 | package repository | reviewed trial recipe pin |
 
 The roster installs CMake 3.31.12 and 4.4.2. CMake 3.31.12 is the preferred
