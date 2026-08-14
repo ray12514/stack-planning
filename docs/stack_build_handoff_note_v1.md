@@ -79,9 +79,12 @@ or manually retyping scratch paths.
 For the CPU-only trials, the handoff also owns one explicit portable CPU target
 for the entire initialized workspace. The values helper intersects compatible
 targets from all profiled CPU-only build/runtime node types and caps selection
-at `x86_64_v3`; generated `packages.yaml` applies it to both compiler surfaces
-and every lane. Build-stage or build-node changes are operational and do not
-select another architecture.
+at `x86_64_v3`; generated root specs apply it to both compiler surfaces and
+every source-built lane. `packages:all:prefer` carries the same default to
+dependencies. Architecture-specific prebuilt distributions are explicit
+exceptions: Miniforge is constrained to the generic `x86_64` family target and
+the lock verifier permits only that named difference. Build-stage or build-node
+changes are operational and do not select another architecture.
 
 ## Co-equal build paths
 

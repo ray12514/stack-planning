@@ -64,7 +64,9 @@ Core version policy is explicit in the roster. Multiple public tool versions
 are allowed when they are intentional and have distinct modules. The Initial
 Conversion Trials expose CMake 3.31.12 and 4.4.2, while package builds pin
 CMake 3.31.12. Core builds at the portable baseline target, not the payload
-target.
+target. A prebuilt architecture-specific distribution is different from a
+source-built Core tool: Miniforge uses the generic `x86_64` family target and
+has no compiler-language dependency.
 
 The current pre-v1 deployment shape uses one shared GCC-built Core. Foundation
 and Core are groups inside the Core environment. Payload environments repeat

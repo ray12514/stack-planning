@@ -17,8 +17,9 @@
 - **Baseline CPU target**: one portable target per system across every compiler
   surface and lane. Select the highest target common to the system's CPU-only
   build/runtime nodes, capped at `x86_64_v3`; fall back to `x86_64_v2` or
-  `x86_64` only when the inspected system requires it. Per-lane tuning is a
-  later rebuild, not part of these trials.
+  `x86_64` only when the inspected system requires it. Prebuilt distributions
+  use their generic architecture-family target; Miniforge uses `x86_64`.
+  Per-lane tuning is a later rebuild, not part of these trials.
 - **Acceptance criteria, in substance**: the five checks below already exist
   across the runbook gates and the SOP promotion gate. They need adoption as
   the named pilot gate, not invention.

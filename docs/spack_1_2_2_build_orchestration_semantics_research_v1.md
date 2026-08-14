@@ -46,9 +46,10 @@
 - **Scope:** every CPU-only Initial Conversion Trials environment, including
   both GCC and platform-compiler surfaces. GPU work remains out of scope.
 - **Seam:** write the resolved target into the values file, constrain every
-  root group explicitly, retain `packages:all:require: target=...` as the
-  dependency default, combine the target with package-specific requirements,
-  and reject any non-external lockfile node whose target differs.
+  source-built root group explicitly, use `packages:all:prefer: target=...` as
+  the dependency default, give architecture-specific prebuilt distributions a
+  reviewed generic-family target, and reject any other non-external lockfile
+  node whose target differs.
 - **Risks:** native concretization silently varies with the node that runs it;
   separately resolved compiler surfaces produce incompatible hashes; and a
   target chosen from only one node class may not run on another trial node.
@@ -60,6 +61,10 @@
   Spack 1.2.2 testing showed that an `all` requirement alone is insufficient
   for roots with their own package-specific `require` entries, so the rendered
   root constraints and lock verifier are mandatory parts of this decision.
+  It also showed that a generic `miniforge3 target=x86_64` root conflicts with
+  `packages:all:require target=x86_64_v3`, while the same root concretizes with
+  `packages:all:prefer`; Miniforge is therefore the named generic-target
+  exception.
 
 ## Conclusions for the pilot
 

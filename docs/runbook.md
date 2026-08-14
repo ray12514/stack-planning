@@ -699,7 +699,8 @@ CPU-only build/runtime node type, then selects `x86_64_v3`, `x86_64_v2`, or
 `x86_64` in that order. This target is architecture policy; it is not derived
 from `CSE_BUILD_NODE_TYPE`, and changing from a compute node to a login node
 does not change it. The helper rejects a requested target that any relevant
-node type cannot run.
+node type cannot run. It also records the generic `x86_64` family target for
+architecture-specific prebuilt distributions such as Miniforge.
 
 `CSE_BUILD_NODE_TYPE` is the node class on which the builds will run, such as
 `cpu_compute`. It must be an exact key under the catalog manifest's
@@ -797,13 +798,15 @@ Verify every include path, provider selection, deployment path, native
 Each MPI environment must use the MPI provider paired with its compiler
 surface. Confirm `config.yaml` uses `build_stage::` in the intended order and
 sets `locks: true`.
-Confirm `configs/common/packages.yaml` contains exactly one
-`packages:all:require` entry for the selected `target=...`; no environment may
-replace it with a native or compiler-specific CPU target. Inspect representative
-environment roots as well: every compiler, Foundation, Core/build-tool, MPI,
-and payload root constraint must include that same target. The explicit root
-constraints prevent package-specific `require` entries from falling back to
-the concretization host's native architecture.
+Confirm `configs/common/packages.yaml` contains a `packages:all:prefer` entry
+for the selected `target=...` and a `miniforge3:require` entry for generic
+`target=x86_64`. No environment may replace either with a native or
+compiler-specific CPU target. Inspect representative environment roots as
+well: every source-built compiler, Foundation, Core/build-tool, MPI, and
+payload root constraint must include the portable target. The Miniforge
+Core-independent root must use the generic binary target. The explicit root
+constraints prevent package-specific requirements from falling back to the
+concretization host's native architecture.
 
 The one workspace contains eight independent Spack environments:
 
@@ -922,8 +925,9 @@ Confirm that the GCC producer, Foundation, and build-tool hashes are identical
 across the four GCC lockfiles. Confirm that every CMake dependency selected for
 the trial payload is CMake 3.31.12; CMake 4.4.2 should appear only as its
 explicit public root. Miniforge is a compiler-independent Core root because its
-Spack package declares no compiler-language dependency; do not force
-`%compiler` onto it.
+Spack package declares no compiler-language dependency and installs a prebuilt
+architecture-family binary. Do not force `%compiler` or the source-build
+microarchitecture onto it; its concrete target must be generic `x86_64`.
 
 Gate: all eight restricted lockfiles exist and pass review.
 
