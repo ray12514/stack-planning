@@ -140,6 +140,7 @@ modules:
       - ninja
       - pkgconf
       - git
+      - python@3.8.20
       - python@3.10.20
       - python@3.12.13
       - miniforge3@26.1.1-3
@@ -187,6 +188,7 @@ spack:
     - ninja
     - pkgconf
     - git
+    - python@3.8.20
     - python@3.10.20
     - python@3.12.13
     - miniforge3@26.1.1-3

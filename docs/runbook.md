@@ -797,7 +797,9 @@ Verify every include path, provider selection, deployment path, native
 `modules.yaml`, and private build-cache URL. Serial must contain no MPI scope.
 Each MPI environment must use the MPI provider paired with its compiler
 surface. Confirm `config.yaml` uses `build_stage::` in the intended order and
-sets `locks: true`.
+sets `locks: true`. Confirm it sets `deprecated: true`; this is required only
+because the approved Python 3.8.20 root is marked deprecated in the pinned
+package recipe.
 Confirm `configs/common/packages.yaml` contains a `packages:all:prefer` entry
 for the selected `target=...` and a `miniforge3:require` entry for generic
 `target=x86_64`. No environment may replace either with a native or
@@ -924,7 +926,8 @@ the owning profile, catalog, values, roster, or blueprint. Never patch a lock.
 Confirm that the GCC producer, Foundation, and build-tool hashes are identical
 across the four GCC lockfiles. Confirm that every CMake dependency selected for
 the trial payload is CMake 3.31.12; CMake 4.4.2 should appear only as its
-explicit public root. Miniforge is a compiler-independent Core root because its
+explicit public root. Confirm that Python 3.8.20, 3.10.20, and 3.12.13 are all
+explicit Core roots. Miniforge is a compiler-independent Core root because its
 Spack package declares no compiler-language dependency and installs a prebuilt
 architecture-family binary. Do not force `%compiler` or the source-build
 microarchitecture onto it; its concrete target must be generic `x86_64`.
