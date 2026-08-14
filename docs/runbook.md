@@ -113,9 +113,10 @@ $HOME/STACK_TESTING/                         # operator-controlled
 The Unix group is lowercase `cse` on every trial system. During the restricted
 trials, both assigned builders need read/write access. Use
 `permissions.group: cse`, `permissions.read: group`, and
-`permissions.write: group`. The published release becomes group-read-only only
-after promotion and acceptance. Change the write or read audience only through
-an approved release-policy decision.
+`permissions.write: group`. Publication values instead use `read: world` and
+`write: user`; after promotion and acceptance, consumers have read/execute but
+no write access. Change the write or read audience only through an approved
+release-policy decision.
 
 The private build cache is private because of filesystem or service access
 controls. Spack's `buildcache push --private` option concerns redistribution of
@@ -569,9 +570,20 @@ install -d -m 2770 -g "$CSE_GROUP" \
   "$CSE_RESTRICTED_ROOT/cache/source" \
   "$CSE_RESTRICTED_ROOT/cache/misc" \
   "$BUILDCACHE_ROOT" \
-  "$BUILD_EVIDENCE" \
+  "$BUILD_EVIDENCE"
+
+# Consumers may traverse published namespaces, but only CSE may add releases.
+install -d -m 2775 -g "$CSE_GROUP" \
   "$CSE_PUBLISHED_ROOT" \
   "$CSE_PUBLISHED_ROOT/workspaces" \
+  "$CSE_PUBLISHED_ROOT/workspaces/$SYSTEM_NAME" \
+  "$CSE_PUBLISHED_ROOT/workspaces/$SYSTEM_NAME/initial-conversion-trials" \
+  "$CSE_PUBLISHED_ROOT/releases" \
+  "$CSE_PUBLISHED_ROOT/releases/$SYSTEM_NAME"
+
+# Publication assembly remains private until validation and the final freeze.
+install -d -m 2770 -g "$CSE_GROUP" \
+  "$PUBLISH_RELEASE_ROOT" \
   "$PUBLISH_RELEASE_ROOT/spack/opt" \
   "$PUBLISH_RELEASE_ROOT/cache/misc" \
   "$PUBLISH_RELEASE_ROOT/views" \
@@ -757,7 +769,7 @@ stage path in place of this list.
 | views/modules roots | `$BUILD_RELEASE_ROOT/{views,modules}` |
 | build-cache name | `cse-initial-conversion-trials` |
 | build-cache URL | `$BUILDCACHE_URL` expanded to an absolute `file:///...` URL |
-| permissions | CSE group, group read/write during restricted build and publication assembly; published release frozen group-read-only after acceptance |
+| permissions | CSE group read/write in the restricted tree; publication values change to consumer read/execute with no group/other write and are frozen after acceptance |
 | package repository | reviewed trial recipe pin |
 
 The roster installs CMake 3.31.12 and 4.4.2. CMake 3.31.12 is the preferred
@@ -1070,9 +1082,13 @@ Edit only these fields:
 | build stage | approved publication scratch path |
 | misc cache | a publication-specific cache below `$PUBLISH_RELEASE_ROOT` |
 | views/modules roots | `$PUBLISH_RELEASE_ROOT/{views,modules}` |
+| `permissions.read` | `world` so authenticated system users can consume the release |
+| `permissions.write` | `user`; consumers and the CSE group cannot modify installed prefixes |
 
 Keep the system, release, package/provider data, catalog scopes, package recipe
-pin, permissions, and private build-cache URL identical.
+pin, collaboration group, and private build-cache URL identical. Permission
+audience is the deliberate exception: restricted values are group-writable,
+whereas publication values are consumer-readable and owner-writable.
 
 ```bash
 "$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
@@ -1189,6 +1205,30 @@ git -C "$COMPOSER" rev-parse HEAD > "$PUBLISH_WORKSPACE/inputs/stack-composer.co
 git -C "$CONTENT" rev-parse HEAD > "$PUBLISH_WORKSPACE/inputs/stack-content.commit"
 spack --version > "$PUBLISH_WORKSPACE/inputs/spack.version"
 ```
+
+After every validation passes, freeze the exact publication workspace and
+release. These commands apply only to the resolved publication targets; never
+run them against `$CSE_PUBLISHED_ROOT`, `/p/app/CSE`, or another shared parent:
+
+```bash
+for root in "$PUBLISH_WORKSPACE" "$PUBLISH_RELEASE_ROOT"; do
+  test -n "$root" && test -d "$root" || exit 1
+  case "$root" in
+    "$CSE_PUBLISHED_ROOT"/*) ;;
+    *) echo "refusing unexpected publication root: $root" >&2; exit 1 ;;
+  esac
+  find "$root" -xdev -type d \
+    -exec chmod u+rwx,go+rx,go-w {} + || exit 1
+  find "$root" -xdev -type f \
+    -exec chmod u+rw,go+r,go-w {} + || exit 1
+done
+```
+
+This preserves execute bits already present on programs, makes ordinary files
+readable, gives users search access to directories, and removes group/other
+write. The release owner retains write for administrative removal or
+deprecation, but policy forbids editing an accepted version in place. Confirm
+the modes from a non-CSE test account before exposing the module front door.
 
 The release becomes user-facing only after the build-cache-only install, hash
 comparison, clean-shell module checks, target runtime checks, permission check,

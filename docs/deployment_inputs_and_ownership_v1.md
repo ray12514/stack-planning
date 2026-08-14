@@ -130,11 +130,12 @@ For the initial deployment, `deployment.yaml.access` records:
 - the site runbook names one CSE collaboration group;
 - working roots are owned by that group, use setgid directories, and are
   group-readable/writable/executable while a release is assembled;
-- a group-friendly umask (`0002`) or an equivalent default ACL keeps new
-  files in the collaboration model;
-- promoted release content is group-readable/executable and is not edited in
-  place;
-- access for users outside the collaboration group is disabled;
+- a group-friendly/private umask (`0007`) or an equivalent default ACL keeps
+  new files in the collaboration model without granting access to others;
+- promoted release content is readable/executable by the approved consumer
+  audience and is not edited in place; for the current shared HPC deployment,
+  that audience is represented by `read: world`;
+- consumers outside the collaboration group receive no write access;
 - the module front door, views needed at runtime, install tree, and `current`
   pointer are verified from both login and compute nodes using a clean session
   owned by another group member.
@@ -150,6 +151,13 @@ packages:
       write: group
       group: <site-cse-group>
 ```
+
+That example is the restricted build policy. Publication changes the package
+policy to `read: world`, `write: user`, and the same CSE owner group. The
+publisher owns writes while assembling the release; consumers receive
+read/execute only. The build/publish adapter applies the same role-specific
+intent to views, modules, workspaces, and release roots, then removes
+group/other write when it freezes an accepted release.
 
 This applies the group and read/write policy to packages installed in the Spack
 store, including setgid inheritance within each package prefix. It does not
