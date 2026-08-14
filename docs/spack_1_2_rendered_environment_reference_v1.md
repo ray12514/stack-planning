@@ -313,12 +313,20 @@ Cray consumes the selected compiler, Cray MPICH flavor, and GPU runtime as
 externals from profile-derived configuration scopes. It does not create
 compiler or MPI producer groups.
 
-The pinned Cray MPICH recipe also depends directly on `libfabric` and
-`cray-pmi`. The common profile-derived scope owns the selected platform
-`libfabric` external. Each Cray MPICH scope owns the inspected, non-buildable
-`cray-pmi` external beside the compiler-specific Cray MPICH external. A Cray
-MPI environment is incomplete if either dependency is absent; it must not let
-Spack replace the active CPE runtime with a source-built package.
+The common profile-derived scope inventories the selected platform `libfabric`
+external. Each Cray MPICH scope inventories the inspected, non-buildable
+`cray-pmi` external beside the compiler-specific Cray MPICH external. These
+records validate the active CPE runtime, but the selected Cray MPICH external
+is represented to Spack as a platform leaf. Its external spec does not embed
+compiler, CPU-target, `libfabric`, or `cray-pmi` dependency constraints; the
+prefix and recorded module chain provide the platform runtime closure. A Cray
+MPI environment is incomplete if either runtime record is absent, and it must
+not let Spack replace the active CPE runtime with a source-built package.
+
+Portable CPU-target policy applies to source-built roots. An `mpi:require`
+entry for external Cray MPICH selects only its provider and version. It must
+not require that the platform external claim the source-build target. A
+build-sourced MPI provider such as OpenMPI does carry that target.
 
 ```yaml
 # configs/mpi/cray-mpich/8.1.29/gcc-13.3.0/toolchains.yaml

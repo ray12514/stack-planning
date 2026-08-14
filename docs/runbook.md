@@ -607,9 +607,12 @@ scope is missing; do not type a nonexistent path into a values file.
 
 On Cray systems, the common scope must contain the inspected platform
 `libfabric` external. Each Cray MPICH scope must contain the selected
-`cray-mpich` external and the inspected `cray-pmi` external. The pinned
-`cray-mpich` recipe depends on both packages. Stop if either is absent; do not
-allow Spack to substitute a source-built runtime for the active CPE.
+`cray-mpich` external and the inspected `cray-pmi` external. These records
+preserve and validate the active CPE runtime inventory. The selected Cray MPICH
+external itself remains a platform leaf: do not add compiler, target,
+`libfabric`, or `cray-pmi` dependency constraints to its external spec. Stop if
+either runtime record is absent; do not allow Spack to substitute a
+source-built runtime for the active CPE.
 `reports/static-plan.yaml` must show an empty `missing_mpi_dependencies` list.
 
 ### Static-catalog handoff without `init-workspace`
@@ -693,7 +696,8 @@ selects the compatible compiler/MPI scope, copies exact module prerequisites,
 and fails if the named scope is absent. Do not type a guessed scope path into
 the generated file.
 
-The helper independently resolves one CPU target for all eight environments.
+The helper independently resolves one CPU target for all source-built roots in
+the eight environments.
 It intersects the detected, preferred, and alternate targets of every
 CPU-only build/runtime node type, then selects `x86_64_v3`, `x86_64_v2`, or
 `x86_64` in that order. This target is architecture policy; it is not derived
@@ -723,7 +727,7 @@ stage path in place of this list.
 | `catalog_scopes.*` | exact relative paths below `$CATALOG` |
 | install tree | `$BUILD_RELEASE_ROOT/spack/opt` |
 | build node/stages | reviewed profile node type; generated temp, scratch, then `${WORKDIR}` fallback list |
-| CPU architecture | one system-wide portable target for both compiler surfaces and all lanes; highest common support capped at `x86_64_v3` |
+| CPU architecture | one system-wide portable target for source-built roots on both compiler surfaces and all lanes; highest common support capped at `x86_64_v3`; inspected platform externals retain their own architecture |
 | source/misc caches | `$CSE_RESTRICTED_ROOT/cache/{source,misc}` |
 | views/modules roots | `$BUILD_RELEASE_ROOT/{views,modules}` |
 | build-cache name | `cse-initial-conversion-trials` |
@@ -809,6 +813,13 @@ payload root constraint must include the portable target. The Miniforge
 Core-independent root must use the generic binary target. The explicit root
 constraints prevent package-specific requirements from falling back to the
 concretization host's native architecture.
+
+For an external MPI provider, inspect the applicable surface
+`packages.yaml`. Its virtual `mpi:require` entry must select only the provider
+and version, for example `cray-mpich@9.1.0`; it must not append the portable
+source-build target. The platform external keeps the architecture Spack assigns
+to its inspected installation. A build-sourced provider such as OpenMPI does
+include the portable target.
 
 The one workspace contains eight independent Spack environments:
 
