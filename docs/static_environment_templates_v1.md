@@ -33,7 +33,7 @@ Run these before writing an environment:
 # Every scope the catalog carries, with its exact relative path
 grep -A2 'scopes:' <catalog>/manifest.yaml
 
-# The MPI builds that exist, and the compiler each was built with
+# The physical MPI flavors, their compiler baselines, and compatible observed compilers
 ls <catalog>/scopes/mpi/*/*/
 
 # The compilers the machine reports
@@ -98,10 +98,10 @@ spack:
 ```
 
 `<cse-gcc-version>` is the one CSE version, the same on every system.
-`<flavor-gcc-version>` is whatever that machine's cray-mpich was built with,
-and it selects which MPI scope to include. They are different values and the
-rule between them is one-directional: the CSE version must be at or above the
-flavor version, never below.
+`<flavor-gcc-version>` is the minimum compiler baseline encoded by that
+machine's cray-mpich GNU flavor, and it selects which physical MPI scope to
+include. It is not replaced by the newest installed GCC. The CSE version must
+be at or above the flavor baseline, never below.
 
 This combination is verified. A stack-built GCC 14.3.0 against a `gnu/13.3`
 cray-mpich flavor concretizes with cray-mpich bound as an external at the
@@ -123,15 +123,16 @@ spack:
   include::
   - <catalog>/scopes/common
   - <catalog>/scopes/compilers/gcc/<gcc-version>
-  - <catalog>/scopes/mpi/cray-mpich/<mpich-version>/gcc-<gcc-version>
+  - <catalog>/scopes/mpi/cray-mpich/<mpich-version>/gcc-<flavor-gcc-version>
 
   specs:
   - hdf5@<version> +mpi +fortran
   # ... same roster, no %compiler needed
 ```
 
-Here the two scopes must name the same GCC version, since the platform
-compiler is the one the MPI was built with.
+The selected platform GCC must be from the same family and at or above the MPI
+flavor baseline. The compiler scope keeps the exact installed version; the MPI
+scope keeps the physical flavor baseline.
 
 ## Blueback, surface 2: CCE with cray-mpich
 
@@ -142,7 +143,7 @@ spack:
   include::
   - <catalog>/scopes/common
   - <catalog>/scopes/compilers/cce/<cce-version>
-  - <catalog>/scopes/mpi/cray-mpich/<mpich-version>/cce-<cce-version>
+  - <catalog>/scopes/mpi/cray-mpich/<mpich-version>/cce-<flavor-cce-version>
 
   specs:
   - hdf5@<version> +mpi +fortran
@@ -157,6 +158,10 @@ spack:
     unify: false
     reuse: true
 ```
+
+`<flavor-cce-version>` is the CCE minimum baseline encoded by the Cray MPICH
+product path. The selected `<cce-version>` must be from the same family and at
+or above that baseline.
 
 ## Raider, surface 1: stack-built GCC with stack-built OpenMPI
 

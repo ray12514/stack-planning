@@ -592,6 +592,7 @@ installation or one MPI provider is shared across all systems.
 
 ```bash
 export CSE_SHARED_COMPILER_REF="gcc@12.5.0"
+export CSE_SHARED_COMPILER_PUBLIC_NAME="<module-front-door-name>"
 export CSE_SHARED_MPI_REF="<provider>@<version>"
 export CSE_SHARED_MPI_SOURCE="<external|build>"
 export CSE_PLATFORM_COMPILER_REF="<observed-provider>@<version>"
@@ -647,6 +648,7 @@ stage path in place of this list.
 | `workspace.role` | `build` |
 | system/release | current profile/catalog plus `TRIAL_RELEASE` |
 | `shared.compiler` | GCC 12.5.0, `source: build`, plus the verified older compiler selected to build the GCC producer |
+| compiler public names | generated CSE front-door names such as `init-GCC` and `init-CCE`; these do not replace the platform module chains copied from the catalog |
 | `shared.mpi` | OpenMPI 4.1.8 built with GCC, or the selected compatible external MPI |
 | `platform.compiler` | use the catalog manifest's observed provider name and exact version; the helper copies its Spack package name, module chain, and compiler scope path |
 | `platform.mpi` | use the catalog manifest's Spack `package` name; build OpenMPI 4.1.8 on non-Cray systems, or select the matching external Cray MPICH 9.x/Intel MPI scope |
