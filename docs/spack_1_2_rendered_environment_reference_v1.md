@@ -534,6 +534,20 @@ build driver owns the environment build order. Spack 1.2's jobserver supplies
 package-level concurrency within an install invocation; scheduler-level work
 across multiple nodes remains an external orchestration concern.
 
+The Initial Conversion Trials confirm the reuse invariant that the full
+renderer must preserve. Every independent environment repeats the complete,
+exact producer and Foundation/build-tool root specs it consumes. With the same
+Spack version, package repository, included policy, target, variants, and
+provider constraints, those roots concretize to the same hashes. All locks are
+created and checked before installation. The environments then use one shared
+install tree and database with `config:locks:true`: the first process reaching
+an absent concrete prefix builds it, while another process requesting that
+same hash waits on the prefix lock and reuses the completed installation.
+Cross-environment ordering is never inferred from `needs`; sequential order or
+multi-process scheduling remains the build driver's responsibility, and
+concurrent installs are enabled only after the shared filesystem passes the
+prefix-lock test.
+
 The full renderer should therefore produce:
 
 ```text

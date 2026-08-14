@@ -251,10 +251,10 @@ export CSE_BUILD_NODE_TYPE="login"
 export BUILD_VALUES="$SYSTEM_DIR/cse-trials-build-values.login.yaml"
 export BUILD_WORKSPACE="${ORIGINAL_BUILD_WORKSPACE}.login"
 
-"$COMPOSER/.venv/bin/python" \
+"$CSE_PYTHON" \
   "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
 
-python "$STACK_COMPOSER" init-workspace \
+"$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
   --blueprint "$CONTENT/pilots/cse-pilot" \
   --catalog "$CATALOG" \
   --values "$BUILD_VALUES" \
@@ -283,7 +283,7 @@ for environment in "${ENVIRONMENTS[@]}"; do
     "$BUILD_WORKSPACE/environments/$environment/spack.lock" || exit 1
 done
 
-python3 "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
+"$CSE_PYTHON" "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
 ```
 
 Do not reconcretize. Confirm that the replacement node is permitted for builds,
@@ -335,6 +335,8 @@ export SPACK_ROOT="$WORK_ROOT/spack/$SPACK_VERSION"
 export SYSTEM_DIR="$CONTENT/systems/$SYSTEM_NAME"
 export PROBE_DIR="$WORK_ROOT/probe-work/$SYSTEM_NAME/$CATALOG_RELEASE"
 export STACK_COMPOSER="$COMPOSER/dist/stack-composer.pyz"
+export CSE_BOOTSTRAP_PYTHON="<absolute-path-to-reviewed-python-3.9-or-newer>"
+export CSE_PYTHON="$COMPOSER/.venv/bin/python"
 
 export CSE_RESTRICTED_ROOT="$CSE_TRIAL_ROOT/restricted"
 export CSE_PUBLISHED_ROOT="$CSE_TRIAL_ROOT/published"
@@ -430,14 +432,23 @@ Build Stack Composer in its repository-local Python environment:
 
 ```bash
 cd "$COMPOSER"
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e '.[dev]'
-PYTHON=.venv/bin/python bash scripts/build-pyz.sh
-python "$STACK_COMPOSER" --help >/dev/null
-deactivate
+test -x "$CSE_BOOTSTRAP_PYTHON"
+"$CSE_BOOTSTRAP_PYTHON" -c \
+  'import sys; assert sys.version_info >= (3, 9), sys.version'
+"$CSE_BOOTSTRAP_PYTHON" -m venv .venv
+test -x "$CSE_PYTHON"
+"$CSE_PYTHON" -m pip install --upgrade pip
+"$CSE_PYTHON" -m pip install -e '.[dev]'
+PYTHON="$CSE_PYTHON" bash scripts/build-pyz.sh
+"$CSE_PYTHON" "$STACK_COMPOSER" --help >/dev/null
 ```
+
+`CSE_BOOTSTRAP_PYTHON` is the reviewed site- or module-provided interpreter
+used only to create the virtual environment. From this point onward, invoke
+every project Python command through the absolute `CSE_PYTHON` path. Do not
+depend on whichever `python` or `python3` happens to be first on `PATH`. In a
+new shell, Step 1 restores the same path. Rebuild the virtual environment only
+when its bootstrap interpreter or Stack Composer dependencies must change.
 
 Verify and activate the pinned Spack checkout selected for the trials:
 
@@ -574,7 +585,7 @@ If the top-level path is site-owned, ask its owner to create the dedicated roots
 ## 6. Generate and inspect the static catalog
 
 ```bash
-python "$STACK_COMPOSER" render-static \
+"$CSE_PYTHON" "$STACK_COMPOSER" render-static \
   --profile "$SYSTEM_DIR/profile.yaml" \
   --templates "$CONTENT/templates" \
   --template-set v6 \
@@ -681,7 +692,7 @@ Generate the complete values file from those selections, the static catalog,
 and the roots already exported in Step 1:
 
 ```bash
-"$COMPOSER/.venv/bin/python" \
+"$CSE_PYTHON" \
   "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
 
 sed -n '1,260p' "$BUILD_VALUES"
@@ -770,7 +781,7 @@ notes.
 ## 8. Initialize and inspect the restricted build workspace
 
 ```bash
-python "$STACK_COMPOSER" init-workspace \
+"$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
   --blueprint "$CONTENT/pilots/cse-pilot" \
   --catalog "$CATALOG" \
   --values "$BUILD_VALUES" \
@@ -926,7 +937,7 @@ for environment in "${ENVIRONMENTS[@]}"; do
   spack -e "$BUILD_WORKSPACE/environments/$environment" find -lv
 done
 
-python3 "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
+"$CSE_PYTHON" "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
 ```
 
 Confirm that externals remain external, producer groups exist only where
@@ -1050,7 +1061,7 @@ Keep the system, release, package/provider data, catalog scopes, package recipe
 pin, permissions, and private build-cache URL identical.
 
 ```bash
-python "$STACK_COMPOSER" init-workspace \
+"$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
   --blueprint "$CONTENT/pilots/cse-pilot" \
   --catalog "$CATALOG" \
   --values "$PUBLISH_VALUES" \
