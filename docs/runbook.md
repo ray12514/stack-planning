@@ -231,6 +231,70 @@ of deleting or rewriting the old record.
 | Published module/view content needs correction after acceptance | Create a new trial release; do not edit the accepted release in place. |
 | Platform upgrade changes CPE, compiler, MPI, fabric, OS, or runtime ABI facts | Hold publication and restart with a fresh profile, catalog, locks, and runtime validation. |
 
+### Optional recovery: switch to another profiled build node
+
+Use this procedure only when the planned build node changes. It is not part of
+the normal Step 8 to Step 9 path.
+
+Before lockfiles exist, set `CSE_BUILD_NODE_TYPE` to the replacement node key,
+regenerate `$BUILD_VALUES`, and deliberately reinitialize the current workspace
+with `--overwrite`. The static catalog does not need to be rerendered when it
+already contains current facts for both node types.
+
+After lockfiles exist or installation has started, preserve the original
+workspace. Generate a sibling workspace that keeps the same `TRIAL_RELEASE`,
+install tree, caches, provider selections, package inputs, and Spack version:
+
+```bash
+export ORIGINAL_BUILD_WORKSPACE="$BUILD_WORKSPACE"
+export CSE_BUILD_NODE_TYPE="login"
+export BUILD_VALUES="$SYSTEM_DIR/cse-trials-build-values.login.yaml"
+export BUILD_WORKSPACE="${ORIGINAL_BUILD_WORKSPACE}.login"
+
+"$COMPOSER/.venv/bin/python" \
+  "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
+
+python "$STACK_COMPOSER" init-workspace \
+  --blueprint "$CONTENT/pilots/cse-pilot" \
+  --catalog "$CATALOG" \
+  --values "$BUILD_VALUES" \
+  --output "$BUILD_WORKSPACE"
+
+source "$SPACK_ROOT/share/spack/setup-env.sh"
+test "$(spack --version)" = "$SPACK_VERSION"
+source "$BUILD_WORKSPACE/env/setup-build-env.sh"
+ENVIRONMENTS=(
+  "$SHARED_COMPILER_NAME/core"
+  "$SHARED_COMPILER_NAME/common"
+  "$SHARED_COMPILER_NAME/serial"
+  "$SHARED_COMPILER_NAME/mpi-$SHARED_MPI_NAME"
+  "$PLATFORM_COMPILER_NAME/core"
+  "$PLATFORM_COMPILER_NAME/common"
+  "$PLATFORM_COMPILER_NAME/serial"
+  "$PLATFORM_COMPILER_NAME/mpi-$PLATFORM_MPI_NAME"
+)
+
+for environment in "${ENVIRONMENTS[@]}"; do
+  cmp \
+    "$ORIGINAL_BUILD_WORKSPACE/environments/$environment/spack.yaml" \
+    "$BUILD_WORKSPACE/environments/$environment/spack.yaml" || exit 1
+  cp \
+    "$ORIGINAL_BUILD_WORKSPACE/environments/$environment/spack.lock" \
+    "$BUILD_WORKSPACE/environments/$environment/spack.lock" || exit 1
+done
+
+python3 "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
+```
+
+Do not reconcretize. Confirm that the replacement node is permitted for builds,
+can load every recorded compiler/external module, and can execute the target
+architecture already recorded in the locks. The regenerated values file must
+show the same `architecture.target`; only `build.node_type` and stage paths may
+change. Continue with `spack install --only-concrete`; successful prefixes in
+the shared install tree are reused, while an unfinished package is restaged
+under the new node's stage root. Do not use `--dont-restage`, delete shared
+prefix locks, or run a broad failure-marker cleanup.
+
 ### Failure procedure
 
 When a command fails:
@@ -383,6 +447,9 @@ test "$(git -C "$SPACK_ROOT" describe --tags --exact-match)" = "v$SPACK_VERSION"
 source "$SPACK_ROOT/share/spack/setup-env.sh"
 spack --version
 ```
+
+Spack activation is local to the current shell. Repeat it after opening a new
+shell. Steps 8 and 9 repeat the activation at the workspace execution boundary.
 
 The trial workspace uses Spack 1.2 `group`, `needs`, and toolchains. Use Spack
 1.2.2 for these trials. The Spack tool may live under
@@ -771,6 +838,9 @@ Spack reads the final fallback path.
 Snapshot the reviewed inputs and tool identities:
 
 ```bash
+source "$SPACK_ROOT/share/spack/setup-env.sh"
+test "$(spack --version)" = "$SPACK_VERSION"
+
 mkdir -p "$BUILD_WORKSPACE/inputs"
 cp "$SYSTEM_DIR/profile.yaml" "$BUILD_WORKSPACE/inputs/profile.yaml"
 cp "$BUILD_VALUES" "$BUILD_WORKSPACE/inputs/cse-trials-build-values.yaml"
@@ -782,65 +852,8 @@ git -C "$CONTENT" rev-parse HEAD > "$BUILD_WORKSPACE/inputs/stack-content.commit
 spack --version > "$BUILD_WORKSPACE/inputs/spack.version"
 ```
 
-### Switch to another profiled build node
-
-Before lockfiles exist, set `CSE_BUILD_NODE_TYPE` to the replacement node key,
-regenerate `$BUILD_VALUES`, and deliberately reinitialize the current workspace
-with `--overwrite`. The static catalog does not need to be rerendered when it
-already contains current facts for both node types.
-
-After lockfiles exist or installation has started, preserve the original
-workspace. Generate a sibling workspace that keeps the same `TRIAL_RELEASE`,
-install tree, caches, provider selections, package inputs, and Spack version:
-
-```bash
-export ORIGINAL_BUILD_WORKSPACE="$BUILD_WORKSPACE"
-export CSE_BUILD_NODE_TYPE="login"
-export BUILD_VALUES="$SYSTEM_DIR/cse-trials-build-values.login.yaml"
-export BUILD_WORKSPACE="${ORIGINAL_BUILD_WORKSPACE}.login"
-
-"$COMPOSER/.venv/bin/python" \
-  "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
-
-python "$STACK_COMPOSER" init-workspace \
-  --blueprint "$CONTENT/pilots/cse-pilot" \
-  --catalog "$CATALOG" \
-  --values "$BUILD_VALUES" \
-  --output "$BUILD_WORKSPACE"
-
-source "$BUILD_WORKSPACE/env/setup-build-env.sh"
-ENVIRONMENTS=(
-  "$SHARED_COMPILER_NAME/core"
-  "$SHARED_COMPILER_NAME/common"
-  "$SHARED_COMPILER_NAME/serial"
-  "$SHARED_COMPILER_NAME/mpi-$SHARED_MPI_NAME"
-  "$PLATFORM_COMPILER_NAME/core"
-  "$PLATFORM_COMPILER_NAME/common"
-  "$PLATFORM_COMPILER_NAME/serial"
-  "$PLATFORM_COMPILER_NAME/mpi-$PLATFORM_MPI_NAME"
-)
-
-for environment in "${ENVIRONMENTS[@]}"; do
-  cmp \
-    "$ORIGINAL_BUILD_WORKSPACE/environments/$environment/spack.yaml" \
-    "$BUILD_WORKSPACE/environments/$environment/spack.yaml" || exit 1
-  cp \
-    "$ORIGINAL_BUILD_WORKSPACE/environments/$environment/spack.lock" \
-    "$BUILD_WORKSPACE/environments/$environment/spack.lock" || exit 1
-done
-
-python3 "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
-```
-
-Do not reconcretize. Confirm that the replacement node is permitted for builds,
-can load every recorded compiler/external module, and can execute the target
-architecture already recorded in the locks. The regenerated values file must
-show the same `architecture.target`; only `build.node_type` and stage paths may
-change. Continue with
-`spack install --only-concrete`; successful prefixes in the shared install tree
-are reused, while an unfinished package is restaged under the new node's stage
-root. Do not use `--dont-restage`, delete shared prefix locks, or run a broad
-failure-marker cleanup.
+Normal path: continue directly to Step 9. Use the optional build-node recovery
+procedure only when changing the selected build node.
 
 ## 9. Concretize and review the restricted environments
 
@@ -858,7 +871,13 @@ independent lockfiles.
 
 Load the exact environment names generated from the reviewed values file:
 
+Activate the pinned Spack checkout first. The generated workspace setup script
+loads workspace values; it does not activate Spack.
+
 ```bash
+source "$SPACK_ROOT/share/spack/setup-env.sh"
+test "$(spack --version)" = "$SPACK_VERSION"
+
 source "$BUILD_WORKSPACE/env/setup-build-env.sh"
 
 ENVIRONMENTS=(
