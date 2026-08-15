@@ -84,8 +84,10 @@ $HOME/STACK_TESTING/                         # operator-controlled
   stack-composer/                            # source + built pyz/spack-build
   stack-content/                             # editable trial inputs
   stack-planning/                            # current runbook/design
-  spack/<version>/                           # optional pinned Spack checkout
   probe-work/<system>/<catalog-release>/     # raw fragments/transcripts
+
+<shared-cse-tools-root>/                     # installer/site controlled
+  spack/<version>/                           # pinned, read-only Spack tool root
 
 <cse-trial-root>/                            # shared filesystem; CSE group
   restricted/                                # builders only during trials
@@ -130,6 +132,11 @@ depending on the original catalog path. Deployment paths inside `config.yaml`
 remain deliberate absolute paths and must still name the approved shared trees.
 Build stages are disposable and belong on node-local or site scratch.
 
+The shared Spack tool root is not part of either package installation. It is
+provisioned separately, remains pinned and clean during normal builds, and is
+replaced by a sibling version directory rather than updated in place. Mutable
+builder cache/state and the GPG keyring remain outside that checkout.
+
 The catalog becomes read-only after review. The restricted workspace stays
 operator-writable through lock generation and evidence capture. The published
 workspace is initialized separately and is never allowed to build from source.
@@ -141,7 +148,10 @@ Do not advance past a failed gate.
 - [ ] All four repositories are synchronized on
   `codex/simplified-render-plan`.
 - [ ] Fresh Cluster Inspector and Stack Composer artifacts run.
-- [ ] The selected Spack is version 1.2.2.
+- [ ] The selected shared Spack tool root is the clean, expected Spack 1.2.2
+  tag and commit.
+- [ ] Global and per-environment configuration-scope checks show no active
+  unexpected user, system, or site policy.
 - [ ] `profile.yaml` verifies and matches the live system.
 - [ ] The static catalog contains the selected platform compiler and compatible
   MPI scopes.
@@ -184,7 +194,8 @@ checkpoint in the system notes before starting the next one.
 Resume the same release only when all of these are true:
 
 - the profile, catalog, semantic provider/package values, roster,
-  package-recipe pin, Spack version, and repository commits are unchanged;
+  package-recipe pin, Spack version and commit, and repository commits are
+  unchanged;
 - the affected lockfile and concrete hashes are unchanged;
 - the failure was operational, such as a scheduler timeout, node loss, network
   interruption, quota exhaustion, or interrupted cache transfer;
@@ -221,7 +232,8 @@ of deleting or rewriting the old record.
 | Scheduler timeout, node failure, temporary network failure, or resolved quota problem with unchanged inputs | Retry only the failed command or environment in the same release. |
 | Selected build node is unavailable, but another profiled node can build the same locked target | Create a sibling operational workspace for the replacement node, verify every environment YAML is unchanged, transfer the same locks, and continue the same release against the same install tree. |
 | Source build failure caused by a transient host/tool problem | Retry the failed lane after recording the log; earlier validated lanes remain valid. |
-| Package recipe, patch, variant, compiler, MPI, or Spack change is required | Create a new trial release, reconcretize, and revalidate every affected lane. |
+| Package recipe, patch, variant, compiler, MPI, or Spack version/commit change is required | Create a new trial release, reconcretize, and revalidate every affected lane. |
+| Shared Spack checkout is dirty or does not match the pinned tag/commit | Stop. Have the provisioning owner restore or replace the versioned tool root. Do not pull, switch branches, or run `spack isolate` in place. |
 | Cluster Inspector fact or external module/prefix is wrong | Regenerate the profile, create a new catalog release and trial release, and restart at checkpoint 1. |
 | Static catalog scope or toolchain is wrong | Fix the owning profile/catalog logic, create new catalog and trial releases, and restart at checkpoint 2. |
 | Restricted workspace template or values are wrong before locks exist | Reinitialize the working release; after locks exist, create a new trial release. |
@@ -261,8 +273,10 @@ export BUILD_WORKSPACE="${ORIGINAL_BUILD_WORKSPACE}.login"
   --values "$BUILD_VALUES" \
   --output "$BUILD_WORKSPACE"
 
+verify_spack_tool_root
 source "$SPACK_ROOT/share/spack/setup-env.sh"
 test "$(spack --version)" = "$SPACK_VERSION"
+verify_spack_tool_root
 source "$BUILD_WORKSPACE/env/setup-build-env.sh"
 ENVIRONMENTS=(
   "$SHARED_COMPILER_NAME/core"
@@ -313,6 +327,46 @@ When a command fails:
 6. Preserve the failed workspace and evidence until the replacement release is
    accepted.
 
+## Administrative prerequisite: provision the shared Spack tool
+
+This is a separate installer/site operation, not part of a normal stack build.
+Provision one clean checkout for each approved Spack version under an
+installer-selected shared CSE tools root. Prefer an administrative owner that
+is not one of the build accounts; builders need read and execute access, not
+write access. The selected root must be visible at the same path from every
+login and build/compute node that participates on that system.
+
+For Spack 1.2.2, the approved upstream tag resolves to commit
+`3e19345b6e12f5ff1b874f4059622fc6a1fd804a`. A provisioning example is:
+
+```bash
+export CSE_TOOLS_ROOT="<installer-selected-shared-cse-tools-root>"
+export SPACK_VERSION="1.2.2"
+export SPACK_COMMIT="3e19345b6e12f5ff1b874f4059622fc6a1fd804a"
+export SPACK_ROOT="$CSE_TOOLS_ROOT/spack/$SPACK_VERSION"
+
+test ! -e "$SPACK_ROOT"
+mkdir -p "$(dirname "$SPACK_ROOT")"
+git clone --branch "v$SPACK_VERSION" --depth 1 \
+  https://github.com/spack/spack.git "$SPACK_ROOT"
+test "$(git -C "$SPACK_ROOT" rev-parse HEAD)" = "$SPACK_COMMIT"
+test "$(git -C "$SPACK_ROOT" describe --tags --exact-match)" = \
+  "v$SPACK_VERSION"
+test -z "$(git -C "$SPACK_ROOT" status --porcelain --untracked-files=all)"
+test -z "$(git -C "$SPACK_ROOT" \
+  ls-files --others --ignored --exclude-standard)"
+chmod -R a-w "$SPACK_ROOT"
+```
+
+Record the root, tag, commit, source URL, owner, and provisioning date. Do not
+run `spack isolate`, change `$SPACK_ROOT/etc/spack`, pull, switch branches, or
+install another Spack version over this directory. Provision a sibling such as
+`spack/1.3.x` and review it as a release/DAG-significant change.
+
+The shared tool root is not the restricted package install tree, the published
+package install tree, a workspace, a build stage, a cache/buildcache, a view,
+or a module root.
+
 ## 1. Set the system values
 
 Start a clean Bash shell on the target system. Use a lowercase system name:
@@ -326,13 +380,17 @@ export CATALOG_RELEASE="<system>-catalog-001"
 export TRIAL_RELEASE="<system>-trial-001"
 export CSE_GROUP="cse"
 export CSE_TRIAL_ROOT="<approved-shared-cse-path>/initial-conversion-trials"
+export CSE_TOOLS_ROOT="<installer-selected-shared-cse-tools-root>"
 
 export INSPECTOR="$WORK_ROOT/cluster-inspector"
 export COMPOSER="$WORK_ROOT/stack-composer"
 export CONTENT="$WORK_ROOT/stack-content"
 export PLANNING="$WORK_ROOT/stack-planning"
 export SPACK_VERSION="1.2.2"
-export SPACK_ROOT="$WORK_ROOT/spack/$SPACK_VERSION"
+export SPACK_COMMIT="3e19345b6e12f5ff1b874f4059622fc6a1fd804a"
+export SPACK_ROOT="$CSE_TOOLS_ROOT/spack/$SPACK_VERSION"
+export SPACK_DISABLE_LOCAL_CONFIG=true
+export PYTHONDONTWRITEBYTECODE=1
 export SYSTEM_DIR="$CONTENT/systems/$SYSTEM_NAME"
 export PROBE_DIR="$WORK_ROOT/probe-work/$SYSTEM_NAME/$CATALOG_RELEASE"
 export STACK_COMPOSER="$COMPOSER/dist/stack-composer.pyz"
@@ -354,14 +412,127 @@ export PUBLISH_EVIDENCE="$PUBLISH_RELEASE_ROOT/evidence"
 export BUILD_VALUES="$SYSTEM_DIR/cse-trials-build-values.yaml"
 export PUBLISH_VALUES="$SYSTEM_DIR/cse-trials-publish-values.yaml"
 
+if [ -n "${SPACK_ENV:-}" ]; then
+  echo "start from a shell with no active Spack environment: $SPACK_ENV" >&2
+  return 2 2>/dev/null || exit 2
+fi
+
 : "${WORKDIR:?WORKDIR must be set by the site environment}"
+: "${USER:?USER must be set}"
 case "$WORKDIR" in
   /*) ;;
   *) echo "WORKDIR must be absolute: $WORKDIR" >&2; return 2 2>/dev/null || exit 2 ;;
 esac
 
+export SPACK_USER_STATE_ROOT="$WORKDIR/$USER/cse-spack/$SYSTEM_NAME/$SPACK_VERSION"
+export SPACK_USER_CACHE_PATH="$SPACK_USER_STATE_ROOT/cache"
+export SPACK_GNUPGHOME="$SPACK_USER_STATE_ROOT/gpg"
+
+for forbidden_root in \
+  "$SPACK_ROOT" \
+  "$BUILD_RELEASE_ROOT/spack/opt" \
+  "$PUBLISH_RELEASE_ROOT/spack/opt"; do
+  case "$SPACK_USER_STATE_ROOT" in
+    "$forbidden_root"|"$forbidden_root"/*)
+      echo "per-user Spack state is inside a forbidden root: $forbidden_root" >&2
+      return 2 2>/dev/null || exit 2
+      ;;
+  esac
+done
+
+verify_spack_root_read_only() {
+  local path
+  while IFS= read -r -d '' path; do
+    if [ -w "$path" ]; then
+      echo "shared Spack tool root is writable: $path" >&2
+      return 1
+    fi
+  done < <(find "$SPACK_ROOT" -xdev -print0)
+}
+
+verify_spack_tool_root() {
+  test -d "$SPACK_ROOT/.git" || return 1
+  test "$(git -C "$SPACK_ROOT" rev-parse HEAD)" = "$SPACK_COMMIT" || return 1
+  test "$(git -C "$SPACK_ROOT" describe --tags --exact-match)" = \
+    "v$SPACK_VERSION" || return 1
+  test -z "$(git -C "$SPACK_ROOT" \
+    status --porcelain --untracked-files=all)" || return 1
+  test -z "$(git -C "$SPACK_ROOT" \
+    ls-files --others --ignored --exclude-standard)" || return 1
+  verify_spack_root_read_only
+}
+
+verify_workspace_scopes() {
+  local workspace="$1"
+  local evidence_root="$2"
+  local environment_dir label evidence scope_output scope_path
+  local generated_scope_count environment_count=0
+
+  mkdir -p "$evidence_root"
+  scope_output="$(COLUMNS=512 spack config scopes -vp)" || return 1
+  printf '%s\n' "$scope_output" | tee "$evidence_root/global.txt"
+  if grep -Eq \
+    '^(user|system)[[:space:]]+[^[:space:]]+[[:space:]]+active([[:space:]]|$)' \
+    "$evidence_root/global.txt"; then
+    echo "unexpected active user/system Spack configuration scope" >&2
+    return 1
+  fi
+
+  for environment_dir in "$workspace"/environments/*/*; do
+    test -f "$environment_dir/spack.yaml" || continue
+    environment_count=$((environment_count + 1))
+    label="${environment_dir#"$workspace/environments/"}"
+    label="${label//\//-}"
+    evidence="$evidence_root/$label.txt"
+
+    scope_output="$(COLUMNS=512 spack -e "$environment_dir" \
+      config scopes -vp)" || return 1
+    printf '%s\n' "$scope_output" | tee "$evidence"
+
+    if grep -Eq \
+      '^(user|system|site)[[:space:]]+[^[:space:]]+[[:space:]]+active([[:space:]]|$)' \
+      "$evidence"; then
+      echo "unexpected active ambient scope in $environment_dir" >&2
+      return 1
+    fi
+
+    generated_scope_count="$(awk -v root="$workspace/" \
+      '$2 ~ /include/ && $3 == "active" && index($4, root) == 1 {count++} \
+       END {print count + 0}' "$evidence")"
+    test "$generated_scope_count" -gt 0 || {
+      echo "no active workspace include scope in $environment_dir" >&2
+      return 1
+    }
+
+    while IFS= read -r scope_path; do
+      case "$scope_path" in
+        "$workspace"/*|"$SPACK_ROOT"/etc/spack/defaults/*) ;;
+        *)
+          echo "unexpected active include path in $environment_dir: $scope_path" >&2
+          return 1
+          ;;
+      esac
+    done < <(awk '$2 ~ /include/ && $3 == "active" {print $4}' "$evidence")
+  done
+
+  test "$environment_count" -gt 0 || {
+    echo "no Spack environments found under $workspace" >&2
+    return 1
+  }
+}
+
+install -d -m 0700 "$SPACK_USER_CACHE_PATH" "$SPACK_GNUPGHOME"
 mkdir -p "$WORK_ROOT" "$PROBE_DIR"
 ```
+
+The state-root example is both user- and system-specific. A site may choose a
+different approved work or scratch root, but the result must be absolute,
+unique to `$USER`, writable by that builder, and outside the shared tool and
+package trees. Keep the GPG home private (`0700`) and persistent for as long as
+the release signing/trust record is needed. `SPACK_USER_CACHE_PATH` does not
+relocate Spack's GPG keyring, so `SPACK_GNUPGHOME` is required separately.
+`PYTHONDONTWRITEBYTECODE=1` also prevents Python from attempting to create
+ignored bytecode caches inside the shared checkout.
 
 Do not create repository-owned files until the repositories exist. Step 5
 creates the shared CSE roots after the filesystem owner confirms the path and
@@ -385,12 +556,10 @@ fi
 if [ ! -d "$PLANNING/.git" ]; then
   git clone https://github.com/ray12514/stack-planning.git "$PLANNING"
 fi
-if [ ! -d "$SPACK_ROOT/.git" ]; then
-  mkdir -p "$(dirname "$SPACK_ROOT")"
-  git clone --branch "v$SPACK_VERSION" --depth 1 \
-    https://github.com/spack/spack.git "$SPACK_ROOT"
-fi
 ```
+
+Do not clone or update Spack here. The shared pinned tool root is an
+administrative prerequisite. Stop if it is missing.
 
 Review local state before switching branches:
 
@@ -454,19 +623,35 @@ when its bootstrap interpreter or Stack Composer dependencies must change.
 Verify and activate the pinned Spack checkout selected for the trials:
 
 ```bash
-git -C "$SPACK_ROOT" status --short --branch
-test "$(git -C "$SPACK_ROOT" describe --tags --exact-match)" = "v$SPACK_VERSION"
+verify_spack_tool_root
 source "$SPACK_ROOT/share/spack/setup-env.sh"
-spack --version
+test "$(spack --version)" = "$SPACK_VERSION"
+verify_spack_tool_root
+
+COLUMNS=512 spack config scopes -vp | tee "$PROBE_DIR/spack-scopes.global.txt"
+if grep -Eq \
+  '^(user|system)[[:space:]]+[^[:space:]]+[[:space:]]+active([[:space:]]|$)' \
+  "$PROBE_DIR/spack-scopes.global.txt"; then
+  echo "unexpected active user/system Spack configuration scope" >&2
+  return 2 2>/dev/null || exit 2
+fi
 ```
 
 Spack activation is local to the current shell. Repeat it after opening a new
 shell. Steps 8 and 9 repeat the activation at the workspace execution boundary.
 
+The global scope listing still shows the stock checkout-local `site` scope.
+The clean pinned checkout proves it contains no added site policy, and each
+generated environment's `include::` boundary overrides it. Step 8 verifies the
+environment-scoped result and fails if `user`, `system`, or `site` is active.
+The tool-root check examines ignored as well as ordinary untracked files;
+Spack's upstream `.gitignore` otherwise hides local `etc/spack` configuration
+and runtime caches from a normal clean-status check.
+
 The trial workspace uses Spack 1.2 `group`, `needs`, and toolchains. Use Spack
-1.2.2 for these trials. The Spack tool may live under
-`$WORK_ROOT/spack/<version>` or come
-from a site module. It is distinct from both Spack install trees.
+1.2.2 for these trials. Both builders source the same shared pinned tool root.
+It is distinct from both Spack package install trees and from each builder's
+`SPACK_USER_CACHE_PATH` and `SPACK_GNUPGHOME`.
 
 Record the tool versions and repository commits in the system notes.
 
@@ -891,8 +1076,14 @@ Spack reads the final fallback path.
 Snapshot the reviewed inputs and tool identities:
 
 ```bash
+verify_spack_tool_root
 source "$SPACK_ROOT/share/spack/setup-env.sh"
 test "$(spack --version)" = "$SPACK_VERSION"
+verify_spack_tool_root
+
+verify_workspace_scopes \
+  "$BUILD_WORKSPACE" \
+  "$BUILD_EVIDENCE/config-scopes"
 
 mkdir -p "$BUILD_WORKSPACE/inputs"
 cp "$SYSTEM_DIR/profile.yaml" "$BUILD_WORKSPACE/inputs/profile.yaml"
@@ -903,7 +1094,22 @@ git -C "$INSPECTOR" rev-parse HEAD > "$BUILD_WORKSPACE/inputs/cluster-inspector.
 git -C "$COMPOSER" rev-parse HEAD > "$BUILD_WORKSPACE/inputs/stack-composer.commit"
 git -C "$CONTENT" rev-parse HEAD > "$BUILD_WORKSPACE/inputs/stack-content.commit"
 spack --version > "$BUILD_WORKSPACE/inputs/spack.version"
+git -C "$SPACK_ROOT" describe --tags --exact-match \
+  > "$BUILD_WORKSPACE/inputs/spack.tag"
+git -C "$SPACK_ROOT" rev-parse HEAD \
+  > "$BUILD_WORKSPACE/inputs/spack.commit"
 ```
+
+In Spack 1.2.2, `SPACK_DISABLE_LOCAL_CONFIG` removes the `user` and `system`
+scopes. It does not by itself remove the checkout-local `site` scope. The
+generated `include::` list overrides that scope for each environment. The
+checks above prove the combined boundary: no ambient user/system/site scope is
+active, and every active include path is either workspace-owned or a stock
+Spack defaults scope. The structural `spack` scope and `_builtin` scope remain
+visible and are expected for a clean pinned checkout.
+
+Gate: every environment passes the configuration-scope check, and the scope
+evidence is retained with the restricted build evidence.
 
 Normal path: continue directly to Step 9. Use the optional build-node recovery
 procedure only when changing the selected build node.
@@ -928,8 +1134,10 @@ Activate the pinned Spack checkout first. The generated workspace setup script
 loads workspace values; it does not activate Spack.
 
 ```bash
+verify_spack_tool_root
 source "$SPACK_ROOT/share/spack/setup-env.sh"
 test "$(spack --version)" = "$SPACK_VERSION"
+verify_spack_tool_root
 
 source "$BUILD_WORKSPACE/env/setup-build-env.sh"
 
@@ -1102,6 +1310,21 @@ Inspect the publication README, manifest, configs, modules, and mirror. Confirm
 that all deployment paths are published paths and that the mirror still points
 to the approved private CSE build cache.
 
+Verify the same configuration boundary before copying locks or installing:
+
+```bash
+verify_spack_tool_root
+source "$SPACK_ROOT/share/spack/setup-env.sh"
+test "$(spack --version)" = "$SPACK_VERSION"
+verify_spack_tool_root
+verify_workspace_scopes \
+  "$PUBLISH_WORKSPACE" \
+  "$PUBLISH_EVIDENCE/config-scopes"
+```
+
+Gate: every publication environment has only the expected workspace/defaults
+configuration boundary. Retain the scope listings with publication evidence.
+
 ## 13. Transfer the approved locks
 
 Do not concretize the publication workspace. Copy the reviewed lockfile for
@@ -1204,6 +1427,10 @@ cp "$CATALOG/reports/static-plan.yaml" "$PUBLISH_WORKSPACE/inputs/static-plan.ya
 git -C "$COMPOSER" rev-parse HEAD > "$PUBLISH_WORKSPACE/inputs/stack-composer.commit"
 git -C "$CONTENT" rev-parse HEAD > "$PUBLISH_WORKSPACE/inputs/stack-content.commit"
 spack --version > "$PUBLISH_WORKSPACE/inputs/spack.version"
+git -C "$SPACK_ROOT" describe --tags --exact-match \
+  > "$PUBLISH_WORKSPACE/inputs/spack.tag"
+git -C "$SPACK_ROOT" rev-parse HEAD \
+  > "$PUBLISH_WORKSPACE/inputs/spack.commit"
 ```
 
 After every validation passes, freeze the exact publication workspace and
@@ -1240,7 +1467,9 @@ operation, not part of `render-static` or `init-workspace`.
 
 | Artifact | Location and treatment |
 |---|---|
-| Tool/source checkouts and built executables | Operator home; mutable and operator-controlled |
+| Cluster Inspector, Stack Composer, Stack Content, and Stack Planning checkouts and built executables | Operator home; mutable and operator-controlled |
+| Shared pinned Spack tool root | Installer-selected shared tools tree; exact tag/commit; read/execute for builders; no build outputs or mutable builder state |
+| Per-builder Spack cache and GPG home | Approved user-specific work/scratch path outside the shared Spack tool and package trees; private and mutable |
 | Raw probe fragments/transcripts | Operator home under `probe-work`; review before sharing |
 | Editable profiles, values, and system notes | Operator Stack Content checkout |
 | Static catalog | Restricted CSE tree; versioned and read-only after review |

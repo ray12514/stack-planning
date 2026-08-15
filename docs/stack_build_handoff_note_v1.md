@@ -66,6 +66,13 @@ consumer must root the **whole tree** where Spack can read the included scopes.
 The `include::` list, not ambient `~/.spack`, site, or system scopes, is the
 production isolation boundary, so the tree must travel intact.
 
+The build shell also sets `SPACK_DISABLE_LOCAL_CONFIG=true`. In Spack 1.2.2
+that disables user and system configuration; `include::` supplies the stronger
+environment boundary that also overrides checkout-local site policy. The build
+path verifies the result with `spack config scopes -vp` and
+`spack -e <environment> config scopes -vp`; an unexpected active user, system,
+or site scope is a failed preflight, not an informational warning.
+
 The CSE Initial Conversion Trials initializer applies the same rule to a
 workspace assembled from `render-static`. It snapshots the static catalog tree
 under `catalog/` and emits relative paths from each environment to
@@ -120,6 +127,37 @@ supports **both** mechanisms, and they compose:
 Inline environment config and the include order still apply: a build-time
 override wins over a rendered scope when both set the same key.
 
+## Shared Spack tool runtime
+
+The CSE managed build path uses one installer-provisioned shared Spack tool
+root at an exact version, tag, and commit. Both builders source
+`$SPACK_ROOT/share/spack/setup-env.sh`; neither builder clones Spack into the
+operator source tree or updates the shared checkout during a build. A new
+Spack version receives a sibling directory and is reviewed as a
+release/DAG-significant change.
+
+The Spack tool root is not part of the rendered workspace and is not the Spack
+package install tree. It contains no build workspace, stage, source/misc cache,
+buildcache, installed package prefix, view, or generated module tree.
+
+The shared checkout remains effectively immutable. The build path verifies the
+expected tag/commit and clean Git state before use. It does not run
+`spack isolate` or modify `$SPACK_ROOT/etc/spack`. Mutable state is separated:
+
+- `SPACK_USER_CACHE_PATH` is absolute and unique to the builder;
+- `SPACK_GNUPGHOME` is a private per-builder or site-approved keyring outside
+  the checkout;
+- `PYTHONDONTWRITEBYTECODE=1` prevents Python bytecode caches in the checkout;
+- build stages are per-user or node-local; and
+- installed package prefixes and their database/locks live in the shared
+  restricted package install tree.
+
+The two builders may target that same restricted package install tree. Spack
+locking coordinates identical concrete prefixes only when locking remains
+enabled and the shared filesystem provides working lock semantics. CSE
+setgid/group/ACL policy controls ownership and access; it is independent of
+configuration isolation.
+
 ## Config delivery modes
 
 How the build consumer reads the config scopes is a **user choice**:
@@ -169,6 +207,8 @@ systems and when to re-render, see `stack_generation_orchestration_note_v1.md`.
 |---|---|
 | Validate inputs, resolve intent, render the workspace tree | `stack-composer` |
 | Choose install tree / caches / view & module roots | **Installer** via `deployment.yaml` (or build-time flags); profile offers candidates only, never auto |
+| Provision and pin the shared Spack tool root | **Installer/site owner**; builders verify and source it read-only |
+| Provide per-builder Spack cache/keyring paths | **Build path/operator**; never inside the shared tool root or package tree |
 | Concretize, fetch, install, smoke/verify | `spacktools` (or `spack-build` / Ansible / bare Spack) |
 | Buildcache push | The build path, per stack policy |
 
@@ -203,6 +243,10 @@ The handoff is v1-ready when:
 - the install tree, caches, and view/module roots are resolvable either from a
   rendered `config.yaml` or a build-time override, with a clear error when
   neither supplies them;
+- the selected shared Spack tool root matches the approved version/tag/commit,
+  has a clean checkout, and receives no mutable builder state;
+- global and per-environment scope evidence proves that no unexpected user,
+  system, or site policy affects the build;
 - both config delivery modes (synced tree and GitLab-direct) are validated
   against the pinned Spack release;
 - a package manager can render and hand off without learning a `stack-composer`

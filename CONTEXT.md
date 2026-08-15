@@ -75,3 +75,9 @@ lane-sensitive payload → lane modules.**
   site policy for manual/package-manager use. Users write their own `spack.yaml`
   and include catalog files; this is separate from the managed stack workspace
   render, where Stack Composer writes the full environment.
+- **Spack tool root** — the pinned Spack executable/code checkout used to run a
+  build. It is not a package store, workspace, build stage, cache, view, or
+  module tree.
+- **Spack package install tree** — the store where Spack installs concrete
+  package prefixes and maintains the database and locks that coordinate those
+  prefixes. It is separate from the Spack tool root.
