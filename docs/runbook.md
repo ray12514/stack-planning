@@ -370,9 +370,9 @@ export SPACK_COMMIT="3e19345b6e12f5ff1b874f4059622fc6a1fd804a"
 export SPACK_ROOT="$CSE_TOOLS_ROOT/spack/$SPACK_VERSION"
 
 test ! -e "$SPACK_ROOT"
-mkdir -p "$(dirname "$SPACK_ROOT")"
-chgrp "$CSE_GROUP" "$(dirname "$SPACK_ROOT")"
-chmod 2775 "$(dirname "$SPACK_ROOT")"
+mkdir -p "$CSE_TOOLS_ROOT" "$CSE_TOOLS_ROOT/spack"
+chgrp "$CSE_GROUP" "$CSE_TOOLS_ROOT" "$CSE_TOOLS_ROOT/spack"
+chmod 2770 "$CSE_TOOLS_ROOT" "$CSE_TOOLS_ROOT/spack"
 git clone --branch "$SPACK_TAG" --depth 1 \
   "$SPACK_SOURCE" "$SPACK_ROOT"
 test "$(git -C "$SPACK_ROOT" rev-parse HEAD)" = "$SPACK_COMMIT"
@@ -382,9 +382,27 @@ test -z "$(git -C "$SPACK_ROOT" status --porcelain --untracked-files=all)"
 test -z "$(git -C "$SPACK_ROOT" \
   ls-files --others --ignored --exclude-standard)"
 chgrp -R "$CSE_GROUP" "$SPACK_ROOT"
-chmod -R g+rX,o-rwx "$SPACK_ROOT"
-chmod -R a-w "$SPACK_ROOT"
+chmod -R u+rX,g+rX,o-rwx,a-w "$SPACK_ROOT"
+find "$SPACK_ROOT" -xdev -type d -exec chmod g-s {} +
+test -z "$(find "$SPACK_ROOT" -xdev -perm /222 -print -quit)"
+test -z "$(find "$SPACK_ROOT" -xdev -type d -perm -2000 -print -quit)"
 ```
+
+The writable parent directories and the immutable checkout have deliberately
+different modes:
+
+| Path kind | Expected mode | Purpose |
+|---|---:|---|
+| `$CSE_TOOLS_ROOT` and `$CSE_TOOLS_ROOT/spack` | `2770` (`drwxrws---`) | Owner and CSE group may provision a new sibling Spack version; setgid preserves CSE group inheritance. |
+| Directories and executable files inside `$SPACK_ROOT` | `0550` (`r-xr-x---`) | Owner and CSE group may run and traverse the pinned checkout; neither may modify it. |
+| Ordinary files inside `$SPACK_ROOT` | `0440` (`r--r-----`) | Owner and CSE group may read the pinned checkout; neither may modify it. |
+
+In symbolic modes, `g+rX` gives the group read access plus search access on
+directories and execute access only on files that were already executable.
+`a-w` removes write access from owner, group, and others. A lowercase `s` in
+the group-execute position is expected only on the two writable parent
+directories. An uppercase `S` means group execute/search is missing and is not
+valid here. The immutable version checkout contains neither `s` nor `S`.
 
 Record the root, tag, commit, source URL, owner, and provisioning date. Do not
 run `spack isolate`, change `$SPACK_ROOT/etc/spack`, pull, switch branches, or
@@ -506,13 +524,19 @@ for forbidden_root in \
 done
 
 verify_shared_spack_root_read_only() {
-  local path
+  local path setgid_path
   while IFS= read -r -d '' path; do
     if [ -w "$path" ]; then
       echo "shared Spack tool root is writable: $path" >&2
       return 1
     fi
   done < <(find "$SPACK_ROOT" -xdev -print0)
+  setgid_path="$(find "$SPACK_ROOT" -xdev -type d \
+    -perm -2000 -print -quit)"
+  if [ -n "$setgid_path" ]; then
+    echo "shared Spack tool root contains an unexpected setgid directory: $setgid_path" >&2
+    return 1
+  fi
 }
 
 verify_spack_tool_root() {
@@ -853,12 +877,14 @@ install -d -m 2770 -g "$CSE_GROUP" \
 
 Do not recursively change ownership or permissions on an existing shared tree.
 If the top-level path is site-owned, ask its owner to create the dedicated roots.
-The `s` shown in a directory mode is setgid: it provides group inheritance but
-does not provide group write permission. Do not add the sticky bit inside the
-restricted workspace, Spack store, caches, build cache, views, or module roots.
-Spack and the handoff scripts must be able to rename and clean entries created
-by either builder. Protect against accidental deletion with the restricted/
-published boundary, release snapshots, evidence, and backups instead.
+The lowercase `s` shown in the group-execute position of these writable
+directory modes is setgid: it provides group inheritance and retains group
+search access. Uppercase `S` would mean group search access is missing and is
+not valid. Do not add the sticky bit inside the restricted workspace, Spack
+store, caches, build cache, views, or module roots. Spack and the handoff
+scripts must be able to rename and clean entries created by either builder.
+Protect against accidental deletion with the restricted/published boundary,
+release snapshots, evidence, and backups instead.
 
 If a dedicated trial tree was previously created with group read-only modes,
 stop all Spack processes and have its owner or filesystem administrator repair
