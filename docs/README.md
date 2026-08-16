@@ -13,6 +13,9 @@ Human-readable contracts for the stack-planning system. The JSON Schemas in
 | `stack_workspace_lifecycle_v1.md` | Per-stack workspaces, the one shared hash-deduplicated install tree, and the three lifetimes (kept / regenerable / durable). |
 | `end_to_end_map_v1.md` | Point-A-to-point-B map: inputs, producers, outputs, consumers, tools, cadence, worked example. |
 | `runbook.md` | Canonical CSE static-pilot procedure: probe → static catalog → restricted build/validation → private build cache → cache-only shared publication. |
+| `cse_builder_handoff_v1.md` | Resume guide for a second CSE builder: run the generated workspace entry point, reattach its tmux session, and continue from the recorded checkpoint. |
+| `software_stack_sop_v1.md` | Working SOP for an application package manager using the static platform catalog to build and publish an independently managed Spack environment. |
+| `cse_software_stack_sop_v1.md` | Working CSE SOP for restricted builds, signed build-cache promotion, cache-only publication, CSE modules, and release controls. |
 | `stack_build_handoff_note_v1.md` | Where render stops; build is a co-equal choice (spacktools / spack-build / Ansible / bare Spack); stack-content + config delivery modes. |
 | `stack_generation_orchestration_note_v1.md` | Render across systems: the intersection model, input cadence, re-render/rebuild triggers, tool-agnostic driver contract. |
 | `deployment_inputs_and_ownership_v1.md` | Auto-vs-explicit ownership and the `deployment.yaml` overlay; the install tree is never auto-derived. |

@@ -40,6 +40,11 @@ lane-sensitive payload → lane modules.**
 - **Lane** — one rendered build target: a single (compiler × optional MPI
   provider × optional GPU arch) combination at a chosen CPU target. The unit a
   Spack environment is rendered and built for.
+- **Compiler surface** — one selected compiler and the environments exposed
+  beneath its user-facing front door. The current CSE trial surface contains
+  Core, Common, Serial, and MPI environments; a GPU environment is added only
+  when GPU work is in scope. Each MPI or GPU environment still binds an
+  explicit provider compatible with that compiler.
 - **Toolchain** — a compiler-matched MPI binding: the pairing that pins which
   MPI build (flavor) a given compiler resolves to, so an abstract spec
   (`hdf5+mpi`) materializes as a concrete build bound to the right compiler +
@@ -75,9 +80,12 @@ lane-sensitive payload → lane modules.**
   site policy for manual/package-manager use. Users write their own `spack.yaml`
   and include catalog files; this is separate from the managed stack workspace
   render, where Stack Composer writes the full environment.
-- **Spack tool root** — the pinned Spack executable/code checkout used to run a
-  build. It is not a package store, workspace, build stage, cache, view, or
-  module tree.
+- **Spack runtime identity** — the exact Spack source, version/tag, and commit
+  approved for a release. Two checkouts at different paths have the same
+  runtime identity only when those values and their clean source trees match.
+- **Spack tool root** — the shared or builder-local checkout that provides the
+  approved Spack runtime identity. It is not a package store, workspace, build
+  stage, cache, view, or module tree.
 - **Spack package install tree** — the store where Spack installs concrete
   package prefixes and maintains the database and locks that coordinate those
   prefixes. It is separate from the Spack tool root.

@@ -46,7 +46,7 @@ flag it. The framework validates the choice; it never makes it. No Spack runs.
 | Externals/`packages.yaml`, provider wiring, target, module syntax | **Framework (auto)** | rendered `configs/**` | render (5) |
 | **Install tree, build stage, caches, view/module roots, `publish_root`, buildcache destinations** | **Installer** | `deployment.yaml` (or build-time flags) | Stage 0 setup / install |
 | Shared-filesystem collaboration group and access audience | **Installer / release owner** | `deployment.yaml.access` | Stage 0 setup / publish |
-| Which Spack version (floor/pin) **and where the Spack tool root lives** | Template maintainer (floor), package manager (pin), installer (exact + location; CSE managed builds use a shared root + commit) | `defaults.spack.floor`, `stack.yaml.spack.version`, `deployment.yaml.spack.root` / `$PATH` | curate/author/install |
+| Which Spack version (floor/pin) **and where the Spack tool root lives** | Template maintainer (floor), package manager (pin), installer (shared default), builder (approved local override) | `defaults.spack.floor`, `stack.yaml.spack.version`, `deployment.yaml.spack.root` or build-time `SPACK_ROOT` | curate/author/install |
 
 In practice the package manager, the installer, and the template maintainer are
 often the **same person**. The ownership split is therefore mostly about *which
@@ -74,9 +74,9 @@ install_tree:
   padded_length: 128                  # optional
 
 build_stage:
-  default: /scratch/$user/spack-stage
+  default: /scratch/${USER}/spack-stage
   by_node_type:                       # optional per-node-type overrides
-    build: /scratch/$user/stage
+    build: /scratch/${USER}/stage
 
 caches:
   source: /shared/stack/cache/source
@@ -94,7 +94,7 @@ buildcache:
     - { name: payload, url: "file:///shared/stack/buildcache/payload" }
 
 spack:
-  root: /shared/cse/tools/spack/1.2.2 # optional generic field; required and shared/pinned for the CSE managed workflow
+  root: /shared/cse/tools/spack/1.2.2 # optional shared default; a builder may select an identity-equivalent local checkout
 ```
 
 Where it lives and how it is consumed:
@@ -181,9 +181,10 @@ real systems require them as portable inputs.
 Two different locations, easily confused:
 
 - **Spack tool root**: where the pinned Spack executable/code checkout lives.
-  Only the build path needs it. The CSE managed workflow sources one
-  installer-provisioned shared root at `<root>/share/spack/setup-env.sh` and
-  verifies its exact version, tag, commit, and clean state before use.
+  Only the build path needs it. The CSE managed workflow may source an
+  installer-provisioned shared root or a builder-local root at
+  `<root>/share/spack/setup-env.sh`. It verifies the same exact version, tag,
+  commit, and clean state in either location.
 - **Spack package install tree**: where Spack installs concrete package
   prefixes and keeps the shared store database and prefix locks. It is the
   `install_tree` above: a separate installer-chosen path that is deliberately
@@ -194,14 +195,23 @@ install tree matter only after a build path starts. The generated workspace may
 record the package install tree, but it never embeds or modifies the Spack tool
 root.
 
-### Shared pinned Spack policy for CSE managed builds
+### Pinned Spack policy for CSE managed builds
 
-The installer/site owner provisions each approved Spack version in a separate
-shared directory, for example `tools/spack/1.2.2/` and `tools/spack/1.3.x/`.
-Builders receive read/execute access and do not run `spack isolate`, modify
-`$SPACK_ROOT/etc/spack`, pull, switch branches, or replace a checkout in place.
-The root is visible at the same path from participating login and build nodes.
-A changed Spack version or commit is a release/DAG-significant input.
+One Spack runtime identity is approved per release: source repository,
+version/tag, and commit. A builder may select either:
+
+- an installer-provisioned shared root such as `tools/spack/1.2.2/`; or
+- a builder-local root such as `$HOME/STACK_TESTING/spack/1.2.2/`.
+
+The selected path must be visible from the login and build nodes used by that
+builder. The shared root is read-only to builders. A local checkout is owned by
+the builder but remains clean and unchanged while the release is active.
+Builders do not run `spack isolate`, modify `$SPACK_ROOT/etc/spack`, pull,
+switch branches, or replace the selected checkout in place during a build.
+
+Changing only the selected root path is operational when both roots have the
+same verified runtime identity. A changed Spack version or commit is a
+release/DAG-significant input.
 
 Mutable state remains outside the shared tool root:
 
@@ -210,7 +220,7 @@ Mutable state remains outside the shared tool root:
 - `SPACK_GNUPGHOME` names a private per-user or site-approved signing/trust
   keyring, because Spack 1.2.2 otherwise defaults that keyring below the tool
   root;
-- `PYTHONDONTWRITEBYTECODE=1` prevents Python bytecode caches in the shared
+- `PYTHONDONTWRITEBYTECODE=1` prevents Python bytecode caches in the selected
   checkout;
 - generated environment `include::` scopes remain the configuration boundary;
 - build stages remain per-user or node-local; and

@@ -282,8 +282,8 @@ The Initial Conversion Trials use the following ordered policy:
 ```yaml
 config:
   build_stage::
-  - $tempdir/$user/spack-stage
-  - /reviewed/node-scratch/$user/spack-stage
+  - $tempdir/${USER}/spack-stage
+  - /reviewed/node-scratch/${USER}/spack-stage
   - ${WORKDIR}/cse-spack-stage
 ```
 

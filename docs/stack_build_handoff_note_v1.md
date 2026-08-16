@@ -83,6 +83,16 @@ manifest also preserves the profile's node-type stage facts so a reviewed build
 node choice can become an ordered `build_stage::` list without probing the host
 or manually retyping scratch paths.
 
+That temporary CSE workspace also renders a downstream `cse-build` entry point
+at its root. It is part of the handed-off workspace, not a new Stack Composer
+production mode. It reads the already rendered system, release, toolchain,
+path, environment, and Spack-runtime values; creates per-builder mutable state;
+and invokes bare Spack for status, missing-lock concretization, verification,
+fetch, or sequential installation. Its default action creates or reattaches a
+tmux session for the system and release. `shell` provides the same prepared
+shell without tmux, and the default falls back to it when tmux is unavailable.
+The receiving builder supplies no replacement render inputs.
+
 For the CPU-only trials, the handoff also owns one explicit portable CPU target
 for the entire initialized workspace. The values helper intersects compatible
 targets from all profiled CPU-only build/runtime node types and caps selection
@@ -127,22 +137,27 @@ supports **both** mechanisms, and they compose:
 Inline environment config and the include order still apply: a build-time
 override wins over a rendered scope when both set the same key.
 
-## Shared Spack tool runtime
+## Pinned Spack tool runtime
 
-The CSE managed build path uses one installer-provisioned shared Spack tool
-root at an exact version, tag, and commit. Both builders source
-`$SPACK_ROOT/share/spack/setup-env.sh`; neither builder clones Spack into the
-operator source tree or updates the shared checkout during a build. A new
-Spack version receives a sibling directory and is reviewed as a
-release/DAG-significant change.
+The CSE managed build path uses one exact Spack runtime identity: source,
+version/tag, and commit. Each builder may source either an
+installer-provisioned shared checkout or a builder-local checkout through
+`$SPACK_ROOT/share/spack/setup-env.sh`. The root paths may differ. Their
+verified runtime identities may not.
+
+A new Spack version receives a sibling directory and is reviewed as a
+release/DAG-significant change. Moving between identity-equivalent shared and
+local roots is an operational handoff and does not change the concrete DAG.
 
 The Spack tool root is not part of the rendered workspace and is not the Spack
 package install tree. It contains no build workspace, stage, source/misc cache,
 buildcache, installed package prefix, view, or generated module tree.
 
-The shared checkout remains effectively immutable. The build path verifies the
-expected tag/commit and clean Git state before use. It does not run
-`spack isolate` or modify `$SPACK_ROOT/etc/spack`. Mutable state is separated:
+The shared checkout is read-only to builders. A local checkout is
+builder-owned but remains effectively immutable during the release. The build
+path verifies the expected tag/commit and clean Git state before use. It does
+not run `spack isolate`, modify `$SPACK_ROOT/etc/spack`, pull, or switch
+branches. Mutable state is separated:
 
 - `SPACK_USER_CACHE_PATH` is absolute and unique to the builder;
 - `SPACK_GNUPGHOME` is a private per-builder or site-approved keyring outside
@@ -207,7 +222,8 @@ systems and when to re-render, see `stack_generation_orchestration_note_v1.md`.
 |---|---|
 | Validate inputs, resolve intent, render the workspace tree | `stack-composer` |
 | Choose install tree / caches / view & module roots | **Installer** via `deployment.yaml` (or build-time flags); profile offers candidates only, never auto |
-| Provision and pin the shared Spack tool root | **Installer/site owner**; builders verify and source it read-only |
+| Provision the shared Spack tool root | **Installer/site owner or authorized CSE builder**; consumers verify and source it read-only |
+| Provision a builder-local Spack tool root | **Builder**; exact approved identity, clean and unchanged during the release |
 | Provide per-builder Spack cache/keyring paths | **Build path/operator**; never inside the shared tool root or package tree |
 | Concretize, fetch, install, smoke/verify | `spacktools` (or `spack-build` / Ansible / bare Spack) |
 | Buildcache push | The build path, per stack policy |
@@ -243,8 +259,12 @@ The handoff is v1-ready when:
 - the install tree, caches, and view/module roots are resolvable either from a
   rendered `config.yaml` or a build-time override, with a clear error when
   neither supplies them;
-- the selected shared Spack tool root matches the approved version/tag/commit,
-  has a clean checkout, and receives no mutable builder state;
+- the selected shared or local Spack tool root matches the approved
+  version/tag/commit, has a clean checkout, and receives no mutable builder
+  state;
+- the CSE trial workspace entry point can resume from zero, partial, or complete
+  lockfile checkpoints without requiring the receiving builder to reconstruct
+  render values;
 - global and per-environment scope evidence proves that no unexpected user,
   system, or site policy affects the build;
 - both config delivery modes (synced tree and GitLab-direct) are validated
