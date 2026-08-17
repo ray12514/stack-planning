@@ -317,7 +317,21 @@ not let Spack replace the active CPE runtime with a source-built package.
 Portable CPU-target policy applies to source-built roots. An `mpi:require`
 entry for external Cray MPICH selects only its provider and version. It must
 not require that the platform external claim the source-build target. A
-build-sourced MPI provider such as OpenMPI does carry that target.
+build-sourced MPI provider such as OpenMPI must resolve to the selected source
+compiler and target, but those constraints must not be propagated into its
+machine-owned external dependencies.
+
+This external boundary also applies to generic Linux. Do not append a blanket
+`%compiler` or `target=...` root constraint to a build-sourced OpenMPI producer
+or its MPI payload when that DAG consumes site Slurm, UCX, libfabric, or other
+machine-owned externals. Spack 1.2.2 can propagate the root constraint into
+those dependency nodes and reject the external because it does not claim the
+CSE compiler or source-build target. Select the language providers, target,
+and MPI provider through environment configuration, keep exact site dependency
+constraints on the producer root, and verify the resolved compiler, target,
+provider hash, and external status from the lockfile. The full renderer must
+preserve the explicit compiler/MPI lane pairing without crossing this
+ownership boundary.
 
 ```yaml
 # configs/mpi/cray-mpich/8.1.29/gcc-13.3.0/toolchains.yaml
@@ -576,8 +590,9 @@ coherent render update:
 4. render Foundation and Core as Spack 1.2 groups in one Core environment;
 5. repeat an exact compiler producer group when the compiler is stack-built,
    and an MPI producer group with `needs` when MPI is stack-built;
-6. apply direct compiler constraints or compiler-plus-MPI toolchains to package
-   lists through definitions and matrices;
+6. bind package lists to the selected compiler and MPI through Spack-native
+   language/MPI provider policy, definitions, and matrices without propagating
+   compiler or target constraints into machine-owned externals;
 7. expose Foundation through the compiler-init view, Core and Common through
    the compiler-init `MODULEPATH`, and payload packages through lane modules;
 8. keep GPU as an MPI superset only when the selected compatibility tuple is

@@ -105,13 +105,16 @@ The receiving builder supplies no replacement render inputs.
 For the CPU-only trials, the handoff also owns one explicit portable CPU target
 for the entire initialized workspace. The values helper intersects compatible
 CPU targets from all profiled build/runtime node types, including GPU-bearing
-nodes, and caps selection at `x86_64_v3`; generated root specs apply it to both
-compiler surfaces and every source-built lane. `packages:all:prefer` carries
-the same default to dependencies. Architecture-specific prebuilt distributions
-are explicit exceptions: Miniforge is constrained to the generic `x86_64`
-family target and the lock verifier permits only that named difference.
-Build-stage or build-node changes are operational and do not select another
-architecture.
+nodes, and caps selection at `x86_64_v3`. Compiler, Foundation, Core, and
+build-tool producers carry explicit surface bindings. At the MPI and payload
+boundary, surface language-provider preferences and `packages:all:prefer`
+select the compiler and target without propagating blanket root constraints
+into machine-owned dependency externals such as Slurm or UCX. The lock
+verifier proves the resulting bindings. Architecture-specific prebuilt
+distributions are explicit exceptions: Miniforge is constrained to the
+generic `x86_64` family target and the lock verifier permits only that named
+difference. Build-stage or build-node changes are operational and do not
+select another architecture.
 
 ## Co-equal build paths
 

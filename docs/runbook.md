@@ -244,13 +244,53 @@ of deleting or rewriting the old record.
 | Selected Spack checkout is dirty or does not match the pinned source/tag/commit | Stop. Replace the selected root with a clean checkout of the approved identity. Do not pull, switch branches, or run `spack isolate` in place. |
 | Cluster Inspector fact or external module/prefix is wrong | Regenerate the profile, create a new catalog release and trial release, and restart at checkpoint 1. |
 | Static catalog scope or toolchain is wrong | Fix the owning profile/catalog logic, create new catalog and trial releases, and restart at checkpoint 2. |
-| Restricted workspace template or values are wrong before locks exist | Reinitialize the working release; after locks exist, create a new trial release. |
+| Restricted workspace template or values are wrong | Before installation, unaccepted diagnostic locks from the current checkpoint may be discarded together and the working release reinitialized. After a lock has been accepted, installed, or promoted, create a new trial release. |
 | A later lane fails while earlier lane locks and inputs remain unchanged | Keep the earlier evidence and retry only the failed lane. If a shared upstream hash changes, reconcretize and revalidate every dependent lane in a new release. |
 | Build-cache push, index, or signing operation is interrupted | Retry the cache operation from the installed restricted specs; do not rebuild. |
 | Publication reports a cache miss for an exact approved hash | Return to the restricted workspace, build and validate that exact locked hash, push it, and retry only the failed publication environment. If producing it requires a changed hash, create a new release. |
 | View or module refresh fails before release acceptance and the DAG is unchanged | Correct and rerun only view/module generation, then repeat clean-shell checks. |
 | Published module/view content needs correction after acceptance | Create a new trial release; do not edit the accepted release in place. |
 | Platform upgrade changes CPE, compiler, MPI, fabric, OS, or runtime ABI facts | Hold publication and restart with a fresh profile, catalog, locks, and runtime validation. |
+
+### Recovery: replace an unaccepted workspace after a blueprint correction
+
+Use this only when concretization exposed a blueprint or values-helper defect,
+no package installation or build-cache promotion has started, and the existing
+locks are unaccepted diagnostic output. The reviewed profile and static
+catalog do not need to be regenerated when their machine facts and external
+records are correct.
+
+Synchronize the project repositories through Step 2, reload the operator
+session, and check whether either built tool actually changed. A
+`stack-content`-only correction does not require rebuilding Cluster Inspector
+or Stack Composer.
+
+Regenerate the values file because it is part of the current blueprint
+contract, then replace the unaccepted workspace as one unit:
+
+```bash
+source "$CSE_OPERATOR_SESSION_FILE"
+cse_session_status
+
+"$CSE_PYTHON" \
+  "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
+
+"$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
+  --blueprint "$CONTENT/pilots/cse-pilot" \
+  --catalog "$CATALOG" \
+  --values "$BUILD_VALUES" \
+  --output "$BUILD_WORKSPACE" \
+  --overwrite
+
+cd "$BUILD_WORKSPACE"
+./cse-build concretize
+```
+
+This deliberately replaces every diagnostic lock in that workspace. Do not
+copy previously generated locks into the replacement: the corrected
+compiler/MPI boundary is DAG-significant, so all eight environments must be
+concretized and verified together. If installation or promotion already
+started, preserve the original evidence and use a new trial release instead.
 
 ### Optional recovery: switch to another profiled build node
 
@@ -1074,6 +1114,22 @@ Lustre filesystem or external does not change that spec. Do not depend on
 ambient configure detection or run a separate scheduler probe while creating
 values.
 
+The selected surface compiler and portable CPU target are applied to built
+Open MPI and its payload through the surface language-provider preferences and
+the common target preference. Do not append a blanket `%compiler` or
+`target=...` constraint to the Open MPI producer or MPI payload roots. In Spack
+1.2.2 those root constraints can propagate into dependency externals and
+incorrectly require the site Slurm or UCX installation to claim the CSE
+compiler and source-build target. The lock verifier is the enforcement point:
+Open MPI and every source-built payload must resolve to the selected surface
+compiler and portable target, while site Slurm and UCX remain external with
+their inspected architecture.
+
+Do not work around an external solve failure by building a private Slurm or
+UCX. The trial integrates with the site's scheduler and selected fabric
+runtime. A separately built Slurm is not the site's controller/client runtime,
+and replacing the reviewed UCX changes the fabric integration being tested.
+
 Use `source: external` for the platform compiler and for platform-provided MPI.
 Use `source: build` only for the selected MPI implementation that CSE will
 build, such as OpenMPI on a non-Cray system. Do not insert dummy catalog scopes.
@@ -1129,18 +1185,24 @@ Confirm `configs/common/packages.yaml` contains a `packages:all:prefer` entry
 for the selected `target=...` and a `miniforge3:require` entry for generic
 `target=x86_64`. No environment may replace either with a native or
 compiler-specific CPU target. Inspect representative environment roots as
-well: every source-built compiler, Foundation, Core/build-tool, MPI, and
-payload root constraint must include the portable target. The Miniforge
-Core-independent root must use the generic binary target. The explicit root
-constraints prevent package-specific requirements from falling back to the
-concretization host's native architecture.
+well. Compiler, Foundation, Core, and build-tool producer roots carry their
+explicit surface compiler/target bindings. MPI producers and payload roots
+deliberately do not append blanket compiler/target constraints; their
+environment includes `configs/surfaces/<surface>/compiler.yaml`, which selects
+the surface's `c`, `cxx`, and `fortran` providers, while the common target
+preference selects the portable target for built nodes. The Miniforge
+Core-independent root must use the generic binary target. Lock verification,
+not the presence of `%compiler target=...` text on every root, proves the
+resulting compiler and architecture bindings.
 
 For an external MPI provider, inspect the applicable surface
 `packages.yaml`. Its virtual `mpi:require` entry must select only the provider
 and version, for example `cray-mpich@9.1.0`; it must not append the portable
 source-build target. The platform external keeps the architecture Spack assigns
-to its inspected installation. A build-sourced provider such as OpenMPI does
-include the portable target.
+to its inspected installation. For build-sourced Open MPI, `mpi:require`
+contains the exact provider variants but no `%compiler`, `target=...`, or
+machine-external dependency constraints. The separate MPI producer root owns
+the exact `^ucx` and scheduler dependencies.
 
 For a non-Cray Open MPI environment, also inspect the generated MPI root. It
 must contain `fabrics=ucx`, the scheduler variant, `~cuda`, `~lustre`, `+romio`,
