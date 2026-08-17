@@ -854,6 +854,15 @@ For the intended tuple, inspect every `packages.yaml` and `toolchains.yaml`.
 Confirm external specs, prefixes, modules, compiler stamps, and MPI
 requirements against the reviewed profile.
 
+Every verified MPI installation must appear in the catalog even when its build
+compiler is unknown. An unknown pairing is retained under
+`scopes/mpi/<provider>/<version>/unpaired/packages.yaml`; that directory has no
+`toolchains.yaml` and is not a recommended build scope. A compiler-axis MPI
+scope and `toolchains.yaml` require one exact pairing supported by wrapper,
+module, or platform evidence. The selected trial MPI must be paired. If it is
+only present under `unpaired`, correct the Inspector evidence or reviewed hints
+and regenerate rather than assigning a compiler by hand.
+
 The catalog manifest preserves `profile_facts.system_externals`, including
 Slurm MPI-launch capabilities. On a Slurm system selected for a source-built
 Open MPI lane, verify that the manifest contains the reviewed launch-capability
@@ -861,8 +870,9 @@ record. When `pmi2` appears in both the plugin and development-interface lists,
 the helper enables direct launch. When it does not, the helper retains an
 mpirun-only root instead of guessing.
 
-Gate: the catalog contains the exact compatible compiler, MPI, common, and
-platform scopes needed by the trials. A common Spack external must come from a
+Gate: the catalog contains the exact compatible compiler, paired MPI, common,
+and platform scopes needed by the trials. Additional unpaired MPI inventory may
+remain package-only and unselected. A common Spack external must come from a
 development-verified `profile.system_externals` entry. A
 `profile.fabric.userspace` observation remains visible in the manifest and
 plan, but it is not sufficient to populate `packages.yaml`. Fix the profile or

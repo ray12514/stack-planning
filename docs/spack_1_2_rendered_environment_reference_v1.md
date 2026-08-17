@@ -576,8 +576,8 @@ coherent render update:
 4. render Foundation and Core as Spack 1.2 groups in one Core environment;
 5. repeat an exact compiler producer group when the compiler is stack-built,
    and an MPI producer group with `needs` when MPI is stack-built;
-6. apply compiler-only or compiler-plus-MPI toolchains to package lists through
-   definitions and matrices;
+6. apply direct compiler constraints or compiler-plus-MPI toolchains to package
+   lists through definitions and matrices;
 7. expose Foundation through the compiler-init view, Core and Common through
    the compiler-init `MODULEPATH`, and payload packages through lane modules;
 8. keep GPU as an MPI superset only when the selected compatibility tuple is
