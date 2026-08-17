@@ -1363,6 +1363,15 @@ This creates only missing lockfiles, preserves locks already handed over, and
 runs the lock verifier when all eight exist. The explicit commands below are
 the operator inspection and troubleshooting form of the same process.
 
+The generated wrapper also controls the selected external-module boundary.
+Before activating Spack, it unloads an exact selected compiler or MPI module
+when that module is already present in `LOADEDMODULES`. Spack 1.2.2 otherwise
+compares `LOADEDMODULES` before and after `module load` and incorrectly reports
+an already-loaded module as a failed load. This cleanup occurs only in the
+`cse-build` process: it does not purge unrelated site/startup modules or alter
+the caller's parent shell. Spack then loads the recorded external module when
+the concrete DAG requires it.
+
 Activate the pinned Spack checkout first. The generated workspace setup script
 loads workspace values; it does not activate Spack.
 

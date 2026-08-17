@@ -83,6 +83,14 @@ manifest also preserves the profile's node-type stage facts so a reviewed build
 node choice can become an ordered `build_stage::` list without probing the host
 or manually retyping scratch paths.
 
+The initializer's generated `cse-build` command also prevents an ambient
+selected provider module from crossing the handoff boundary. Before Spack is
+activated, the command unloads any exact external compiler or MPI module named
+by the workspace when it is already present in `LOADEDMODULES`. This is scoped
+to the command process, preserves unrelated site/startup modules, and lets
+Spack 1.2.2 perform the recorded module activation itself. It does not change
+the parent login shell.
+
 Before that workspace exists, the CSE operator uses a separate operator-local
 session entry point under
 `$HOME/STACK_TESTING/operator-sessions/<system>/<trial>/activate.sh`. It records
