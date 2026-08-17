@@ -14,6 +14,9 @@ replace the common runbook.
       that relationship is discoverable.
 - [ ] Libfabric, UCX, PMIx, and scheduler integrations are classified as
       observed candidates; policy selects only compatible externals.
+- [ ] A verified Slurm external records `srun` MPI plugins separately from the
+      PMI/PMIx development interfaces available to source-build MPI. A direct
+      launcher is selected only from their intersection.
 - [ ] Every discovered CUDA and ROCm toolkit generation has a real version,
       module, prefix, and compatible GPU architecture.
 
@@ -31,6 +34,9 @@ replace the common runbook.
 
 - [ ] Serial and MPI compiler smoke tests run from clean module environments.
 - [ ] Scheduler-launched multi-node MPI passes over the intended fabric.
+- [ ] A Slurm Open MPI lane built with `+pmi +legacylaunchers` runs the same
+      smoke binary through both `mpirun` and `srun --mpi=pmi2` from an
+      allocation.
 - [ ] GPU compiler/runtime smoke tests pass on the target GPU node type.
 - [ ] The `cse/<Compiler>` surface exposes exactly the expected lane selectors,
       and conflicting lane loads fail.

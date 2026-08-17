@@ -289,6 +289,9 @@ fabric externalization.
 | `fabric.userspace[*].version` | probe-system | `fi_info --version`, `ucx_info -v`, module version, package manager. | version string | `probed` | unknown omitted unless externalization needs it |
 | `fabric.userspace[*].prefix` | probe-system | `command -v`, module env, package file list. | absolute path | `probed` | `/usr` when system package-backed |
 | `system_externals[ucx].variants` | probe-system | `ucx_info -v` plus the UCX development surface. | `+thread_multiple` when the configure line contains `--enable-mt`; `~thread_multiple` when it contains `--disable-mt`; omitted when neither can be verified. | `probed` | no inferred variant |
+| `system_externals[slurm].capabilities.mpi_launch.command` | probe-system | Locate `srun` from the same installed prefix as the verified Slurm external. | `srun` | `probed` | omit the capability when unavailable or from a different prefix |
+| `system_externals[slurm].capabilities.mpi_launch.plugins` | probe-system | Parse `srun --mpi=list` without starting an allocation. Preserve every advertised plugin identifier, including versioned PMIx plugin names. | sorted unique strings such as `pmi2`, `pmix`, `pmix_v3` | `probed` | omit the capability when the command fails or yields no plugin identifiers |
+| `system_externals[slurm].capabilities.mpi_launch.development_interfaces` | probe-system | Check the matching Slurm prefix for each PMI/PMIx header and library pair. Runtime plugin advertisement alone is insufficient. | sorted unique subset of `pmi1`, `pmi2`, `pmix` | `probed` | empty list when no matching development interface is present |
 | `filesystem.install_tree_candidates[*].path` | probe-system + hints | Operator hints are primary; optional scan of known roots like `/shared/stack/spack/opt`, `/apps/spack/opt`, `/opt/spack/opt`. | absolute path | `inferred` from hint, `probed` when path exists | validation failure if none supplied/found |
 | `filesystem.install_tree_candidates[*].type` | probe-system | `findmnt -n -o FSTYPE --target <path>`. | filesystem type | `probed` | `unknown` |
 | `filesystem.install_tree_candidates[*].locks_honored` | probe-system | Local `flock` test; optional cross-node lock test if a peer node runner is available. | boolean | `probed` for local, `inferred` for known FS defaults | false/unknown triggers warning |
@@ -303,6 +306,9 @@ Section 4 acceptance:
 - InfiniBand/RoCE systems do not get mislabeled as Ethernet when IB devices exist.
 - Install-tree candidates are reviewable and never silently invented without
   evidence or hints.
+- A verified Slurm external records `srun` MPI plugins and PMI/PMIx development
+  interfaces separately. Cluster Inspector does not convert either list into
+  Open MPI variants or a preferred launch method.
 
 ## Section 5: Module Inventory, Compilers, MPI, And GPU Toolkits
 

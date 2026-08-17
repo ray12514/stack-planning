@@ -83,6 +83,15 @@ manifest also preserves the profile's node-type stage facts so a reviewed build
 node choice can become an ordered `build_stage::` list without probing the host
 or manually retyping scratch paths.
 
+Before that workspace exists, the CSE operator uses a separate operator-local
+session entry point under
+`$HOME/STACK_TESTING/operator-sessions/<system>/<trial>/activate.sh`. It records
+the exact system/catalog/trial tuple plus operator-selected roots, Spack mode,
+and bootstrap Python, then derives the preparation paths and functions used by
+the runbook. Sourcing it restores state only; it does not update repositories,
+rebuild tools, probe a host, render a catalog, or initialize a workspace. It is
+not part of the rendered handoff and is not required by the receiving builder.
+
 That temporary CSE workspace also renders a downstream `cse-build` entry point
 at its root. It is part of the handed-off workspace, not a new Stack Composer
 production mode. It reads the already rendered system, release, toolchain,

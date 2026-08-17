@@ -85,6 +85,7 @@ $HOME/STACK_TESTING/                         # operator-controlled
   stack-content/                             # editable trial inputs
   stack-planning/                            # current runbook/design
   spack/<version>/                            # optional pinned builder-local Spack tool root
+  operator-sessions/<system>/<trial>/         # sourceable pre-workspace resume state
   probe-work/<system>/<catalog-release>/     # raw fragments/transcripts
 
 <shared-cse-tools-root>/                     # installer/site controlled
@@ -443,180 +444,88 @@ Neither tool-root option is the restricted package install tree, the published
 package install tree, a workspace, a build stage, a cache/buildcache, a view,
 or a module root.
 
-## 1. Set the system values
+## 1. Create or resume the operator session
 
-Start a clean Bash shell on the target system. Use a lowercase system name:
-`blueback`, `raider`, `wheat`, or `fran`.
+The operator session is the resume boundary before a restricted workspace
+exists. It records the exact system, catalog release, trial release, repository
+branch, shared roots, Spack identity/mode, and reviewed bootstrap Python once.
+Sourcing it restores every derived path and the verification helpers used by
+the later steps. It does not pull repositories, rebuild either tool, rerun a
+probe, rerender a catalog, or change a workspace.
+
+It is deliberately operator-local:
+
+```text
+$HOME/STACK_TESTING/operator-sessions/<system>/<trial-release>/
+  activate.sh                 # source this after each login
+  provider-selections.sh      # reviewed Step 7 selections, loaded when present
+```
+
+This is not the shared builder handoff. After Step 8 initializes
+`$BUILD_WORKSPACE`, its generated `./cse-build` command is the portable resume
+entry point for either builder.
+
+### First login for a system/release
+
+Start a clean Bash shell. Bootstrap only the Stack Content checkout so the
+session generator is available. Use a lowercase system name: `blueback`,
+`raider`, `wheat`, or `fran`.
 
 ```bash
 export WORK_ROOT="$HOME/STACK_TESTING"
-export SYSTEM_NAME="<system>"
-export STACK_BRANCH="codex/simplified-render-plan"
-export CATALOG_RELEASE="<system>-catalog-001"
-export TRIAL_RELEASE="<system>-trial-001"
-export CSE_GROUP="cse"
-export CSE_TRIAL_ROOT="<approved-shared-cse-path>/initial-conversion-trials"
-export SPACK_RUNTIME_MODE="<shared-or-local>"
-export CSE_TOOLS_ROOT="<installer-selected-shared-cse-tools-root>" # recorded for both modes
-
-export INSPECTOR="$WORK_ROOT/cluster-inspector"
-export COMPOSER="$WORK_ROOT/stack-composer"
 export CONTENT="$WORK_ROOT/stack-content"
-export PLANNING="$WORK_ROOT/stack-planning"
-export SPACK_SOURCE="https://github.com/spack/spack.git"
-export SPACK_VERSION="1.2.2"
-export SPACK_TAG="v$SPACK_VERSION"
-export SPACK_COMMIT="3e19345b6e12f5ff1b874f4059622fc6a1fd804a"
-case "$SPACK_RUNTIME_MODE" in
-  shared) export SPACK_ROOT="$CSE_TOOLS_ROOT/spack/$SPACK_VERSION" ;;
-  local)  export SPACK_ROOT="$WORK_ROOT/spack/$SPACK_VERSION" ;;
-  *) echo "SPACK_RUNTIME_MODE must be shared or local" >&2; return 2 2>/dev/null || exit 2 ;;
-esac
-export SPACK_DISABLE_LOCAL_CONFIG=true
-export PYTHONDONTWRITEBYTECODE=1
-export SYSTEM_DIR="$CONTENT/systems/$SYSTEM_NAME"
-export PROBE_DIR="$WORK_ROOT/probe-work/$SYSTEM_NAME/$CATALOG_RELEASE"
-export STACK_COMPOSER="$COMPOSER/dist/stack-composer.pyz"
+export STACK_BRANCH="codex/simplified-render-plan"
 export CSE_BOOTSTRAP_PYTHON="<absolute-path-to-reviewed-python-3.9-or-newer>"
-export CSE_PYTHON="$COMPOSER/.venv/bin/python"
 
-export CSE_RESTRICTED_ROOT="$CSE_TRIAL_ROOT/restricted"
-export CSE_PUBLISHED_ROOT="$CSE_TRIAL_ROOT/published"
-export STATIC_ROOT="$CSE_RESTRICTED_ROOT/catalogs"
-export CATALOG="$STATIC_ROOT/$SYSTEM_NAME/static/$CATALOG_RELEASE"
-export BUILD_WORKSPACE="$CSE_RESTRICTED_ROOT/workspaces/$SYSTEM_NAME/initial-conversion-trials/$TRIAL_RELEASE"
-export PUBLISH_WORKSPACE="$CSE_PUBLISHED_ROOT/workspaces/$SYSTEM_NAME/initial-conversion-trials/$TRIAL_RELEASE"
-export BUILD_RELEASE_ROOT="$CSE_RESTRICTED_ROOT/releases/$SYSTEM_NAME/$TRIAL_RELEASE"
-export PUBLISH_RELEASE_ROOT="$CSE_PUBLISHED_ROOT/releases/$SYSTEM_NAME/$TRIAL_RELEASE"
-export BUILDCACHE_ROOT="$CSE_RESTRICTED_ROOT/buildcache/$SYSTEM_NAME/$TRIAL_RELEASE"
-export BUILDCACHE_URL="file://$BUILDCACHE_ROOT"
-export BUILD_EVIDENCE="$CSE_RESTRICTED_ROOT/evidence/$SYSTEM_NAME/$TRIAL_RELEASE"
-export PUBLISH_EVIDENCE="$PUBLISH_RELEASE_ROOT/evidence"
-export BUILD_VALUES="$SYSTEM_DIR/cse-trials-build-values.yaml"
-export PUBLISH_VALUES="$SYSTEM_DIR/cse-trials-publish-values.yaml"
-
-if [ -n "${SPACK_ENV:-}" ]; then
-  echo "start from a shell with no active Spack environment: $SPACK_ENV" >&2
-  return 2 2>/dev/null || exit 2
+test -x "$CSE_BOOTSTRAP_PYTHON"
+mkdir -p "$WORK_ROOT"
+if [ ! -d "$CONTENT/.git" ]; then
+  git clone https://github.com/ray12514/stack-content.git "$CONTENT"
 fi
-
-: "${WORKDIR:?WORKDIR must be set by the site environment}"
-: "${USER:?USER must be set}"
-case "$WORKDIR" in
-  /*) ;;
-  *) echo "WORKDIR must be absolute: $WORKDIR" >&2; return 2 2>/dev/null || exit 2 ;;
-esac
-
-export SPACK_USER_STATE_ROOT="$WORKDIR/$USER/cse-spack/$SYSTEM_NAME/$SPACK_VERSION"
-export SPACK_USER_CACHE_PATH="$SPACK_USER_STATE_ROOT/cache"
-export SPACK_GNUPGHOME="$SPACK_USER_STATE_ROOT/gpg"
-
-for forbidden_root in \
-  "$SPACK_ROOT" \
-  "$BUILD_RELEASE_ROOT/spack/opt" \
-  "$PUBLISH_RELEASE_ROOT/spack/opt"; do
-  case "$SPACK_USER_STATE_ROOT" in
-    "$forbidden_root"|"$forbidden_root"/*)
-      echo "per-user Spack state is inside a forbidden root: $forbidden_root" >&2
-      return 2 2>/dev/null || exit 2
-      ;;
-  esac
-done
-
-verify_shared_spack_root_read_only() {
-  local path setgid_path
-  while IFS= read -r -d '' path; do
-    if [ -w "$path" ]; then
-      echo "shared Spack tool root is writable: $path" >&2
-      return 1
-    fi
-  done < <(find "$SPACK_ROOT" -xdev -print0)
-  setgid_path="$(find "$SPACK_ROOT" -xdev -type d \
-    -perm -2000 -print -quit)"
-  if [ -n "$setgid_path" ]; then
-    echo "shared Spack tool root contains an unexpected setgid directory: $setgid_path" >&2
-    return 1
-  fi
-}
-
-verify_spack_tool_root() {
-  test -d "$SPACK_ROOT/.git" || return 1
-  test "$(git -C "$SPACK_ROOT" remote get-url origin)" = \
-    "$SPACK_SOURCE" || return 1
-  test "$(git -C "$SPACK_ROOT" rev-parse HEAD)" = "$SPACK_COMMIT" || return 1
-  test "$(git -C "$SPACK_ROOT" rev-parse "${SPACK_TAG}^{commit}")" = \
-    "$SPACK_COMMIT" || return 1
-  test -z "$(GIT_OPTIONAL_LOCKS=0 git -C "$SPACK_ROOT" \
-    status --porcelain --untracked-files=all)" || return 1
-  test -z "$(git -C "$SPACK_ROOT" \
-    ls-files --others --ignored --exclude-standard)" || return 1
-  if [ "$SPACK_RUNTIME_MODE" = shared ]; then
-    verify_shared_spack_root_read_only
-  fi
-}
-
-verify_workspace_scopes() {
-  local workspace="$1"
-  local evidence_root="$2"
-  local environment_dir label evidence scope_output scope_path
-  local generated_scope_count environment_count=0
-
-  mkdir -p "$evidence_root"
-  scope_output="$(COLUMNS=512 spack config scopes -vp)" || return 1
-  printf '%s\n' "$scope_output" | tee "$evidence_root/global.txt"
-  if grep -Eq \
-    '^(user|system)[[:space:]]+[^[:space:]]+[[:space:]]+active([[:space:]]|$)' \
-    "$evidence_root/global.txt"; then
-    echo "unexpected active user/system Spack configuration scope" >&2
-    return 1
-  fi
-
-  for environment_dir in "$workspace"/environments/*/*; do
-    test -f "$environment_dir/spack.yaml" || continue
-    environment_count=$((environment_count + 1))
-    label="${environment_dir#"$workspace/environments/"}"
-    label="${label//\//-}"
-    evidence="$evidence_root/$label.txt"
-
-    scope_output="$(COLUMNS=512 spack -e "$environment_dir" \
-      config scopes -vp)" || return 1
-    printf '%s\n' "$scope_output" | tee "$evidence"
-
-    if grep -Eq \
-      '^(user|system|site)[[:space:]]+[^[:space:]]+[[:space:]]+active([[:space:]]|$)' \
-      "$evidence"; then
-      echo "unexpected active ambient scope in $environment_dir" >&2
-      return 1
-    fi
-
-    generated_scope_count="$(awk -v root="$workspace/" \
-      '$2 ~ /include/ && $3 == "active" && index($4, root) == 1 {count++} \
-       END {print count + 0}' "$evidence")"
-    test "$generated_scope_count" -gt 0 || {
-      echo "no active workspace include scope in $environment_dir" >&2
-      return 1
-    }
-
-    while IFS= read -r scope_path; do
-      case "$scope_path" in
-        "$workspace"/*|"$SPACK_ROOT"/etc/spack/defaults/*) ;;
-        *)
-          echo "unexpected active include path in $environment_dir: $scope_path" >&2
-          return 1
-          ;;
-      esac
-    done < <(awk '$2 ~ /include/ && $3 == "active" {print $4}' "$evidence")
-  done
-
-  test "$environment_count" -gt 0 || {
-    echo "no Spack environments found under $workspace" >&2
-    return 1
-  }
-}
-
-install -d -m 0700 "$SPACK_USER_CACHE_PATH" "$SPACK_GNUPGHOME"
-mkdir -p "$WORK_ROOT" "$PROBE_DIR"
+git -C "$CONTENT" status --short --branch
 ```
+
+Stop if that checkout contains unreviewed work. Then select the current branch
+and create the saved session. The default release names are
+`<system>-catalog-001` and `<system>-trial-001`:
+
+```bash
+git -C "$CONTENT" fetch origin
+git -C "$CONTENT" switch "$STACK_BRANCH"
+git -C "$CONTENT" pull --ff-only
+
+"$CSE_BOOTSTRAP_PYTHON" \
+  "$CONTENT/pilots/cse-pilot/scripts/create-operator-session.py" \
+  --system "<system>" \
+  --trial-root "<approved-shared-cse-path>/initial-conversion-trials" \
+  --tools-root "<installer-selected-shared-cse-tools-root>" \
+  --bootstrap-python "$CSE_BOOTSTRAP_PYTHON" \
+  --spack-mode "<shared-or-local>"
+
+source "$WORK_ROOT/operator-sessions/<system>/<system>-trial-001/activate.sh"
+```
+
+Use `--catalog-release` and `--trial-release` when the release names are not
+the defaults. Do not overwrite a saved session after its catalog, workspace,
+or lockfiles become durable. A changed profile capability, such as the newly
+recorded Slurm MPI-launch facts, gets a new catalog release and trial release,
+and therefore a new operator session.
+
+### Every later login
+
+Open or reattach the operator's tmux session, then run one command:
+
+```bash
+source "$HOME/STACK_TESTING/operator-sessions/<system>/<trial-release>/activate.sh"
+```
+
+The command prints the selected catalog/workspace and whether the current
+Cluster Inspector and Stack Composer artifacts already exist. Existing tools
+are reused. Pull and rebuild them only when their reviewed source or build
+dependencies changed. Use `cse_session_status` to print the summary again and
+`cse_session_use_spack` when an operator-side step explicitly needs the pinned
+Spack command. The generated workspace's `cse-build` command activates Spack
+for downstream builder actions itself.
 
 The state-root example is both user- and system-specific. A site may choose a
 different approved work or scratch root, but the result must be absolute,
@@ -674,6 +583,9 @@ for repo in cluster-inspector stack-composer stack-content stack-planning; do
   git -C "$WORK_ROOT/$repo" switch "$STACK_BRANCH"
   git -C "$WORK_ROOT/$repo" pull --ff-only
 done
+
+# Reload the saved values through the just-synchronized session implementation.
+source "$CSE_OPERATOR_SESSION_FILE"
 ```
 
 Create the system note from the template when needed:
@@ -687,12 +599,19 @@ fi
 
 ## 3. Build and verify the tools
 
+Run the applicable subsection on the first setup and whenever Step 2 changes
+that tool's reviewed commit. It is not a daily-login step.
+`cse_session_status` compares each artifact's recorded build commit with the
+current checkout and reports which tool, if any, requires a rebuild.
+
 Build Cluster Inspector with Go 1.22 or newer:
 
 ```bash
 cd "$INSPECTOR"
 make build
 ./cluster-inspector --help >/dev/null
+git -C "$INSPECTOR" rev-parse HEAD \
+  > "$CSE_TOOL_STATE_ROOT/cluster-inspector.commit"
 ```
 
 Build Stack Composer in its repository-local Python environment:
@@ -708,6 +627,10 @@ test -x "$CSE_PYTHON"
 "$CSE_PYTHON" -m pip install -e '.[dev]'
 PYTHON="$CSE_PYTHON" bash scripts/build-pyz.sh
 "$CSE_PYTHON" "$STACK_COMPOSER" --help >/dev/null
+
+git -C "$COMPOSER" rev-parse HEAD \
+  > "$CSE_TOOL_STATE_ROOT/stack-composer.commit"
+cse_session_status
 ```
 
 `CSE_BOOTSTRAP_PYTHON` is the reviewed site- or module-provided interpreter
@@ -792,8 +715,8 @@ on the allocated node, changing the name and role to match reality:
   --output <node-type-name>.frag.yaml
 ```
 
-Copy every node fragment back to `$PROBE_DIR`. Wheat uses PBS rather than
-Slurm, but `--runner this` is unchanged after entering the allocation.
+Copy every node fragment back to `$PROBE_DIR`. After entering an allocation,
+`--runner this` is unchanged whether the site scheduler is Slurm or PBS.
 
 Merge the system fragment and every unique node fragment. Adjust this example
 to the node types that exist:
@@ -817,6 +740,13 @@ systems, prove the
 compiler pairing for the selected MPI. Preserve incorrect discovery evidence,
 fix the inspector or hints, and regenerate. Do not hand-enter a guess as a
 durable fact.
+
+On a Slurm system, review the verified `slurm` entry under
+`system_externals`. When `srun --mpi=list` succeeds during the system probe,
+the entry must contain `capabilities.mpi_launch.plugins` and a separate
+`development_interfaces` list. Direct `srun` support requires the selected
+plugin to appear in both lists. Do not run an extra manual scheduler command or
+infer build support from the presence of `srun` alone.
 
 For Cray MPICH, retain the complete observed product-tree flavor map. A path
 such as `ofi/gnu/12.3` records the GNU family and its minimum compiler baseline;
@@ -924,18 +854,31 @@ For the intended tuple, inspect every `packages.yaml` and `toolchains.yaml`.
 Confirm external specs, prefixes, modules, compiler stamps, and MPI
 requirements against the reviewed profile.
 
-Gate: the catalog contains the exact compatible compiler, MPI, common, and
-platform scopes needed by the trials. Fix the profile or catalog logic when a
-scope is missing; do not type a nonexistent path into a values file.
+The catalog manifest preserves `profile_facts.system_externals`, including
+Slurm MPI-launch capabilities. On a Slurm system selected for a source-built
+Open MPI lane, verify that the manifest contains the reviewed launch-capability
+record. When `pmi2` appears in both the plugin and development-interface lists,
+the helper enables direct launch. When it does not, the helper retains an
+mpirun-only root instead of guessing.
 
-On Cray systems, the common scope must contain the inspected platform
-`libfabric` external. Each Cray MPICH scope must contain the selected
-`cray-mpich` external and the inspected `cray-pmi` external. These records
-preserve and validate the active CPE runtime inventory. The selected Cray MPICH
-external itself remains a platform leaf: do not add compiler, target,
-`libfabric`, or `cray-pmi` dependency constraints to its external spec. Stop if
-either runtime record is absent; do not allow Spack to substitute a
-source-built runtime for the active CPE.
+Gate: the catalog contains the exact compatible compiler, MPI, common, and
+platform scopes needed by the trials. A common Spack external must come from a
+development-verified `profile.system_externals` entry. A
+`profile.fabric.userspace` observation remains visible in the manifest and
+plan, but it is not sufficient to populate `packages.yaml`. Fix the profile or
+catalog logic when a scope is missing; do not type a nonexistent path into a
+values file.
+
+On Cray systems, the static plan must retain the inspected platform libfabric
+runtime observation. It belongs in the common Spack scope only when Cluster
+Inspector also verified its headers and libraries as a `system_externals`
+entry. Each Cray MPICH scope must contain the selected `cray-mpich` external
+and the inspected `cray-pmi` external. These records preserve and validate the
+active CPE runtime inventory. The selected Cray MPICH external itself remains
+a platform leaf: do not add compiler, target, `libfabric`, or `cray-pmi`
+dependency constraints to its external spec. Stop if the required Cray runtime
+record is absent; do not allow Spack to substitute a source-built runtime for
+the active CPE.
 `reports/static-plan.yaml` must show an empty `missing_mpi_dependencies` list.
 
 ### Static-catalog handoff without `init-workspace`
@@ -983,18 +926,24 @@ MPI provider is system-specific: normally external Cray MPICH on Cray systems
 and build-sourced OpenMPI on non-Cray systems. It does not mean that one binary
 installation or one MPI provider is shared across all systems.
 
+Record those selections once in the operator session's prepared file:
+
 ```bash
-export CSE_SHARED_COMPILER_REF="gcc@12.5.0"
-export CSE_SHARED_COMPILER_PUBLIC_NAME="<module-front-door-name>"
-export CSE_SHARED_MPI_REF="<provider>@<version>"
-export CSE_SHARED_MPI_SOURCE="<external|build>"
-export CSE_PLATFORM_COMPILER_REF="<observed-provider>@<version>"
-export CSE_PLATFORM_COMPILER_PUBLIC_NAME="<module-front-door-name>"
-export CSE_PLATFORM_MPI_REF="<provider>@<version>"
-export CSE_PLATFORM_MPI_SOURCE="<external|build>"
-export CSE_BUILD_NODE_TYPE="<reviewed-profile-node-type>"
-export BUILD_JOBS="<approved-job-count>"
+vi "$CSE_PROVIDER_SELECTIONS"
+source "$CSE_OPERATOR_SESSION_FILE"
 ```
+
+Uncomment and fill the required exports for the shared compiler/MPI, platform
+compiler/MPI, build node type, and job count. The second command reloads both
+the fixed session values and the reviewed provider selections. Every later
+login gets the same selections by sourcing only `activate.sh`; do not retype
+them into the shell.
+
+`provider-selections.sh` is operator-local setup state, not the shared handoff
+or an additional renderer input. The helper resolves it into the tracked build
+values and the initialized workspace records the resulting provider paths,
+specs, modules, and roots. Create a new operator session rather than carrying
+this file into a different catalog or trial release.
 
 Do not normally set `CSE_CPU_TARGET`. The helper selects the highest common
 portable target, capped at `x86_64_v3`. Set it only when the team deliberately
@@ -1070,13 +1019,19 @@ dependency inside each GCC environment, not a separate preparatory environment
 or user-facing surface. Every GCC producer root is the same explicit spec, so
 all four GCC lockfiles must record the same hash.
 
-For build-sourced OpenMPI, the helper converts verified common-scope facts into
-one explicit spec. It selects UCX only when the catalog contains
-`ucx+thread_multiple`; otherwise it selects verified libfabric/OFI. It selects
-exactly one verified scheduler (`slurm` or `pbs`), enables Lustre/ROMIO only
-when the Lustre development external is present, and never uses
-`fabrics=auto`. Resolve an ambiguity with the documented `CSE_OPENMPI_*`
-exports; do not depend on ambient configure detection.
+For build-sourced Open MPI, the helper combines verified common-scope facts
+with `stack-content/pilots/cse-pilot/openmpi-policy.yaml`. The current trial
+policy is Open MPI 4.1.8 with verified `ucx+thread_multiple`, exactly one
+verified scheduler (`slurm` or `pbs`), and retained `mpirun` support. On Slurm,
+the helper emits `+legacylaunchers` and enables direct `srun --mpi=pmi2` with
+`+pmi` only when the static manifest records both an advertised `pmi2` launch
+plugin and a verified PMI2 development interface. Otherwise it emits `~pmi`
+and keeps the mpirun path. It disables CUDA and Lustre and keeps ROMIO without
+a Lustre filesystem plugin. The generated root includes exact
+`^ucx@...+thread_multiple` and scheduler dependency constraints. A detected
+Lustre filesystem or external does not change that spec. Do not depend on
+ambient configure detection or run a separate scheduler probe while creating
+values.
 
 Use `source: external` for the platform compiler and for platform-provided MPI.
 Use `source: build` only for the selected MPI implementation that CSE will
@@ -1145,6 +1100,13 @@ and version, for example `cray-mpich@9.1.0`; it must not append the portable
 source-build target. The platform external keeps the architecture Spack assigns
 to its inspected installation. A build-sourced provider such as OpenMPI does
 include the portable target.
+
+For a non-Cray Open MPI environment, also inspect the generated MPI root. It
+must contain `fabrics=ucx`, the scheduler variant, `~cuda`, `~lustre`, `+romio`,
+`romio-filesystem=none`, and exact UCX and scheduler dependency constraints. A
+Slurm environment must also contain `+legacylaunchers` and must use `+pmi` only
+for a verified PMI2 path; otherwise it contains `~pmi`. A PBS environment uses
+`~pmi` under the current trial policy.
 
 The one workspace contains eight independent Spack environments:
 
@@ -1415,6 +1377,21 @@ Apply the platform checklist after installation. A lane is not approved merely
 because compilation finished. Exercise its compiler/wrappers, representative
 libraries, module exposure, and applicable single-node and multi-node MPI
 behavior on the target system.
+
+For each build-sourced Open MPI surface on Slurm, compile one small MPI smoke
+program with that surface's wrapper and run the same binary both ways from an
+allocation:
+
+```bash
+mpirun -n 2 <mpi-smoke-program>
+srun --mpi=pmi2 -n 2 <mpi-smoke-program>
+```
+
+The first command validates the retained Open MPI launcher. The second
+validates direct Slurm launch through the PMI2 interface that Cluster Inspector
+proved and the generated root selected. Record both results. On a PBS system,
+exercise the reviewed `mpirun`/TM path instead; do not substitute an `srun`
+test.
 
 Record each lane as `built`, `runtime-passed`, or `held` in the system notes.
 Only `runtime-passed` lanes may enter the build cache.

@@ -176,6 +176,26 @@ The generated profile must be deterministic for the same inputs and observed
 facts. YAML key ordering should be stable and optimized for review, not for the
 implementation's internal data structures.
 
+Observed package capabilities stay attached to the matching
+`system_externals` record. For example:
+
+```yaml
+system_externals:
+  - name: slurm
+    version: "23.02.7"
+    prefix: /usr
+    provider_family: system
+    capabilities:
+      mpi_launch:
+        command: srun
+        plugins: [pmi2, pmix, pmix_v3]
+        development_interfaces: [pmi2, pmix]
+```
+
+This says what the installed Slurm exposes. It does not decide that a rendered
+MPI must use Slurm, PMI2, PMIx, or direct `srun`; those remain stack/default
+policy decisions.
+
 ## Evidence And Confidence
 
 Each probed fact should be traceable to evidence. The durable `profile.yaml`
@@ -218,7 +238,7 @@ System-wide probes run once per system, usually on the login node.
 | Site compilers | AOCC, GCC, Intel, NVHPC, ROCmCC, or other compiler externals. |
 | MPI inventory | Cray MPICH, site OpenMPI, MPICH, MVAPICH, Intel MPI, provider prefixes/modules. |
 | GPU toolkit modules | ROCm/CUDA toolkit modules and component prefixes. |
-| System externals | Focused package externals such as OpenSSL and curl with version, prefix, provider family, and detection source. |
+| System externals | Focused package externals such as OpenSSL, curl, UCX, libfabric, and schedulers with version, prefix, provider family, detection source, and package-specific runtime capabilities needed by later policy. A Slurm external may include the MPI launch plugins advertised by `srun` and the PMI/PMIx development interfaces actually present. |
 | Shared filesystems | install tree, source cache, buildcache candidates. |
 
 ### Per-Node-Type Facts

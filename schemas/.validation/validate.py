@@ -134,6 +134,27 @@ def profile_negatives(base: dict) -> list[tuple[str, dict, str]]:
             "system_externals/0/detection",
         ),
         (
+            "scheduler MPI development interface uses a closed vocabulary",
+            with_mutation(
+                base,
+                ["system_externals", 0],
+                {
+                    "name": "slurm",
+                    "version": "23.02.7",
+                    "prefix": "/usr",
+                    "provider_family": "system",
+                    "capabilities": {
+                        "mpi_launch": {
+                            "command": "srun",
+                            "plugins": ["pmi2"],
+                            "development_interfaces": ["magic-pmi"],
+                        }
+                    },
+                },
+            ),
+            "system_externals/0/capabilities/mpi_launch/development_interfaces/0",
+        ),
+        (
             "mpi_provider with neither prefix nor flavors",
             with_mutation(
                 base,

@@ -41,6 +41,23 @@ system_externals:
   detection:
     confidence: probed
     source: rpm
+- name: slurm
+  version: 23.02.7
+  prefix: /usr
+  provider_family: system
+  capabilities:
+    mpi_launch:
+      command: srun
+      plugins:
+      - pmi2
+      - pmix
+      - pmix_v3
+      development_interfaces:
+      - pmi2
+      - pmix
+  detection:
+    confidence: probed
+    source: scontrol version + development surface
 filesystem:
   install_tree_candidates:
   - path: /shared/stack/spack/opt

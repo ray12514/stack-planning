@@ -336,3 +336,65 @@ For the first Cray and Penguin-system tests:
    `system_externals`.
 4. Keep Stack Composer's role policy-driven: it should render or reject based
    on explicit profile facts and stack policy.
+
+## 2026-08-16 pre-change assessment: build-sourced Open MPI
+
+This assessment covers the initial conversion-trial Open MPI 4.1.8 build on
+the non-Cray systems. It is a direct pre-v1 correction; there is no legacy
+selection path.
+
+1. **Requested change.** Capture scheduler MPI-launch capabilities during the
+   normal Cluster Inspector system probe, preserve them through the static
+   catalog, and make CSE Open MPI policy select only a capability the profile
+   proves. The Slurm trial target supports both `mpirun` and direct `srun` when
+   the site exposes a compatible PMI/PMIx launch plugin and development
+   interface.
+2. **Design source.** The facts-versus-intent rule in
+   `stack_generation_structure_v1.md` places observed scheduler capabilities in
+   `profile.yaml` and build selection in defaults or CSE policy. This note,
+   `cluster_inspector_stack_profile_design_v1.md`, the extraction map, and the
+   profile schema are updated before probe behavior changes.
+3. **Ownership.** Cluster Inspector owns observed UCX, libfabric, scheduler,
+   launch-plugin, and PMI/PMIx development facts. Stack Composer preserves
+   those facts and emits only policy-selected externals. The CSE trial policy
+   owns the Open MPI fabric, scheduler, launch interfaces, CUDA, ROMIO, and
+   Lustre choices.
+4. **Scope classification.** This is required pre-v1 contract hardening. It
+   removes an operator-only `srun --mpi=list` check and makes the same fact path
+   reusable for later source-built MPI implementations on any system.
+5. **Seam.** The existing focused-system-external probe remains the public
+   seam. The Slurm adapter deepens its result with a structured `mpi_launch`
+   capability; callers do not run scheduler commands themselves. Stack
+   Composer and the CSE helper consume the reviewed profile/static manifest and
+   never probe the target host.
+6. **Risks.** `srun --mpi=list` output varies by Slurm plugin set, PMI headers
+   may live below either `include/` or `include/slurm/`, and a runtime plugin
+   does not prove that development headers and libraries are present. The
+   profile therefore records advertised plugins separately from verified
+   development interfaces and retains exact plugin identifiers. Missing or
+   ambiguous capability fails a policy that requires direct launch rather than
+   being guessed.
+7. **Decision.** Document and implement now. For Slurm, preserve `mpirun` while
+   enabling direct `srun` only through a verified interface. For PBS, retain
+   the separately selected TM/launcher policy. Do not infer scheduler launch
+   support from the mere presence of `srun`, Slurm, UCX, or Lustre.
+
+Additional relationship rules remain in force:
+
+- `fabric.userspace` records a runtime observation. A development-verified
+  `system_externals` entry records a build-usable external.
+- UCX requires headers, libraries, and verified thread-multiple support.
+- Libfabric and scheduler externals require their development headers and
+  libraries.
+- Selecting Slurm direct launch requires both an advertised `srun` MPI plugin
+  and its matching development interface. Open MPI 4 launchers remain
+  available so `mpirun` and `srun` can both be validated.
+- A detected Lustre filesystem or Lustre development package does not select
+  Open MPI Lustre support. CUDA and Lustre remain disabled unless reviewed
+  policy enables them.
+- Common Spack externals come from policy-allowed `system_externals`, never by
+  converting `fabric.userspace` observations.
+
+The resulting seam is small: Cluster Inspector reports facts; Stack Composer
+emits verified externals; CSE trial policy emits one explicit Open MPI spec.
+No module may probe the target host after the profile has been produced.
