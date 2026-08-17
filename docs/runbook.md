@@ -745,11 +745,13 @@ fix the inspector or hints, and regenerate. Do not hand-enter a guess as a
 durable fact.
 
 The `show` MPI section is the compact review surface. Every MPI row must name
-its exact compiler reference, prefix, and module evidence. Stop when it prints
-`compiler pairing unresolved`. If several module observations resolve to the
-same MPI name, version, and physical prefix, the profile should contain only
-the canonical paired observation, not a synthetic list of alternative module
-aliases.
+its exact compiler reference, prefix, and module evidence. A verified MPI
+identity that lacks an exact compiler relationship remains failed-candidate
+evidence in the system fragment and is not admitted to `mpi_providers`. Review
+that evidence without assigning a compiler by guess. If several module
+observations resolve to the same MPI name, version, and physical prefix, the
+profile should contain only the canonical paired observation, not a synthetic
+list of alternative module aliases.
 
 An application module that exposes its private MPI dependency is not an MPI
 provider. Reject entries where the module names an application but the emitted
@@ -880,12 +882,13 @@ requirements against the reviewed profile.
 
 Every MPI installation admitted to the catalog must have one exact compiler
 pairing supported by wrapper, module, or platform evidence. Cluster Inspector
-may retain an unresolved observation in `profile.yaml` so it can be reviewed,
-but `cluster-inspector verify` and `render-static` reject that profile. No
+retains an unresolved candidate as failed-pairing evidence but does not emit it
+in `profile.mpi_providers`. `cluster-inspector verify` and `render-static`
+remain defensive against a hand-written or malformed unpaired provider. No
 `unpaired` MPI scope is generated. Correct the discovery evidence or exclude a
-reviewed private/test/application module in `inspector-hints.yaml`, then rerun
-the system probe. Never assign a compiler by hand merely to make the catalog
-render.
+reviewed private/test/application module in `inspector-hints.yaml` when it is
+useful to reduce probe noise. Never assign a compiler by hand merely to make
+the catalog render.
 
 The catalog manifest preserves `profile_facts.system_externals`, including
 Slurm MPI-launch capabilities. On a Slurm system selected for a source-built
