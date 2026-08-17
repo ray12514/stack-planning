@@ -161,7 +161,7 @@ Do not advance past a failed gate.
 - [ ] The restricted values file names only real catalog scopes and approved
   restricted paths.
 - [ ] The restricted values file selects one portable CPU target supported by
-  every profiled CPU-only build/runtime node type.
+  every profiled build/runtime node type, including GPU-bearing nodes.
 - [ ] The restricted workspace generates eight environments and eight native
   `modules.yaml` files.
 - [ ] All eight restricted environments concretize and their lockfiles pass
@@ -1009,13 +1009,15 @@ the generated file.
 
 The helper independently resolves one CPU target for all source-built roots in
 the eight environments.
-It intersects the detected, preferred, and alternate targets of every
-CPU-only build/runtime node type, then selects `x86_64_v3`, `x86_64_v2`, or
-`x86_64` in that order. This target is architecture policy; it is not derived
-from `CSE_BUILD_NODE_TYPE`, and changing from a compute node to a login node
-does not change it. The helper rejects a requested target that any relevant
-node type cannot run. It also records the generic `x86_64` family target for
-architecture-specific prebuilt distributions such as Miniforge.
+It intersects the detected, preferred, and alternate CPU targets of every
+build/runtime node type, then selects `x86_64_v3`, `x86_64_v2`, or `x86_64` in
+that order. A node remains part of this CPU compatibility check when it also
+has a GPU; the trial does not render GPU package environments. This target is
+architecture policy; it is not derived from `CSE_BUILD_NODE_TYPE`, and
+changing from a compute node to a login node does not change it. The helper
+rejects a requested target that any relevant node type cannot run. It also
+records the generic `x86_64` family target for architecture-specific prebuilt
+distributions such as Miniforge.
 
 `CSE_BUILD_NODE_TYPE` is the node class on which the builds will run, such as
 `cpu_compute`. It must be an exact key under the catalog manifest's
