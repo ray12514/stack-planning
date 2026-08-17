@@ -340,15 +340,15 @@ are stable.
 
 | Profile field | Probe location | Primary extraction | Normalize to | Confidence | Fallback |
 |---|---|---|---|---|---|
-| `mpi_providers[*].name` | module verification | MPI module name, `mpicc -show`, `mpirun --version`, `mpichversion`, `ompi_info`. | `openmpi`, `mpich`, `cray-mpich`, `mvapich`, `intel-mpi`, etc. | `probed` | hint-only requires wrapper verification |
+| `mpi_providers[*].name` | module verification | A module that structurally names MPI as its product, then `mpicc -show`, `mpirun --version`, `mpichversion`, or `ompi_info`. Application build suffixes that merely mention MPI are not provider identities. | `openmpi`, `mpich`, `cray-mpich`, `mvapich`, `intel-mpi`, etc. | `probed` | hint-only requires wrapper verification |
 | `mpi_providers[*].provider_family` | probe-system | Source classification from module/prefix/evidence. | `platform`, `site`, `system` | `inferred` | `site` |
 | `mpi_providers[*].platform_family` | probe-system | Optional platform detail when provider family is `platform`. | `cray-pe`, future platform id | `inferred` | omit |
-| `mpi_providers[*].compatibility.compilers` | module verification | `mpicc -show`, `mpicc -compile-info`, `mpichversion`, `ompi_info`, module prereqs, env vars, and link/runtime evidence. | compiler provider names | `probed` / `inferred` | platform-specific fallback |
+| `mpi_providers[*].compatibility.compilers` | module verification | `mpicc -show`, `mpicc -compile-info`, changed compiler drivers, module compiler suffixes, module prereqs, env vars, and platform flavor evidence. A module suite release may map to a compiler whose verified product version differs. | exact compiler provider refs such as `intel@2021.13.1` | `probed` / `inferred` | retain the observation for review, but semantic verification fails when no exact pairing can be established |
 | `mpi_providers[*].flavors.<compiler>.prefix` | module verification | Prefix for per-compiler MPI flavor when the MPI exposes multiple ABI/layout flavors. | absolute prefix | `probed` | omit unavailable flavor |
 | `mpi_providers[*].flavors.<compiler>.modules` | module verification | Module list needed to expose that MPI/compiler relationship. | list of module names | `probed` | hint required |
-| `mpi[*].version` | module verification | `mpirun --version`, `ompi_info`, `mpichversion`, module version. | exact version string | `probed` | module version string |
+| `mpi[*].version` | module verification | Provider-specific module version, module-provided `mpirun --version` / `ompi_info` / `mpichversion`, version env, and provider-specific prefix. Non-empty MPI-product sources must agree; a policy-declared bundle/suite release is not treated as the MPI version, and conflicting identity is rejected. | exact version string | `probed` | coherent module or prefix version |
 | `mpi[*].prefix` | module verification | Prefix from `command -v mpicc`, env vars such as `MPI_HOME`, or module show output. | absolute path | `probed` | hint required |
-| `mpi[*].compiler` | module verification | Decode wrapper output and loaded compiler module; cross-check against compiler inventory. | compiler spec such as `aocc@4.2.0` | `inferred` from wrapper evidence | omit if unknown |
+| `mpi[*].compiler` | module verification | Decode wrapper output and changed compiler drivers; otherwise map a compiler suffix to one observed provider using its product version, module-suite release, and prefix evidence. | compiler spec such as `aocc@4.2.0` | `inferred` from verified relationship evidence | omit if unknown or ambiguous; the retained observation then fails semantic verification and cannot be rendered as a scope |
 | `mpi[*].modules` | module verification | Modules loaded to expose MPI. | list | `probed` | empty for prefix-only MPI |
 
 ### GPU Toolkit Modules
@@ -374,6 +374,10 @@ Section 5 acceptance:
   entries with `provider_family: platform` and optional `platform_family`.
 - Site OpenMPI produces `mpi_providers[*]` with prefix, version, compiler
   compatibility, and modules.
+- Two module observations that resolve to the same provider name, version, and
+  physical prefix are one MPI installation. Prefer the observation with a
+  verified compiler pairing, then the shortest unambiguous module name; do not
+  combine alternative module aliases into one module-load chain.
 - ROCm emits component externals; `rocm/<version>` alone is never considered
   sufficient for a renderable AMD GPU profile.
 - Focused system package externals such as OpenSSL and curl emit
@@ -427,6 +431,7 @@ by the tool or written by hand.
 | Version strings | OS/glibc, compiler, MPI, GPU toolkit | Warning for unknown optional versions; error when render requires exact version. |
 | Path shape | prefixes, filesystem candidates, build-stage paths | Warning if path is relative where absolute is required. |
 | MPI provider flavors | `mpi_providers[*].flavors` | Error if a flavor entry is incomplete or internally inconsistent. |
+| MPI compiler pairing | `mpi_providers[*].compiler`, `compatibility.compilers`, or `flavors` | Error when an observed MPI installation has no exact compiler pairing; it remains review evidence but is not build-ready. |
 | ROCm components | `gpu_toolkit_modules.rocm.spack_components` | Error if AMD GPU toolkit exists without coherent components. |
 | Node role consistency | `node_types` | Error if no build host exists or no runtime node exists. |
 

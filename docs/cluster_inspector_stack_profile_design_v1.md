@@ -348,6 +348,8 @@ compilers:
 mpi:
   include:
     - cray-mpich/8.1.29
+  exclude_patterns:
+    - "private-test-mpi/*"
 
 gpu_toolkits:
   include:
@@ -380,8 +382,10 @@ choices for the stack (`gcc-data/9.3`, `gcc-toolset/12`, intermediate
    ambiguous ones.
 2. **Review.** Read the draft profile and the diagnostics. Decisions to
    make: which compiler modules are real ScienceStack compilers; which MPI
-   versions the stack supports; which GPU toolkit module is the one the
-   stack should use; which fabric userspace modules matter.
+   versions the stack supports; whether any structurally valid provider lives
+   in a site-only test/private namespace; which GPU toolkit module is the one
+   the stack should use; which fabric userspace modules matter. An application
+   module whose build suffix mentions MPI must not appear as an MPI provider.
 3. **Author hints.** Write `systems/<name>/inspector-hints.yaml` with
    `include:` lists (canonical positive sets) and `exclude_patterns:`
    (categorical drops like `gcc-data/*`). Add `extras:` entries for

@@ -730,6 +730,9 @@ to the node types that exist:
   --output "$PROBE_DIR/profile.yaml"
 
 "$INSPECTOR/cluster-inspector" verify "$PROBE_DIR/profile.yaml"
+
+"$CSE_PYTHON" "$STACK_COMPOSER" show \
+  --profile "$PROBE_DIR/profile.yaml"
 ```
 
 Review compiler, MPI, accelerator, fabric, runtime, prefix, module,
@@ -740,6 +743,27 @@ systems, prove the
 compiler pairing for the selected MPI. Preserve incorrect discovery evidence,
 fix the inspector or hints, and regenerate. Do not hand-enter a guess as a
 durable fact.
+
+The `show` MPI section is the compact review surface. Every MPI row must name
+its exact compiler reference, prefix, and module evidence. Stop when it prints
+`compiler pairing unresolved`. If several module observations resolve to the
+same MPI name, version, and physical prefix, the profile should contain only
+the canonical paired observation, not a synthetic list of alternative module
+aliases.
+
+An application module that exposes its private MPI dependency is not an MPI
+provider. Reject entries where the module names an application but the emitted
+MPI version came from that application's version while the verified MPI prefix
+or command reports something else. A structurally valid MPI module in an
+unsupported site test/private namespace is a different case: add that reviewed
+namespace to `mpi.exclude_patterns` in `inspector-hints.yaml`, then rerun the
+system probe. Do not encode site namespace names in generic discovery logic.
+
+An MPI module may identify its build compiler with a suite release rather than
+the compiler product version. For example, an `intel-2024.2.1` suffix may map
+to a verified classic Intel compiler product such as `intel@2021.13.1`. Review
+that the MPI `compiler` and `compatibility.compilers` fields name the observed
+compiler product reference, not the suite-release label.
 
 On a Slurm system, review the verified `slurm` entry under
 `system_externals`. When `srun --mpi=list` succeeds during the system probe,
@@ -854,14 +878,14 @@ For the intended tuple, inspect every `packages.yaml` and `toolchains.yaml`.
 Confirm external specs, prefixes, modules, compiler stamps, and MPI
 requirements against the reviewed profile.
 
-Every verified MPI installation must appear in the catalog even when its build
-compiler is unknown. An unknown pairing is retained under
-`scopes/mpi/<provider>/<version>/unpaired/packages.yaml`; that directory has no
-`toolchains.yaml` and is not a recommended build scope. A compiler-axis MPI
-scope and `toolchains.yaml` require one exact pairing supported by wrapper,
-module, or platform evidence. The selected trial MPI must be paired. If it is
-only present under `unpaired`, correct the Inspector evidence or reviewed hints
-and regenerate rather than assigning a compiler by hand.
+Every MPI installation admitted to the catalog must have one exact compiler
+pairing supported by wrapper, module, or platform evidence. Cluster Inspector
+may retain an unresolved observation in `profile.yaml` so it can be reviewed,
+but `cluster-inspector verify` and `render-static` reject that profile. No
+`unpaired` MPI scope is generated. Correct the discovery evidence or exclude a
+reviewed private/test/application module in `inspector-hints.yaml`, then rerun
+the system probe. Never assign a compiler by hand merely to make the catalog
+render.
 
 The catalog manifest preserves `profile_facts.system_externals`, including
 Slurm MPI-launch capabilities. On a Slurm system selected for a source-built
@@ -871,8 +895,8 @@ the helper enables direct launch. When it does not, the helper retains an
 mpirun-only root instead of guessing.
 
 Gate: the catalog contains the exact compatible compiler, paired MPI, common,
-and platform scopes needed by the trials. Additional unpaired MPI inventory may
-remain package-only and unselected. A common Spack external must come from a
+and platform scopes needed by the trials, and contains no unresolved MPI
+inventory. A common Spack external must come from a
 development-verified `profile.system_externals` entry. A
 `profile.fabric.userspace` observation remains visible in the manifest and
 plan, but it is not sufficient to populate `packages.yaml`. Fix the profile or

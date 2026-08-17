@@ -115,7 +115,6 @@ rendered-static/
           common/
           compilers/<compiler>/<version>/
           mpi/<provider>/<version>/<compiler-version>/
-          mpi/<provider>/<version>/unpaired/
           gpu/cuda/<version>/
           gpu/rocm/<version>/
           platform/<provider-family>/
@@ -126,13 +125,12 @@ rendered-static/
 The important property is that each file is a complete valid Spack config YAML,
 not a snippet that requires Stack Composer-specific interpretation.
 
-A verified MPI installation is inventory even when its build compiler cannot be
-proved. In that case the catalog writes
-`mpi/<provider>/<version>/unpaired/packages.yaml` so the external is not lost.
-It does not write `toolchains.yaml` and does not recommend that scope for a
-managed environment. A compiler-named MPI scope and its toolchain are written
-only when wrapper, module, or platform evidence establishes one exact
-compiler/MPI pairing.
+An observed MPI installation whose build compiler cannot be proved remains
+review evidence in `profile.yaml`, but it is not a valid catalog input.
+`cluster-inspector verify` and `render-static` fail with the provider, version,
+prefix, and module evidence. A compiler-named MPI scope and its toolchain are
+written only when wrapper, module, or platform evidence establishes one exact
+compiler/MPI pairing. The catalog has no `unpaired` MPI path.
 
 Example manual environment:
 
