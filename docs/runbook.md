@@ -347,7 +347,8 @@ for environment in "${ENVIRONMENTS[@]}"; do
     "$BUILD_WORKSPACE/environments/$environment/spack.lock" || exit 1
 done
 
-"$CSE_PYTHON" "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
+cd "$BUILD_WORKSPACE"
+./cse-build verify
 ```
 
 Do not reconcretize. Confirm that the replacement node is permitted for builds,
@@ -1336,6 +1337,91 @@ reconcretize merely because the builder or Spack root path changed.
 Normal path: continue directly to Step 9. Use the optional build-node recovery
 procedure only when changing the selected build node.
 
+### Refresh generated build controls without replacing locks
+
+Use this only when an existing workspace has the approved environment YAML and
+lockfiles, but its generated `cse-build` entry point or supporting scripts are
+older than the current CSE pilot content. Do not render over the live workspace.
+
+Render a temporary sibling workspace from the exact catalog and values file
+recorded by the live workspace. Compare the temporary and live `environments/`,
+`configs/`, and `env/setup-build-env.sh`, excluding `spack.lock`. If any of
+those inputs differ, stop: that is an input or render change and must follow the
+normal reconcretization review. When they are identical, replace only these
+generated controls from the temporary workspace:
+
+```text
+cse-build
+env/prepare-module-state.sh
+env/workspace-shell.rc
+scripts/verify-lockfiles.py
+BUILDER-HANDOFF.md
+README.md
+```
+
+Preserve every `spack.yaml`, `spack.lock`, catalog snapshot, configuration
+scope, and workspace manifest. Set `cse-build` to mode `0770` and the other
+listed files to `0660`, then run:
+
+```bash
+cd "$BUILD_WORKSPACE"
+./cse-build verify
+```
+
+This refresh changes only the generated build controls. It does not change the
+concrete DAG and does not require reconcretization.
+
+With the operator session and current tools loaded, the complete guarded refresh
+is:
+
+```bash
+(
+  set -euo pipefail
+  CONTROL_REFRESH_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cse-control-refresh.XXXXXX")"
+  trap 'rm -rf "$CONTROL_REFRESH_ROOT"' EXIT
+  CONTROL_REFRESH_WORKSPACE="$CONTROL_REFRESH_ROOT/workspace"
+  if [ -f "$BUILD_WORKSPACE/inputs/cse-trials-build-values.yaml" ]; then
+    CONTROL_REFRESH_VALUES="$BUILD_WORKSPACE/inputs/cse-trials-build-values.yaml"
+  elif [ -n "${BUILD_VALUES:-}" ] && [ -f "$BUILD_VALUES" ]; then
+    CONTROL_REFRESH_VALUES="$BUILD_VALUES"
+  else
+    echo "recorded build values file is unavailable" >&2
+    exit 1
+  fi
+
+  "$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
+    --blueprint "$CONTENT/pilots/cse-pilot" \
+    --catalog "$BUILD_WORKSPACE/catalog" \
+    --values "$CONTROL_REFRESH_VALUES" \
+    --output "$CONTROL_REFRESH_WORKSPACE"
+
+  diff -ru --exclude=spack.lock \
+    "$BUILD_WORKSPACE/environments" \
+    "$CONTROL_REFRESH_WORKSPACE/environments"
+  diff -ru "$BUILD_WORKSPACE/configs" "$CONTROL_REFRESH_WORKSPACE/configs"
+  cmp \
+    "$BUILD_WORKSPACE/env/setup-build-env.sh" \
+    "$CONTROL_REFRESH_WORKSPACE/env/setup-build-env.sh"
+
+  cp "$CONTROL_REFRESH_WORKSPACE/cse-build" "$BUILD_WORKSPACE/cse-build"
+  chmod 0770 "$BUILD_WORKSPACE/cse-build"
+  for relative_path in \
+    env/prepare-module-state.sh \
+    env/workspace-shell.rc \
+    scripts/verify-lockfiles.py \
+    BUILDER-HANDOFF.md \
+    README.md; do
+    cp \
+      "$CONTROL_REFRESH_WORKSPACE/$relative_path" \
+      "$BUILD_WORKSPACE/$relative_path"
+    chmod 0660 "$BUILD_WORKSPACE/$relative_path"
+  done
+
+  cd "$BUILD_WORKSPACE"
+  ./cse-build verify
+)
+```
+
 ## 9. Concretize and review the restricted environments
 
 There are two supported ownership choices:
@@ -1414,8 +1500,14 @@ for environment in "${ENVIRONMENTS[@]}"; do
   spack -e "$BUILD_WORKSPACE/environments/$environment" find -lv
 done
 
-"$CSE_PYTHON" "$BUILD_WORKSPACE/scripts/verify-lockfiles.py"
+cd "$BUILD_WORKSPACE"
+./cse-build verify
 ```
+
+The wrapper deliberately runs the verifier through the pinned Spack runtime's
+host Python. The generated verifier therefore supports Raider's Python 3.6
+floor; do not replace it with syntax accepted only by the operator bootstrap
+Python.
 
 Confirm that externals remain external, producer groups exist only where
 intended, Serial contains no MPI, MPI preserves the selected toolchain, and
@@ -1481,9 +1573,27 @@ done
 
 Use sequential installation for the first pass. Concurrent Spack processes may
 wait on and reuse the same concrete prefix only when they use the same store and
-database, `config:locks:true`, and the actual shared filesystem honors `flock`.
-Validate that behavior on the selected install root before enabling concurrent
-lane installs; concurrent job counts are cumulative across Spack processes.
+database, `config:locks:true`, and the actual shared filesystem honors the
+POSIX record-lock semantics used by the pinned Spack runtime. Validate that
+behavior on the selected install root before enabling concurrent installs.
+
+After that test passes, one active builder may split the two compiler surfaces
+across two build nodes:
+
+```bash
+# Node 1: shared GCC surface
+cd "$BUILD_WORKSPACE"
+./cse-build install --surface shared
+
+# Node 2: selected platform-compiler surface
+cd "$BUILD_WORKSPACE"
+./cse-build install --surface platform
+```
+
+Each command verifies the complete eight-lock checkpoint before installing and
+then processes its four environments sequentially. Do not start the same
+surface twice. `BUILD_JOBS` is a per-process budget, so concurrent job counts
+are cumulative when two Spack processes share one node.
 
 Apply the platform checklist after installation. A lane is not approved merely
 because compilation finished. Exercise its compiler/wrappers, representative

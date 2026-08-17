@@ -110,6 +110,22 @@ tmux session for the system and release. `shell` provides the same prepared
 shell without tmux, and the default falls back to it when tmux is unavailable.
 The receiving builder supplies no replacement render inputs.
 
+The default installation remains sequential. After all eight lockfiles pass
+verification and the real shared install tree passes a cross-node prefix-lock
+test, one active builder may split the work across two nodes: the shared GCC
+surface with `cse-build install --surface shared`, and the selected platform
+compiler surface with `cse-build install --surface platform`. Each surface is
+still processed sequentially. Both commands use the same locked workspace,
+store, and database; their view and module roots are disjoint. Do not run two
+commands for the same surface. The surface selector does not weaken the global
+eight-lock verification gate.
+
+The generated lock verifier is invoked through `spack python`, so it must remain
+compatible with the oldest host Python supported by the pinned Spack runtime.
+For the current trials that includes Python 3.6 on Raider. Generator or operator
+Python features newer than that floor must not be used in the generated
+verifier.
+
 For the CPU-only trials, the handoff also owns one explicit portable CPU target
 for the entire initialized workspace. The values helper intersects compatible
 CPU targets from all profiled build/runtime node types, including GPU-bearing
