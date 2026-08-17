@@ -28,9 +28,9 @@ fact sheet:
   README.md                                  the include block for this system
   manifest.yaml                              every scope, plus the recommended defaults
   scopes/common/                             site externals (openssl, curl, fabric userspace)
-  scopes/compilers/<name>/<version>/         the compiler as an external, plus its toolchain
+  scopes/compilers/<name>/<version>/         the compiler as an external
   scopes/mpi/<provider>/<version>/<compiler>-<version>/
-                                             the MPI flavor built for that compiler
+                                             the MPI flavor plus compiler/MPI toolchain
   scopes/gpu/<toolkit>/<version>/            the GPU toolkit as an external
   reports/static-plan.yaml                   what was selected and what was left out, and why
 ```

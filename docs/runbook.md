@@ -901,11 +901,13 @@ spack:
     - hdf5@1.10.6+mpi %<compiler-plus-mpi-toolchain>
 ```
 
-Use the toolchain name from the selected scope's `toolchains.yaml`; do not
+Use the toolchain name from the selected MPI scope's `toolchains.yaml`; do not
 retype compiler, MPI, external-prefix, or module policy in the environment.
-For a Serial environment, omit the MPI scope and use the compiler-only
-toolchain. This is the production purpose of `render-static`: its output is
-independent of the CSE trial initializer.
+Compiler scopes contain `packages.yaml` only. For a Serial environment, omit
+the MPI scope and constrain roots directly with the selected compiler, such as
+`%gcc@12.5.0`; there is no compiler-only toolchain. This is the production
+purpose of `render-static`: its output is independent of the CSE trial
+initializer.
 
 ## 7. Create the restricted build values
 

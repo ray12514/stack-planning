@@ -268,21 +268,12 @@ locks; the shared store and build cache reuse those concrete prefixes. Install
 Core first on the initial pass, but all environments may be concretized before
 the compiler is installed.
 
-## Compiler-only toolchain
+## Compiler selection without a toolchain
 
-```yaml
-toolchains:
-  gcc1331:
-  - spec: '%c=gcc@13.3.1'
-    when: '%c'
-  - spec: '%cxx=gcc@13.3.1'
-    when: '%cxx'
-  - spec: '%fortran=gcc@13.3.1'
-    when: '%fortran'
-```
-
-Definitions plus a matrix apply this once to a whole package list; package
-managers do not repeat the selector in every root spec.
+A toolchain represents a compiler/MPI pairing. A compiler by itself remains a
+normal compiler constraint and does not get a `toolchains.yaml` alias.
+Definitions plus a matrix apply the compiler constraint once to a whole
+package list; package managers do not repeat it in every root spec.
 
 ```yaml
 spack:
@@ -296,7 +287,7 @@ spack:
   specs:
   - matrix:
     - [$common]
-    - ['%gcc1331']
+    - ['%gcc@13.3.1']
 ```
 
 This is an `N x 1` expansion: every package in `common` receives the same
@@ -499,11 +490,11 @@ more native.
 
 ## Serial and MPI manifests
 
-Serial is the same pattern with a compiler-only toolchain and no MPI scope.
-MPI is the GPU pattern without the GPU scope or GPU roots. The package
-definitions are shared policy data rendered into each independent environment;
-the manifests remain separate so failures, rebuilds, views, and module trees
-stay isolated by lane.
+Serial is the same pattern with a direct compiler constraint and no MPI scope.
+MPI is the GPU pattern without the GPU scope or GPU roots and uses the selected
+compiler/MPI toolchain. The package definitions are shared policy data rendered
+into each independent environment; the manifests remain separate so failures,
+rebuilds, views, and module trees stay isolated by lane.
 
 Keep the rendered environments separate:
 
