@@ -116,9 +116,10 @@ test, one active builder may split the work across two nodes: the shared GCC
 surface with `cse-build install --surface shared`, and the selected platform
 compiler surface with `cse-build install --surface platform`. Each surface is
 still processed sequentially. Both commands use the same locked workspace,
-store, and database; their view and module roots are disjoint. Do not run two
-commands for the same surface. The surface selector does not weaken the global
-eight-lock verification gate.
+store, and database; their view, module, and mutable per-user cache roots are
+disjoint. Generated source/misc caches remain shared. Do not run two commands
+for the same surface. The surface selector does not weaken the global eight-lock
+verification gate.
 
 The generated lock verifier is invoked through `spack python`, so it must remain
 compatible with the oldest host Python supported by the pinned Spack runtime.

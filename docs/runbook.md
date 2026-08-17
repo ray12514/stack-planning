@@ -1571,11 +1571,12 @@ for environment in "${ENVIRONMENTS[@]}"; do
 done
 ```
 
-Use sequential installation for the first pass. Concurrent Spack processes may
-wait on and reuse the same concrete prefix only when they use the same store and
-database, `config:locks:true`, and the actual shared filesystem honors the
-POSIX record-lock semantics used by the pinned Spack runtime. Validate that
-behavior on the selected install root before enabling concurrent installs.
+Sequential installation is the default and is required until the lock test has
+passed. Concurrent Spack processes may wait on and reuse the same concrete
+prefix only when they use the same store and database, `config:locks:true`, and
+the actual shared filesystem honors the POSIX record-lock semantics used by the
+pinned Spack runtime. Validate that behavior on the selected install root before
+enabling concurrent installs.
 
 After that test passes, one active builder may split the two compiler surfaces
 across two build nodes:
@@ -1593,7 +1594,9 @@ cd "$BUILD_WORKSPACE"
 Each command verifies the complete eight-lock checkpoint before installing and
 then processes its four environments sequentially. Do not start the same
 surface twice. `BUILD_JOBS` is a per-process budget, so concurrent job counts
-are cumulative when two Spack processes share one node.
+are cumulative when two Spack processes share one node. The wrapper gives the
+two surfaces separate mutable `SPACK_USER_CACHE_PATH` directories. Their
+generated source/misc caches, locked package store, and database remain shared.
 
 Apply the platform checklist after installation. A lane is not approved merely
 because compilation finished. Exercise its compiler/wrappers, representative
