@@ -1290,9 +1290,20 @@ evidence is retained with the restricted build evidence.
 
 ### Builder resume handoff
 
-The handoff is the complete shared workspace plus its current checkpoint. It is
-not a copy of one `spack.yaml`, and it does not require the receiving builder to
-recreate the generating tools. Before another builder takes over, record:
+There is one shared build workspace for a system and trial release, not one
+workspace per builder. `init-workspace` creates that workspace once. A
+receiving builder does not run `init-workspace`, copy the workspace into a home
+directory, or recreate the generating tools. The receiving builder enters and
+resumes the same shared workspace.
+
+If the shared workspace has not been initialized, the handoff is not ready.
+The operator must first complete Step 8, including generation of `cse-build`.
+`cse-build` cannot create a workspace from only a Spack checkout or a static
+catalog.
+
+The handoff is the absolute path to the complete shared workspace plus its
+current checkpoint. It is not a copy of one `spack.yaml`. Before another
+builder takes over, record:
 
 - whether the handoff stops before concretization, after lock verification, in
   the middle of installation, or after lane validation;
@@ -1304,10 +1315,50 @@ recreate the generating tools. Before another builder takes over, record:
 - whether the receiving builder is authorized to sign and push build-cache
   content.
 
-The receiving builder goes to the workspace root and runs:
+Before sending the path, the operator verifies that it names an initialized
+handoff:
 
 ```bash
-./cse-build
+test -d "$BUILD_WORKSPACE"
+test -r "$BUILD_WORKSPACE/workspace-manifest.yaml"
+test -x "$BUILD_WORKSPACE/cse-build"
+printf 'CSE workspace: %s\n' "$BUILD_WORKSPACE"
+```
+
+The receiving builder needs only that printed absolute path, membership in the
+`cse` group, and the site-provided absolute writable `WORKDIR`. The builder
+does not source the operator-session file and does not activate Spack first.
+For a workspace recorded against the shared Spack checkout, the first entry is:
+
+```bash
+: "${WORKDIR:?WORKDIR must be set by the site environment}"
+
+export CSE_HANDOFF_WORKSPACE="<absolute-shared-workspace-path>"
+test -d "$CSE_HANDOFF_WORKSPACE"
+test -r "$CSE_HANDOFF_WORKSPACE/workspace-manifest.yaml"
+test -x "$CSE_HANDOFF_WORKSPACE/cse-build"
+
+cd "$CSE_HANDOFF_WORKSPACE"
+./cse-build status --spack-mode shared
+```
+
+Follow the checkpoint reported by `status`. If every lockfile already exists,
+verify it before building:
+
+```bash
+./cse-build verify --spack-mode shared
+```
+
+If lockfiles are missing, create only the missing locks instead:
+
+```bash
+./cse-build concretize --spack-mode shared
+```
+
+Then create or reattach the prepared build session:
+
+```bash
+./cse-build --spack-mode shared
 ```
 
 No system, release, compiler, MPI, catalog, install-tree, view, module, or
@@ -1319,6 +1370,12 @@ creates or reattaches a tmux session for this system and release. Running the
 same command after a disconnect reattaches on the same host. Use
 `./cse-build shell` to bypass tmux. If tmux is unavailable, the command falls
 back to the prepared shell.
+
+On later logins, the receiving builder repeats only the `WORKDIR` check, goes
+to the same absolute workspace path, and runs
+`./cse-build --spack-mode shared`. `cse-build` derives the workspace identity
+from its own location and recreates that builder's private Spack cache and
+keyring paths as needed.
 
 When the locks already exist, the receiving builder does not need Cluster
 Inspector, Stack Composer, Stack Content, Stack Planning, or the original
@@ -1337,29 +1394,166 @@ reconcretize merely because the builder or Spack root path changed.
 Normal path: continue directly to Step 9. Use the optional build-node recovery
 procedure only when changing the selected build node.
 
-### Refresh generated build controls without replacing locks
+### One-time adoption of an existing Blueback workspace
 
-Use this only when an existing workspace has the approved environment YAML and
-lockfiles, but its generated `cse-build` entry point or supporting scripts are
-older than the current CSE pilot content. Do not render over the live workspace.
+Use this once when Blueback already has a static catalog, initialized workspace,
+and lockfiles from the earlier environment-variable workflow but has no saved
+operator-session file. Creating the session records the existing selections; it
+does not probe Blueback, render a catalog, replace the workspace, or change a
+lockfile.
 
-This is the Blueback update path for the existing concretized workspace. First
-source Blueback's saved operator session, synchronize the four repositories
-through Step 2, and run `cse_session_status`. Rebuild Cluster Inspector or Stack
-Composer through Step 3 only when that tool's recorded build commit is stale. A
-`stack-content`-only update does not require either tool to be rebuilt. Then run
-the guarded refresh below from the live workspace. The generated command is
-`./cse-build`; it is a normal workspace file, not a dotfile.
+This procedure is complete only after all three parts below pass. Part A saves
+the operator session, Part B installs the current `cse-build` controls into the
+existing workspace, and Part C proves the workspace is ready to resume.
 
-Render a temporary sibling workspace from the exact catalog and values file
-recorded by the live workspace. Compare the temporary and live `environments/`,
-`configs/`, and `env/setup-build-env.sh`, excluding `spack.lock`. If any of
-those inputs differ, stop: that is an input or render change and must follow the
-normal reconcretization review. When they are identical, replace only these
-generated controls from the temporary workspace:
+#### A. Record the existing Blueback workspace in an operator session
+
+Start from a clean Bash shell with the site-provided `WORKDIR` set. The current
+Blueback trial and shared-tools roots are recorded below; verify that they still
+name the directories that directly contain `restricted/` and `published/`, and
+`spack/1.2.2`, respectively. Fill in the bootstrap Python with the same reviewed
+Python 3.9-or-newer executable used to build Stack Composer. Do not use the
+repository `.venv` as its own bootstrap interpreter.
+
+```bash
+: "${WORKDIR:?WORKDIR must be set by the site environment}"
+
+export WORK_ROOT="$HOME/STACK_TESTING"
+export CONTENT="$WORK_ROOT/stack-content"
+export STACK_BRANCH="codex/simplified-render-plan"
+export CSE_BOOTSTRAP_PYTHON="<absolute-path-to-reviewed-python>"
+
+# Existing Blueback trial layout. Verify these paths before continuing.
+export BLUEBACK_TRIAL_ROOT="/p/app/CSE/initial-conversion-trials"
+export BLUEBACK_TOOLS_ROOT="/p/app/CSE/tools"
+export BLUEBACK_SPACK_MODE="shared"
+export BLUEBACK_CATALOG_RELEASE="blueback-catalog-001"
+export BLUEBACK_TRIAL_RELEASE="blueback-trial-001"
+
+export BLUEBACK_EXISTING_CATALOG="$BLUEBACK_TRIAL_ROOT/restricted/catalogs/blueback/static/$BLUEBACK_CATALOG_RELEASE"
+export BLUEBACK_EXISTING_WORKSPACE="$BLUEBACK_TRIAL_ROOT/restricted/workspaces/blueback/initial-conversion-trials/$BLUEBACK_TRIAL_RELEASE"
+export BLUEBACK_SESSION_FILE="$WORK_ROOT/operator-sessions/blueback/$BLUEBACK_TRIAL_RELEASE/activate.sh"
+
+test -x "$CSE_BOOTSTRAP_PYTHON"
+test -d "$BLUEBACK_EXISTING_CATALOG"
+test -f "$BLUEBACK_EXISTING_CATALOG/manifest.yaml"
+test -d "$BLUEBACK_EXISTING_WORKSPACE"
+test -f "$BLUEBACK_EXISTING_WORKSPACE/workspace-manifest.yaml"
+if [ -f "$BLUEBACK_EXISTING_WORKSPACE/env/setup-build-env.sh" ]; then
+  echo "Blueback setup-build-env.sh is present"
+else
+  echo "Blueback setup-build-env.sh is absent; the guarded control refresh will add it"
+fi
+BLUEBACK_LOCK_COUNT="$(
+  find "$BLUEBACK_EXISTING_WORKSPACE/environments" \
+    -mindepth 3 -maxdepth 3 -type f -name spack.lock -print |
+    tee /dev/stderr |
+    wc -l |
+    tr -d '[:space:]'
+)"
+test "$BLUEBACK_LOCK_COUNT" -eq 8
+test ! -e "$BLUEBACK_SESSION_FILE"
+```
+
+The lock listing must show the already reviewed Blueback lockfiles. If any
+derived path above is wrong, correct the selected root or release value before
+continuing. Do not create a second workspace to compensate for a wrong path.
+
+Update only Stack Content first so the current session generator is available:
+
+```bash
+test -d "$CONTENT/.git"
+git -C "$CONTENT" status --short --branch
+```
+
+The status review may show the already reviewed local Blueback profile, values,
+or notes. Preserve those inputs. Stop for any unexplained change; do not stash,
+discard, or overwrite it merely to make the pull clean. When the local changes
+are all understood, continue:
+
+```bash
+git -C "$CONTENT" fetch origin
+git -C "$CONTENT" switch "$STACK_BRANCH"
+git -C "$CONTENT" pull --ff-only
+
+"$CSE_BOOTSTRAP_PYTHON" \
+  "$CONTENT/pilots/cse-pilot/scripts/create-operator-session.py" \
+  --system blueback \
+  --work-root "$WORK_ROOT" \
+  --trial-root "$BLUEBACK_TRIAL_ROOT" \
+  --tools-root "$BLUEBACK_TOOLS_ROOT" \
+  --bootstrap-python "$CSE_BOOTSTRAP_PYTHON" \
+  --spack-mode "$BLUEBACK_SPACK_MODE" \
+  --catalog-release "$BLUEBACK_CATALOG_RELEASE" \
+  --trial-release "$BLUEBACK_TRIAL_RELEASE"
+
+source "$BLUEBACK_SESSION_FILE"
+test "$CATALOG" = "$BLUEBACK_EXISTING_CATALOG"
+test "$BUILD_WORKSPACE" = "$BLUEBACK_EXISTING_WORKSPACE"
+cse_session_status
+```
+
+A fast-forward pull that would overlap a local file stops without replacing
+that file.
+
+Do not pass `--overwrite`. The generated `provider-selections.sh` may remain at
+its commented template for this control refresh because the live workspace's
+recorded build-values file remains authoritative. Review and populate provider
+selections only when preparing a later workspace.
+
+Stack Content is now current. Synchronize the remaining three repositories so
+all four are on the same branch. Because this existing workspace has no saved
+tool-build record, rebuild Stack Composer once and record its current commit
+before running Part B. Cluster Inspector does not need to be rebuilt solely to
+refresh workspace controls; rebuild it before the next probe if
+`cse_session_status` reports it stale.
+
+```bash
+for repo in cluster-inspector stack-composer stack-content stack-planning; do
+  git -C "$WORK_ROOT/$repo" status --short --branch
+done
+
+for repo in cluster-inspector stack-composer stack-planning; do
+  git -C "$WORK_ROOT/$repo" fetch origin
+  git -C "$WORK_ROOT/$repo" switch "$STACK_BRANCH"
+  git -C "$WORK_ROOT/$repo" pull --ff-only
+done
+
+source "$CSE_OPERATOR_SESSION_FILE"
+
+cd "$COMPOSER"
+"$CSE_BOOTSTRAP_PYTHON" -m venv .venv
+test -x "$CSE_PYTHON"
+"$CSE_PYTHON" -m pip install --upgrade pip
+"$CSE_PYTHON" -m pip install -e '.[dev]'
+PYTHON="$CSE_PYTHON" bash scripts/build-pyz.sh
+"$CSE_PYTHON" "$STACK_COMPOSER" --help >/dev/null
+git -C "$COMPOSER" rev-parse HEAD \
+  > "$CSE_TOOL_STATE_ROOT/stack-composer.commit"
+
+cse_session_status
+```
+
+#### B. Install the current `cse-build` controls on Blueback
+
+The operator session now points to the existing Blueback workspace, but Part A
+does not create or update `cse-build`. Run this part immediately after Part A.
+It updates only the generated workspace controls and does not render over the
+live workspace.
+
+The generated command is `./cse-build`; it is a normal workspace file, not a
+dotfile. Render a temporary sibling workspace from Blueback's recorded catalog
+snapshot and build-values file. Compare the temporary and live environments and
+configuration before copying any control file.
+
+The comparison covers `environments/`, `configs/`, and an existing
+`env/setup-build-env.sh`, excluding only `spack.lock`. If an input differs,
+stop. When the inputs match, copy only these generated controls from the
+temporary workspace:
 
 ```text
 cse-build
+env/setup-build-env.sh
 env/prepare-module-state.sh
 env/workspace-shell.rc
 scripts/verify-lockfiles.py
@@ -1368,19 +1562,14 @@ README.md
 ```
 
 Preserve every `spack.yaml`, `spack.lock`, catalog snapshot, configuration
-scope, and workspace manifest. Set `cse-build` to mode `0770` and the other
-listed files to `0660`, then run:
+scope, and workspace manifest. The complete block below sets `cse-build` to
+mode `0770`, sets the other listed files to `0660`, proves that the eight lock
+digests did not change, and runs `./cse-build verify`.
 
-```bash
-cd "$BUILD_WORKSPACE"
-./cse-build verify
-```
+This Blueback refresh changes only the generated build controls. It does not
+change the concrete DAG and does not require reconcretization.
 
-This refresh changes only the generated build controls. It does not change the
-concrete DAG and does not require reconcretization.
-
-With the operator session and current tools loaded, the complete guarded refresh
-is:
+With the Blueback operator session and current tools loaded from Part A, run:
 
 ```bash
 (
@@ -1388,6 +1577,17 @@ is:
   CONTROL_REFRESH_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cse-control-refresh.XXXXXX")"
   trap 'rm -rf "$CONTROL_REFRESH_ROOT"' EXIT
   CONTROL_REFRESH_WORKSPACE="$CONTROL_REFRESH_ROOT/workspace"
+  BLUEBACK_LOCKS_BEFORE="$CONTROL_REFRESH_ROOT/blueback-locks.before.sha256"
+  BLUEBACK_LOCKS_AFTER="$CONTROL_REFRESH_ROOT/blueback-locks.after.sha256"
+
+  while IFS= read -r lockfile; do
+    sha256sum "$lockfile"
+  done < <(
+    find "$BUILD_WORKSPACE/environments" \
+      -mindepth 3 -maxdepth 3 -type f -name spack.lock -print | sort
+  ) > "$BLUEBACK_LOCKS_BEFORE"
+  test "$(wc -l < "$BLUEBACK_LOCKS_BEFORE" | tr -d '[:space:]')" -eq 8
+
   if [ -f "$BUILD_WORKSPACE/inputs/cse-trials-build-values.yaml" ]; then
     CONTROL_REFRESH_VALUES="$BUILD_WORKSPACE/inputs/cse-trials-build-values.yaml"
   elif [ -n "${BUILD_VALUES:-}" ] && [ -f "$BUILD_VALUES" ]; then
@@ -1407,13 +1607,16 @@ is:
     "$BUILD_WORKSPACE/environments" \
     "$CONTROL_REFRESH_WORKSPACE/environments"
   diff -ru "$BUILD_WORKSPACE/configs" "$CONTROL_REFRESH_WORKSPACE/configs"
-  cmp \
-    "$BUILD_WORKSPACE/env/setup-build-env.sh" \
-    "$CONTROL_REFRESH_WORKSPACE/env/setup-build-env.sh"
+  if [ -f "$BUILD_WORKSPACE/env/setup-build-env.sh" ]; then
+    cmp \
+      "$BUILD_WORKSPACE/env/setup-build-env.sh" \
+      "$CONTROL_REFRESH_WORKSPACE/env/setup-build-env.sh"
+  fi
 
   cp "$CONTROL_REFRESH_WORKSPACE/cse-build" "$BUILD_WORKSPACE/cse-build"
   chmod 0770 "$BUILD_WORKSPACE/cse-build"
   for relative_path in \
+    env/setup-build-env.sh \
     env/prepare-module-state.sh \
     env/workspace-shell.rc \
     scripts/verify-lockfiles.py \
@@ -1425,10 +1628,46 @@ is:
     chmod 0660 "$BUILD_WORKSPACE/$relative_path"
   done
 
+  while IFS= read -r lockfile; do
+    sha256sum "$lockfile"
+  done < <(
+    find "$BUILD_WORKSPACE/environments" \
+      -mindepth 3 -maxdepth 3 -type f -name spack.lock -print | sort
+  ) > "$BLUEBACK_LOCKS_AFTER"
+  cmp "$BLUEBACK_LOCKS_BEFORE" "$BLUEBACK_LOCKS_AFTER"
+
   cd "$BUILD_WORKSPACE"
   ./cse-build verify
 )
 ```
+
+#### C. Verify and resume Blueback
+
+Part B is complete only when `cse-build` exists, all eight original lockfiles
+retain their recorded digests, and the generated verifier passes. Check the
+entry point and its recorded workspace state:
+
+```bash
+source "$HOME/STACK_TESTING/operator-sessions/blueback/blueback-trial-001/activate.sh"
+cd "$BUILD_WORKSPACE"
+
+test -x ./cse-build
+./cse-build status
+./cse-build verify
+```
+
+Blueback is then current. On every later login, resume the same workspace with:
+
+```bash
+source "$HOME/STACK_TESTING/operator-sessions/blueback/blueback-trial-001/activate.sh"
+cd "$BUILD_WORKSPACE"
+./cse-build
+```
+
+The final command enters or reattaches Blueback's prepared tmux session. From
+there, use `./cse-build fetch`, `./cse-build install`, a surface install, or a
+selected bare-Spack environment command as described in Step 10. Do not rerun
+Parts A or B on normal logins.
 
 ## 9. Concretize and review the restricted environments
 
@@ -1579,20 +1818,163 @@ a target such as Fran whose login and compute nodes cannot reach every source,
 create one cumulative Spack source mirror on a connected staging system and
 copy it into Fran's generated `config:source_cache`.
 
-First concretize and verify the Fran workspace on Fran. Transfer the complete
-locked workspace to the connected system so its relative `include::` paths stay
-intact. Activate the same pinned Spack version, tag, commit, and package-recipe
-state used for the trial. A matching CPU is not required because this step only
-fetches sources from the existing locks.
+Use the sequence below after all eight Fran environments have been concretized
+and `./cse-build verify` passes. The original locked workspace remains on Fran.
+Only a temporary copy goes to the connected system, and only the resulting
+source bundle comes back. Do not copy the connected system's workspace back
+over the original Fran workspace.
 
-On the connected system:
+#### A. Package the locked workspace on Fran
+
+Source Fran's saved operator session, then create a private transfer area under
+the site-provided work filesystem. `FRAN_TRANSFER_ROOT` is the one path that
+must be carried into the transfer commands on the other system.
 
 ```bash
-export FRAN_WORKSPACE="<absolute-path-to-transferred-fran-workspace>"
-export FRAN_SOURCE_BUNDLE="<absolute-path-to-empty-or-existing-source-bundle>"
-export CONNECTED_FETCH_STAGE="<absolute-writable-staging-path>"
-export CONNECTED_FETCH_CACHE="<absolute-writable-download-cache>"
-export SPACK_USER_CACHE_PATH="<absolute-per-user-spack-cache>"
+source "$HOME/STACK_TESTING/operator-sessions/fran/fran-trial-001/activate.sh"
+
+cd "$BUILD_WORKSPACE"
+./cse-build verify
+
+export FRAN_TRANSFER_ROOT="$WORKDIR/$USER/cse-fran-transfer/$TRIAL_RELEASE"
+export FRAN_WORKSPACE_ARCHIVE="$FRAN_TRANSFER_ROOT/${TRIAL_RELEASE}-workspace.tar.gz"
+export FRAN_WORKSPACE_DIGEST="$FRAN_WORKSPACE_ARCHIVE.sha256"
+
+umask 0077
+install -d -m 0700 "$FRAN_TRANSFER_ROOT"
+tar -C "$(dirname "$BUILD_WORKSPACE")" -czf "$FRAN_WORKSPACE_ARCHIVE" \
+  "$(basename "$BUILD_WORKSPACE")"
+(
+  cd "$FRAN_TRANSFER_ROOT"
+  sha256sum "$(basename "$FRAN_WORKSPACE_ARCHIVE")" \
+    > "$(basename "$FRAN_WORKSPACE_DIGEST")"
+  sha256sum -c "$(basename "$FRAN_WORKSPACE_DIGEST")"
+)
+
+printf 'FRAN_TRANSFER_ROOT=%s\n' "$FRAN_TRANSFER_ROOT"
+printf 'FRAN_WORKSPACE_ARCHIVE=%s\n' "$FRAN_WORKSPACE_ARCHIVE"
+printf 'FRAN_WORKSPACE_DIGEST=%s\n' "$FRAN_WORKSPACE_DIGEST"
+```
+
+The archive contains the complete workspace so relative `include::` paths from
+each environment to `configs/` and the catalog snapshot remain valid. It does
+not contain the restricted Spack install tree, views, modules, build stages, or
+build cache.
+
+#### B. Copy and unpack the workspace on a connected system
+
+First create the receiving directory on the connected staging system. Its path
+is temporary per-user work space; it is not a CSE tools root, package install
+tree, or build cache.
+
+```bash
+: "${WORKDIR:?WORKDIR must be set on the connected system}"
+: "${USER:?USER must be set on the connected system}"
+
+export TRIAL_RELEASE="fran-trial-001"
+export CONNECTED_TRANSFER_ROOT="$WORKDIR/$USER/cse-fran-transfer/$TRIAL_RELEASE"
+export CONNECTED_WORKSPACE_ARCHIVE="$CONNECTED_TRANSFER_ROOT/${TRIAL_RELEASE}-workspace.tar.gz"
+export CONNECTED_WORKSPACE_DIGEST="$CONNECTED_WORKSPACE_ARCHIVE.sha256"
+export FRAN_WORKSPACE="$CONNECTED_TRANSFER_ROOT/$TRIAL_RELEASE"
+
+umask 0077
+install -d -m 0700 "$CONNECTED_TRANSFER_ROOT"
+printf 'CONNECTED_TRANSFER_ROOT=%s\n' "$CONNECTED_TRANSFER_ROOT"
+```
+
+Use one transfer route, not both.
+
+For a direct connection, stay on the connected system, fill in the Fran login
+endpoint, paste the exact `FRAN_TRANSFER_ROOT` printed on Fran, and pull the two
+files:
+
+```bash
+export FRAN_SSH="<fran-user>@<fran-login-host>"
+export FRAN_TRANSFER_ROOT="<exact-FRAN_TRANSFER_ROOT-printed-on-fran>"
+
+rsync -av --partial --progress \
+  "$FRAN_SSH:$FRAN_TRANSFER_ROOT/${TRIAL_RELEASE}-workspace.tar.gz" \
+  "$CONNECTED_WORKSPACE_ARCHIVE"
+rsync -av --partial --progress \
+  "$FRAN_SSH:$FRAN_TRANSFER_ROOT/${TRIAL_RELEASE}-workspace.tar.gz.sha256" \
+  "$CONNECTED_WORKSPACE_DIGEST"
+```
+
+When the connected system cannot reach Fran directly, run the following on an
+approved relay workstation. Fill in both SSH endpoints, paste the exact Fran
+and connected transfer roots printed by the earlier blocks, and keep the relay
+directory private:
+
+```bash
+export TRIAL_RELEASE="fran-trial-001"
+export FRAN_SSH="<fran-user>@<fran-login-host>"
+export CONNECTED_SSH="<connected-user>@<connected-login-host>"
+export FRAN_TRANSFER_ROOT="<exact-FRAN_TRANSFER_ROOT-printed-on-fran>"
+export CONNECTED_TRANSFER_ROOT="<exact-CONNECTED_TRANSFER_ROOT-printed-on-connected-system>"
+export RELAY_TRANSFER_ROOT="$HOME/cse-fran-relay/$TRIAL_RELEASE"
+
+umask 0077
+install -d -m 0700 "$RELAY_TRANSFER_ROOT"
+rsync -av --partial --progress \
+  "$FRAN_SSH:$FRAN_TRANSFER_ROOT/${TRIAL_RELEASE}-workspace.tar.gz" \
+  "$RELAY_TRANSFER_ROOT/"
+rsync -av --partial --progress \
+  "$FRAN_SSH:$FRAN_TRANSFER_ROOT/${TRIAL_RELEASE}-workspace.tar.gz.sha256" \
+  "$RELAY_TRANSFER_ROOT/"
+
+(
+  cd "$RELAY_TRANSFER_ROOT"
+  sha256sum -c "${TRIAL_RELEASE}-workspace.tar.gz.sha256"
+)
+
+ssh "$CONNECTED_SSH" \
+  "umask 0077 && install -d -m 0700 '$CONNECTED_TRANSFER_ROOT'"
+rsync -av --partial --progress \
+  "$RELAY_TRANSFER_ROOT/${TRIAL_RELEASE}-workspace.tar.gz" \
+  "$CONNECTED_SSH:$CONNECTED_TRANSFER_ROOT/"
+rsync -av --partial --progress \
+  "$RELAY_TRANSFER_ROOT/${TRIAL_RELEASE}-workspace.tar.gz.sha256" \
+  "$CONNECTED_SSH:$CONNECTED_TRANSFER_ROOT/"
+```
+
+After either route, return to the connected system. Restore the variables from
+the first block in this subsection if this is a new shell, then verify and
+unpack the transferred workspace:
+
+```bash
+test -f "$CONNECTED_WORKSPACE_ARCHIVE"
+test -f "$CONNECTED_WORKSPACE_DIGEST"
+
+(
+  cd "$CONNECTED_TRANSFER_ROOT"
+  sha256sum -c "$(basename "$CONNECTED_WORKSPACE_DIGEST")"
+)
+test ! -e "$FRAN_WORKSPACE"
+tar -C "$CONNECTED_TRANSFER_ROOT" -xzf "$CONNECTED_WORKSPACE_ARCHIVE"
+test -f "$FRAN_WORKSPACE/workspace-manifest.yaml"
+test -x "$FRAN_WORKSPACE/cse-build"
+
+FRAN_LOCK_COUNT="$(
+  find "$FRAN_WORKSPACE/environments" \
+    -mindepth 3 -maxdepth 3 -type f -name spack.lock -print |
+    tee /dev/stderr |
+    wc -l |
+    tr -d '[:space:]'
+)"
+test "$FRAN_LOCK_COUNT" -eq 8
+```
+
+#### C. Create the cumulative source bundle on the connected system
+
+Activate the same pinned Spack version, tag, commit, and package-recipe state
+used for the trial. A matching CPU is not required because this operation reads
+the locks and fetches source artifacts; it does not concretize or build them.
+
+```bash
+export FRAN_SOURCE_BUNDLE="$CONNECTED_TRANSFER_ROOT/${TRIAL_RELEASE}-source-mirror"
+export CONNECTED_FETCH_STAGE="$CONNECTED_TRANSFER_ROOT/fetch-stage"
+export CONNECTED_FETCH_CACHE="$CONNECTED_TRANSFER_ROOT/download-cache"
+export SPACK_USER_CACHE_PATH="$CONNECTED_TRANSFER_ROOT/spack-user-cache"
 export SPACK_DISABLE_LOCAL_CONFIG=true
 export SPACK_VERSION="1.2.2"
 export SPACK_TAG="v$SPACK_VERSION"
@@ -1613,6 +1995,7 @@ mkdir -p \
   "$CONNECTED_FETCH_CACHE" \
   "$SPACK_USER_CACHE_PATH"
 
+FRAN_ENVIRONMENT_COUNT=0
 for environment_dir in "$FRAN_WORKSPACE"/environments/*/*; do
   test -f "$environment_dir/spack.lock" || {
     echo "missing lockfile: $environment_dir/spack.lock" >&2
@@ -1623,7 +2006,9 @@ for environment_dir in "$FRAN_WORKSPACE"/environments/*/*; do
     -c "config:source_cache:$CONNECTED_FETCH_CACHE" \
     -e "$environment_dir" \
     mirror create -a -d "$FRAN_SOURCE_BUNDLE" || exit 1
+  FRAN_ENVIRONMENT_COUNT=$((FRAN_ENVIRONMENT_COUNT + 1))
 done
+test "$FRAN_ENVIRONMENT_COUNT" -eq 8
 ```
 
 The command may be rerun against the same bundle; Spack retains existing
@@ -1631,39 +2016,159 @@ archives and adds missing ones. Review any skipped or failed fetch, especially
 license-restricted sources. Do not use `--private` unless storage and transfer
 of those sources has been explicitly approved.
 
-Transfer the entire bundle to Fran with checksums, for example with
-`rsync -a --checksum`. If an intermediate removable or controlled transfer is
-required, archive the directory and verify a recorded SHA-256 digest on Fran.
-Read the exact destination from the generated workspace rather than guessing:
+Package the completed source bundle and record its digest:
 
 ```bash
-spack -e "$BUILD_WORKSPACE/environments/${ENVIRONMENTS[0]}" \
-  config get config
+export FRAN_BUNDLE_ARCHIVE="$CONNECTED_TRANSFER_ROOT/${TRIAL_RELEASE}-source-mirror.tar"
+export FRAN_BUNDLE_DIGEST="$FRAN_BUNDLE_ARCHIVE.sha256"
+
+tar -C "$CONNECTED_TRANSFER_ROOT" -cf "$FRAN_BUNDLE_ARCHIVE" \
+  "$(basename "$FRAN_SOURCE_BUNDLE")"
+(
+  cd "$CONNECTED_TRANSFER_ROOT"
+  sha256sum "$(basename "$FRAN_BUNDLE_ARCHIVE")" \
+    > "$(basename "$FRAN_BUNDLE_DIGEST")"
+  sha256sum -c "$(basename "$FRAN_BUNDLE_DIGEST")"
+)
+
+printf 'FRAN_BUNDLE_ARCHIVE=%s\n' "$FRAN_BUNDLE_ARCHIVE"
+printf 'FRAN_BUNDLE_DIGEST=%s\n' "$FRAN_BUNDLE_DIGEST"
 ```
 
-Merge the bundle contents into that `config:source_cache` directory while
-preserving the CSE group/setgid/ACL policy:
+Source archives are normally already compressed, so the returned bundle uses
+an uncompressed tar container. Use one return route, not both.
+
+For a direct connection, stay on the connected system, restore the Fran
+endpoint and exact Fran transfer root if necessary, and push both files:
 
 ```bash
-export FRAN_SOURCE_BUNDLE="<absolute-path-to-transferred-source-bundle>"
-export FRAN_SOURCE_CACHE="<absolute-generated-config-source-cache>"
+export FRAN_SSH="<fran-user>@<fran-login-host>"
+export FRAN_TRANSFER_ROOT="<exact-FRAN_TRANSFER_ROOT-printed-on-fran>"
 
-mkdir -p "$FRAN_SOURCE_CACHE"
+rsync -av --partial --progress \
+  "$FRAN_BUNDLE_ARCHIVE" \
+  "$FRAN_SSH:$FRAN_TRANSFER_ROOT/"
+rsync -av --partial --progress \
+  "$FRAN_BUNDLE_DIGEST" \
+  "$FRAN_SSH:$FRAN_TRANSFER_ROOT/"
+```
+
+When a relay is required, run the following on the approved relay workstation.
+It pulls the finished bundle from the connected system, verifies it, and then
+pushes the same two files to Fran:
+
+```bash
+export TRIAL_RELEASE="fran-trial-001"
+export CONNECTED_SSH="<connected-user>@<connected-login-host>"
+export FRAN_SSH="<fran-user>@<fran-login-host>"
+export CONNECTED_TRANSFER_ROOT="<exact-CONNECTED_TRANSFER_ROOT-printed-on-connected-system>"
+export FRAN_TRANSFER_ROOT="<exact-FRAN_TRANSFER_ROOT-printed-on-fran>"
+export RELAY_TRANSFER_ROOT="$HOME/cse-fran-relay/$TRIAL_RELEASE"
+
+umask 0077
+install -d -m 0700 "$RELAY_TRANSFER_ROOT"
+rsync -av --partial --progress \
+  "$CONNECTED_SSH:$CONNECTED_TRANSFER_ROOT/${TRIAL_RELEASE}-source-mirror.tar" \
+  "$RELAY_TRANSFER_ROOT/"
+rsync -av --partial --progress \
+  "$CONNECTED_SSH:$CONNECTED_TRANSFER_ROOT/${TRIAL_RELEASE}-source-mirror.tar.sha256" \
+  "$RELAY_TRANSFER_ROOT/"
+
+(
+  cd "$RELAY_TRANSFER_ROOT"
+  sha256sum -c "${TRIAL_RELEASE}-source-mirror.tar.sha256"
+)
+
+rsync -av --partial --progress \
+  "$RELAY_TRANSFER_ROOT/${TRIAL_RELEASE}-source-mirror.tar" \
+  "$FRAN_SSH:$FRAN_TRANSFER_ROOT/"
+rsync -av --partial --progress \
+  "$RELAY_TRANSFER_ROOT/${TRIAL_RELEASE}-source-mirror.tar.sha256" \
+  "$FRAN_SSH:$FRAN_TRANSFER_ROOT/"
+```
+
+If `rsync` is unavailable on one approved transfer leg, use `scp -p` for that
+same source file and destination directory, then run the same SHA-256 check at
+the receiving endpoint. Do not return the copied workspace archive as a
+replacement for Fran's original workspace.
+
+#### D. Install the source bundle into Fran's generated source cache
+
+Back on Fran, source the saved operator session again and verify the returned
+bundle before extracting it:
+
+```bash
+source "$HOME/STACK_TESTING/operator-sessions/fran/fran-trial-001/activate.sh"
+
+export FRAN_TRANSFER_ROOT="$WORKDIR/$USER/cse-fran-transfer/$TRIAL_RELEASE"
+export FRAN_BUNDLE_ARCHIVE="$FRAN_TRANSFER_ROOT/${TRIAL_RELEASE}-source-mirror.tar"
+export FRAN_BUNDLE_DIGEST="$FRAN_BUNDLE_ARCHIVE.sha256"
+export FRAN_SOURCE_BUNDLE="$FRAN_TRANSFER_ROOT/${TRIAL_RELEASE}-source-mirror"
+
+(
+  cd "$FRAN_TRANSFER_ROOT"
+  sha256sum -c "$(basename "$FRAN_BUNDLE_DIGEST")"
+)
+test ! -e "$FRAN_SOURCE_BUNDLE"
+tar -C "$FRAN_TRANSFER_ROOT" -xf "$FRAN_BUNDLE_ARCHIVE"
+test -d "$FRAN_SOURCE_BUNDLE"
+```
+
+Read the source-cache destination through an actual generated environment and
+confirm that it is the restricted cache selected for this operator session.
+Do not type or infer the destination path independently:
+
+```bash
+verify_spack_tool_root
+source "$SPACK_ROOT/share/spack/setup-env.sh"
+source "$BUILD_WORKSPACE/env/setup-build-env.sh"
+
+export FRAN_REFERENCE_ENV="$BUILD_WORKSPACE/environments/$SHARED_COMPILER_NAME/core"
+export FRAN_SOURCE_CACHE="$(
+  spack -e "$FRAN_REFERENCE_ENV" python -c \
+    'import spack.config; print(spack.config.get("config:source_cache"))'
+)"
+
+test -n "$FRAN_SOURCE_CACHE"
+test "$FRAN_SOURCE_CACHE" = "$CSE_RESTRICTED_ROOT/cache/source"
+printf 'FRAN_SOURCE_CACHE=%s\n' "$FRAN_SOURCE_CACHE"
+```
+
+Merge only the source mirror's contents into that generated cache while
+preserving the CSE group/setgid policy. Spack's mirror and `source_cache` use
+the same cache-relative archive layout, so the trailing slashes below are
+intentional:
+
+```bash
+umask 0007
+install -d -m 2770 -g "$CSE_GROUP" "$FRAN_SOURCE_CACHE"
 rsync -a --no-owner --no-group --checksum \
   "$FRAN_SOURCE_BUNDLE/" "$FRAN_SOURCE_CACHE/"
+
 chgrp -R "$CSE_GROUP" "$FRAN_SOURCE_CACHE"
 find "$FRAN_SOURCE_CACHE" -type d -exec chmod g+rws,o-rwx {} +
 find "$FRAN_SOURCE_CACHE" -type f -exec chmod g+rw,o-rwx {} +
-
-for environment in "${ENVIRONMENTS[@]}"; do
-  spack -e "$BUILD_WORKSPACE/environments/$environment" fetch -D || break
-done
 ```
 
-This is a source mirror/cache used to feed source builds on Fran. It is not the
-signed CSE binary build cache and does not change any `spack.lock`. If the Spack
-runtime itself must be bootstrapped without network access, prepare a separate
-Spack bootstrap mirror; do not mix bootstrap artifacts into this source bundle.
+Finally, use the original Fran workspace and its existing lockfiles to prove
+that every environment can fetch its complete dependency closure from the
+populated cache. This command may attempt an outbound URL only when an artifact
+is still missing; on Fran that attempt fails and identifies the gap to add to
+the bundle.
+
+```bash
+cd "$BUILD_WORKSPACE"
+./cse-build verify
+./cse-build fetch
+```
+
+Gate: `./cse-build fetch` succeeds for all eight original Fran environments.
+Retain both transfer archives and their digest files until the first complete
+Fran build succeeds; they are recovery evidence for the same locked release.
+The source bundle is not the signed CSE binary build cache and does not change
+any `spack.lock`. If the Spack runtime itself must be bootstrapped without
+network access, prepare a separate Spack bootstrap mirror; do not mix bootstrap
+artifacts into this source bundle.
 
 ### Supported build execution choices
 
