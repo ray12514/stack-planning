@@ -110,16 +110,20 @@ tmux session for the system and release. `shell` provides the same prepared
 shell without tmux, and the default falls back to it when tmux is unavailable.
 The receiving builder supplies no replacement render inputs.
 
-The default installation remains sequential. After all eight lockfiles pass
-verification and the real shared install tree passes a cross-node prefix-lock
-test, one active builder may split the work across two nodes: the shared GCC
-surface with `cse-build install --surface shared`, and the selected platform
-compiler surface with `cse-build install --surface platform`. Each surface is
-still processed sequentially. Both commands use the same locked workspace,
-store, and database; their view, module, and mutable per-user cache roots are
-disjoint. Generated source/misc caches remain shared. Do not run two commands
-for the same surface. The surface selector does not weaken the global eight-lock
-verification gate.
+The generated environment is the build execution unit. `cse-build` is a
+convenience entry point, not the build scheduler. Its unqualified `install`
+action processes all eight environments sequentially. After all eight
+lockfiles pass verification and the real shared install tree passes a
+cross-node prefix-lock test, the operator may instead split the two compiler
+surfaces between wrapper processes or launch any set of distinct environments
+directly with bare Spack. The processes use the same locked workspace, store,
+and database. Exact shared hashes wait on the shared prefix/database lock and
+reuse the first successful install; different hashes build concurrently.
+Every process gets a distinct mutable per-user cache path, and only one process
+owns a given environment's view and module refresh. Do not launch the same
+environment twice. Per-process build-job budgets are cumulative on a node.
+None of these execution choices weakens the global eight-lock verification
+gate.
 
 The generated lock verifier is invoked through `spack python`, so it must remain
 compatible with the oldest host Python supported by the pinned Spack runtime.

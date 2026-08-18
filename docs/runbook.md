@@ -1343,6 +1343,14 @@ Use this only when an existing workspace has the approved environment YAML and
 lockfiles, but its generated `cse-build` entry point or supporting scripts are
 older than the current CSE pilot content. Do not render over the live workspace.
 
+This is the Blueback update path for the existing concretized workspace. First
+source Blueback's saved operator session, synchronize the four repositories
+through Step 2, and run `cse_session_status`. Rebuild Cluster Inspector or Stack
+Composer through Step 3 only when that tool's recorded build commit is stale. A
+`stack-content`-only update does not require either tool to be rebuilt. Then run
+the guarded refresh below from the live workspace. The generated command is
+`./cse-build`; it is a normal workspace file, not a dotfile.
+
 Render a temporary sibling workspace from the exact catalog and values file
 recorded by the live workspace. Compare the temporary and live `environments/`,
 `configs/`, and `env/setup-build-env.sh`, excluding `spack.lock`. If any of
@@ -1534,10 +1542,28 @@ the same-release/new-release rule in the recovery section.
 
 ## 10. Build and exercise every restricted lane
 
-Build in the listed order. GCC Core installs the repeated GCC, Foundation, and
-Core roots first. Later GCC environments find the identical concrete hashes in
-the shared install tree and reuse them. Platform Core establishes that
-surface's Foundation and Core roots before its payload environments.
+The generated Spack environment is the unit of build execution. `cse-build` is
+an inspectable convenience entry point for resuming a prepared workspace; it is
+not the build scheduler and is not required to launch an install. After the
+eight-lock gate and shared-filesystem lock test pass, the operator may run the
+environments sequentially or distribute distinct environments across available
+build nodes.
+
+Before any concurrent install, confirm all of the following:
+
+- `./cse-build verify` passes for all eight lockfiles;
+- every process uses this same workspace, restricted install tree, Spack
+  database, and exact pinned Spack identity;
+- `config:locks:true` remains active; and
+- the selected shared filesystem has passed the cross-node prefix-lock test.
+
+Exact concrete hashes are coordinated at install time by Spack's shared
+prefix/database locks. When two processes reach the same hash, one builds it
+while the other waits; after a successful install, the waiting process reuses
+the installed prefix. Different hashes may build concurrently. The lockfiles
+define the concrete DAGs but do not schedule processes. If the process building
+a shared hash fails, record the failure and retry the same locked install; do
+not reconcretize unless an approved input must change.
 
 On a login node with outbound network access, prefetch all locked sources:
 
@@ -1546,8 +1572,103 @@ cd "$BUILD_WORKSPACE"
 ./cse-build fetch
 ```
 
-On the selected build node, enter or reattach the release tmux session and run
-the installation action:
+### Restricted-network source transfer
+
+Do not move individual Spack stage directories or source archives by hand. For
+a target such as Fran whose login and compute nodes cannot reach every source,
+create one cumulative Spack source mirror on a connected staging system and
+copy it into Fran's generated `config:source_cache`.
+
+First concretize and verify the Fran workspace on Fran. Transfer the complete
+locked workspace to the connected system so its relative `include::` paths stay
+intact. Activate the same pinned Spack version, tag, commit, and package-recipe
+state used for the trial. A matching CPU is not required because this step only
+fetches sources from the existing locks.
+
+On the connected system:
+
+```bash
+export FRAN_WORKSPACE="<absolute-path-to-transferred-fran-workspace>"
+export FRAN_SOURCE_BUNDLE="<absolute-path-to-empty-or-existing-source-bundle>"
+export CONNECTED_FETCH_STAGE="<absolute-writable-staging-path>"
+export CONNECTED_FETCH_CACHE="<absolute-writable-download-cache>"
+export SPACK_USER_CACHE_PATH="<absolute-per-user-spack-cache>"
+export SPACK_DISABLE_LOCAL_CONFIG=true
+export SPACK_VERSION="1.2.2"
+export SPACK_TAG="v$SPACK_VERSION"
+export SPACK_COMMIT="3e19345b6e12f5ff1b874f4059622fc6a1fd804a"
+export SPACK_ROOT="<absolute-path-to-matching-pinned-spack-checkout>"
+
+source "$SPACK_ROOT/share/spack/setup-env.sh"
+SPACK_VERSION_OUTPUT="$(spack --version)"
+test "${SPACK_VERSION_OUTPUT%% *}" = "$SPACK_VERSION"
+test "$(git -C "$SPACK_ROOT" rev-parse HEAD)" = "$SPACK_COMMIT"
+test "$(git -C "$SPACK_ROOT" rev-parse "${SPACK_TAG}^{commit}")" = \
+  "$SPACK_COMMIT"
+test -z "$(git -C "$SPACK_ROOT" status --porcelain --untracked-files=all)"
+
+mkdir -p \
+  "$FRAN_SOURCE_BUNDLE" \
+  "$CONNECTED_FETCH_STAGE" \
+  "$CONNECTED_FETCH_CACHE" \
+  "$SPACK_USER_CACHE_PATH"
+
+for environment_dir in "$FRAN_WORKSPACE"/environments/*/*; do
+  test -f "$environment_dir/spack.lock" || {
+    echo "missing lockfile: $environment_dir/spack.lock" >&2
+    exit 1
+  }
+  spack \
+    -c "config:build_stage:[$CONNECTED_FETCH_STAGE]" \
+    -c "config:source_cache:$CONNECTED_FETCH_CACHE" \
+    -e "$environment_dir" \
+    mirror create -a -d "$FRAN_SOURCE_BUNDLE" || exit 1
+done
+```
+
+The command may be rerun against the same bundle; Spack retains existing
+archives and adds missing ones. Review any skipped or failed fetch, especially
+license-restricted sources. Do not use `--private` unless storage and transfer
+of those sources has been explicitly approved.
+
+Transfer the entire bundle to Fran with checksums, for example with
+`rsync -a --checksum`. If an intermediate removable or controlled transfer is
+required, archive the directory and verify a recorded SHA-256 digest on Fran.
+Read the exact destination from the generated workspace rather than guessing:
+
+```bash
+spack -e "$BUILD_WORKSPACE/environments/${ENVIRONMENTS[0]}" \
+  config get config
+```
+
+Merge the bundle contents into that `config:source_cache` directory while
+preserving the CSE group/setgid/ACL policy:
+
+```bash
+export FRAN_SOURCE_BUNDLE="<absolute-path-to-transferred-source-bundle>"
+export FRAN_SOURCE_CACHE="<absolute-generated-config-source-cache>"
+
+mkdir -p "$FRAN_SOURCE_CACHE"
+rsync -a --no-owner --no-group --checksum \
+  "$FRAN_SOURCE_BUNDLE/" "$FRAN_SOURCE_CACHE/"
+chgrp -R "$CSE_GROUP" "$FRAN_SOURCE_CACHE"
+find "$FRAN_SOURCE_CACHE" -type d -exec chmod g+rws,o-rwx {} +
+find "$FRAN_SOURCE_CACHE" -type f -exec chmod g+rw,o-rwx {} +
+
+for environment in "${ENVIRONMENTS[@]}"; do
+  spack -e "$BUILD_WORKSPACE/environments/$environment" fetch -D || break
+done
+```
+
+This is a source mirror/cache used to feed source builds on Fran. It is not the
+signed CSE binary build cache and does not change any `spack.lock`. If the Spack
+runtime itself must be bootstrapped without network access, prepare a separate
+Spack bootstrap mirror; do not mix bootstrap artifacts into this source bundle.
+
+### Supported build execution choices
+
+The simplest choice is one sequential wrapper process. On the selected build
+node, enter or reattach the release tmux session and run:
 
 ```bash
 cd "$BUILD_WORKSPACE"
@@ -1555,8 +1676,61 @@ cd "$BUILD_WORKSPACE"
 ./cse-build install
 ```
 
-The explicit loop below is the operator inspection and troubleshooting form of
-the same sequential installation.
+The wrapper processes the eight environments in their generated order. This is
+useful for the first full trial pass, but it is not a required ordering once the
+concurrency prerequisites above pass.
+
+A second choice is the two-node compiler-surface split:
+
+```bash
+# Node 1: four GCC environments, sequential within this process
+cd "$BUILD_WORKSPACE"
+./cse-build install --surface shared
+
+# Node 2: four platform-compiler environments, sequential within this process
+cd "$BUILD_WORKSPACE"
+./cse-build install --surface platform
+```
+
+The surface commands provide separate mutable per-user cache directories. Do
+not start the same surface command twice.
+
+A third choice is one selected environment through bare Spack. Start with the
+generated shell so the approved runtime, module boundary, and workspace values
+are active, then choose the environment explicitly:
+
+```bash
+cd "$BUILD_WORKSPACE"
+./cse-build shell
+
+environment="$SHARED_COMPILER_NAME/mpi-$SHARED_MPI_NAME"
+environment_key="${environment//\//-}"
+export SPACK_USER_CACHE_PATH="$SPACK_USER_STATE_ROOT/cache/$environment_key"
+install -d -m 0700 "$SPACK_USER_CACHE_PATH"
+
+spack -e "$CSE_BUILD_WORKSPACE/environments/$environment" \
+  install --only-concrete -j "$BUILD_JOBS" --fail-fast
+spack -e "$CSE_BUILD_WORKSPACE/environments/$environment" \
+  env view regenerate
+spack -e "$CSE_BUILD_WORKSPACE/environments/$environment" \
+  module tcl refresh --delete-tree -y
+```
+
+A fourth choice is arbitrary environment fan-out. Open one prepared process per
+distinct environment and run the bare-Spack block above with a unique
+`environment` value and `SPACK_USER_CACHE_PATH`. These processes may be placed
+on one node or distributed across several nodes. For example, the four GCC
+environments may run independently on one compute node while the four platform
+environments run independently on another. Do not launch the same environment
+twice: its view and generated module root are owned by that one environment
+process.
+
+`BUILD_JOBS` (or `-j`) is a per-Spack-process build-job budget, not a node-wide
+allocation. When several processes share one node, their budgets add together.
+Choose per-process values whose total fits the allocated CPU cores and memory.
+There is no automatic cross-process memory budget.
+
+The explicit loop below is the inspection form of the sequential wrapper path:
 
 ```bash
 for environment in "${ENVIRONMENTS[@]}"; do
@@ -1570,33 +1744,6 @@ for environment in "${ENVIRONMENTS[@]}"; do
     module tcl refresh --delete-tree -y || break
 done
 ```
-
-Sequential installation is the default and is required until the lock test has
-passed. Concurrent Spack processes may wait on and reuse the same concrete
-prefix only when they use the same store and database, `config:locks:true`, and
-the actual shared filesystem honors the POSIX record-lock semantics used by the
-pinned Spack runtime. Validate that behavior on the selected install root before
-enabling concurrent installs.
-
-After that test passes, one active builder may split the two compiler surfaces
-across two build nodes:
-
-```bash
-# Node 1: shared GCC surface
-cd "$BUILD_WORKSPACE"
-./cse-build install --surface shared
-
-# Node 2: selected platform-compiler surface
-cd "$BUILD_WORKSPACE"
-./cse-build install --surface platform
-```
-
-Each command verifies the complete eight-lock checkpoint before installing and
-then processes its four environments sequentially. Do not start the same
-surface twice. `BUILD_JOBS` is a per-process budget, so concurrent job counts
-are cumulative when two Spack processes share one node. The wrapper gives the
-two surfaces separate mutable `SPACK_USER_CACHE_PATH` directories. Their
-generated source/misc caches, locked package store, and database remain shared.
 
 Apply the platform checklist after installation. A lane is not approved merely
 because compilation finished. Exercise its compiler/wrappers, representative
