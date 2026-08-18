@@ -1403,8 +1403,8 @@ does not probe Blueback, render a catalog, replace the workspace, or change a
 lockfile.
 
 This procedure is complete only after all three parts below pass. Part A saves
-the operator session, Part B installs the current `cse-build` controls into the
-existing workspace, and Part C proves the workspace is ready to resume.
+the operator session, Part B deliberately refreshes the generated workspace to
+the current design, and Part C proves the workspace is ready to resume.
 
 #### A. Record the existing Blueback workspace in an operator session
 
@@ -1442,7 +1442,7 @@ test -f "$BLUEBACK_EXISTING_WORKSPACE/workspace-manifest.yaml"
 if [ -f "$BLUEBACK_EXISTING_WORKSPACE/env/setup-build-env.sh" ]; then
   echo "Blueback setup-build-env.sh is present"
 else
-  echo "Blueback setup-build-env.sh is absent; the guarded control refresh will add it"
+  echo "Blueback setup-build-env.sh is absent; the guarded workspace refresh will add it"
 fi
 BLUEBACK_LOCK_COUNT="$(
   find "$BLUEBACK_EXISTING_WORKSPACE/environments" \
@@ -1497,7 +1497,7 @@ A fast-forward pull that would overlap a local file stops without replacing
 that file.
 
 Do not pass `--overwrite`. The generated `provider-selections.sh` may remain at
-its commented template for this control refresh because the live workspace's
+its commented template for this workspace refresh because the live workspace's
 recorded build-values file remains authoritative. Review and populate provider
 selections only when preparing a later workspace.
 
@@ -1505,7 +1505,7 @@ Stack Content is now current. Synchronize the remaining three repositories so
 all four are on the same branch. Because this existing workspace has no saved
 tool-build record, rebuild Stack Composer once and record its current commit
 before running Part B. Cluster Inspector does not need to be rebuilt solely to
-refresh workspace controls; rebuild it before the next probe if
+refresh the workspace; rebuild it before the next probe if
 `cse_session_status` reports it stale.
 
 ```bash
@@ -1534,42 +1534,31 @@ git -C "$COMPOSER" rev-parse HEAD \
 cse_session_status
 ```
 
-#### B. Install the current `cse-build` controls on Blueback
+#### B. Refresh Blueback to the current workspace design
 
 The operator session now points to the existing Blueback workspace, but Part A
-does not create or update `cse-build`. Run this part immediately after Part A.
-It updates only the generated workspace controls and does not render over the
-live workspace.
+does not update that workspace. Blueback's recorded values and lockfiles
+predate required parts of the current design: the generic binary target, MPI
+provider constraints, pinned Spack runtime metadata, group-write policy, and
+current build-stage spelling. They also predate current environment and lock
+verification rules. Do not copy only `cse-build` into that older workspace;
+the current verifier is intentionally not valid for its older concrete DAG.
 
-The generated command is `./cse-build`; it is a normal workspace file, not a
-dotfile. Render a temporary sibling workspace from Blueback's recorded catalog
-snapshot and build-values file. Compare the temporary and live environments and
-configuration before copying any control file.
+Prepare a temporary current values copy from the recorded selections and
+render a temporary workspace for review. The helper does not modify the
+recorded values. It derives only deterministic fields, records the Spack
+runtime selected by the operator session, changes build-workspace permissions
+to CSE group write, and changes the old `$user` build-stage token to `${USER}`.
 
-The comparison covers `environments/`, `configs/`, and an existing
-`env/setup-build-env.sh`, excluding only `spack.lock`. If an input differs,
-stop. When the inputs match, copy only these generated controls from the
-temporary workspace:
+Applying this refresh deliberately replaces the generated Blueback workspace,
+including its eight old lockfiles. It does not remove packages already present
+in the shared restricted Spack install tree or alter the static catalog. The
+new workspace must be concretized and verified before any installation starts.
 
-```text
-cse-build
-env/setup-build-env.sh
-env/prepare-module-state.sh
-env/workspace-shell.rc
-scripts/verify-lockfiles.py
-BUILDER-HANDOFF.md
-README.md
-```
-
-Preserve every `spack.yaml`, `spack.lock`, catalog snapshot, configuration
-scope, and workspace manifest. The complete block below sets `cse-build` to
-mode `0770`, sets the other listed files to `0660`, proves that the eight lock
-digests did not change, and runs `./cse-build verify`.
-
-This Blueback refresh changes only the generated build controls. It does not
-change the concrete DAG and does not require reconcretization.
-
-With the Blueback operator session and current tools loaded from Part A, run:
+With the Blueback operator session and current tools loaded from Part A, run
+the complete guarded block. Review the displayed environment and configuration
+diffs. Type the exact confirmation only when the changes match the current
+trial design.
 
 ```bash
 (
@@ -1577,75 +1566,73 @@ With the Blueback operator session and current tools loaded from Part A, run:
   CONTROL_REFRESH_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cse-control-refresh.XXXXXX")"
   trap 'rm -rf "$CONTROL_REFRESH_ROOT"' EXIT
   CONTROL_REFRESH_WORKSPACE="$CONTROL_REFRESH_ROOT/workspace"
-  BLUEBACK_LOCKS_BEFORE="$CONTROL_REFRESH_ROOT/blueback-locks.before.sha256"
-  BLUEBACK_LOCKS_AFTER="$CONTROL_REFRESH_ROOT/blueback-locks.after.sha256"
-
-  while IFS= read -r lockfile; do
-    sha256sum "$lockfile"
-  done < <(
-    find "$BUILD_WORKSPACE/environments" \
-      -mindepth 3 -maxdepth 3 -type f -name spack.lock -print | sort
-  ) > "$BLUEBACK_LOCKS_BEFORE"
-  test "$(wc -l < "$BLUEBACK_LOCKS_BEFORE" | tr -d '[:space:]')" -eq 8
+  CONTROL_REFRESH_VALUES="$CONTROL_REFRESH_ROOT/cse-trials-build-values.yaml"
 
   if [ -f "$BUILD_WORKSPACE/inputs/cse-trials-build-values.yaml" ]; then
-    CONTROL_REFRESH_VALUES="$BUILD_WORKSPACE/inputs/cse-trials-build-values.yaml"
+    CONTROL_REFRESH_SOURCE_VALUES="${BUILD_WORKSPACE}/inputs/cse-trials-build-values.yaml"
   elif [ -n "${BUILD_VALUES:-}" ] && [ -f "$BUILD_VALUES" ]; then
-    CONTROL_REFRESH_VALUES="$BUILD_VALUES"
+    CONTROL_REFRESH_SOURCE_VALUES="$BUILD_VALUES"
   else
     echo "recorded build values file is unavailable" >&2
     exit 1
   fi
 
+  "$CSE_PYTHON" \
+    "$CONTENT/pilots/cse-pilot/scripts/prepare-existing-workspace-values.py" \
+    --source "$CONTROL_REFRESH_SOURCE_VALUES" \
+    --output "$CONTROL_REFRESH_VALUES" \
+    --spack-source "$SPACK_SOURCE" \
+    --spack-version "$SPACK_VERSION" \
+    --spack-tag "$SPACK_TAG" \
+    --spack-commit "$SPACK_COMMIT" \
+    --spack-mode "$SPACK_RUNTIME_MODE" \
+    --shared-spack-root "$CSE_TOOLS_ROOT/spack/$SPACK_VERSION" \
+    --initial-spack-root "$SPACK_ROOT"
+
   "$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
     --blueprint "$CONTENT/pilots/cse-pilot" \
-    --catalog "$BUILD_WORKSPACE/catalog" \
+    --catalog "$CATALOG" \
     --values "$CONTROL_REFRESH_VALUES" \
     --output "$CONTROL_REFRESH_WORKSPACE"
 
+  echo "Review environment changes:"
   diff -ru --exclude=spack.lock \
     "$BUILD_WORKSPACE/environments" \
-    "$CONTROL_REFRESH_WORKSPACE/environments"
-  diff -ru "$BUILD_WORKSPACE/configs" "$CONTROL_REFRESH_WORKSPACE/configs"
-  if [ -f "$BUILD_WORKSPACE/env/setup-build-env.sh" ]; then
-    cmp \
-      "$BUILD_WORKSPACE/env/setup-build-env.sh" \
-      "$CONTROL_REFRESH_WORKSPACE/env/setup-build-env.sh"
-  fi
+    "$CONTROL_REFRESH_WORKSPACE/environments" || true
+  echo "Review configuration changes:"
+  diff -ru \
+    "$BUILD_WORKSPACE/configs" \
+    "$CONTROL_REFRESH_WORKSPACE/configs" || true
 
-  cp "$CONTROL_REFRESH_WORKSPACE/cse-build" "$BUILD_WORKSPACE/cse-build"
-  chmod 0770 "$BUILD_WORKSPACE/cse-build"
-  for relative_path in \
-    env/setup-build-env.sh \
-    env/prepare-module-state.sh \
-    env/workspace-shell.rc \
-    scripts/verify-lockfiles.py \
-    BUILDER-HANDOFF.md \
-    README.md; do
-    cp \
-      "$CONTROL_REFRESH_WORKSPACE/$relative_path" \
-      "$BUILD_WORKSPACE/$relative_path"
-    chmod 0660 "$BUILD_WORKSPACE/$relative_path"
-  done
+  printf '%s' \
+    "Type refresh-blueback to replace the workspace and old lockfiles: "
+  read -r confirmation
+  test "$confirmation" = "refresh-blueback"
 
-  while IFS= read -r lockfile; do
-    sha256sum "$lockfile"
-  done < <(
-    find "$BUILD_WORKSPACE/environments" \
-      -mindepth 3 -maxdepth 3 -type f -name spack.lock -print | sort
-  ) > "$BLUEBACK_LOCKS_AFTER"
-  cmp "$BLUEBACK_LOCKS_BEFORE" "$BLUEBACK_LOCKS_AFTER"
+  "$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
+    --blueprint "$CONTENT/pilots/cse-pilot" \
+    --catalog "$CATALOG" \
+    --values "$CONTROL_REFRESH_VALUES" \
+    --output "$BUILD_WORKSPACE" \
+    --overwrite
 
   cd "$BUILD_WORKSPACE"
+  test -x ./cse-build
+  test -z "$(find environments -type f -name spack.lock -print -quit)"
+  ./cse-build concretize
   ./cse-build verify
 )
 ```
 
+The temporary values copy exists only below `CONTROL_REFRESH_ROOT` and is
+removed when the subshell exits. The initialized workspace records its own copy
+under `inputs/`. Do not restore the superseded lockfiles after the refresh.
+
 #### C. Verify and resume Blueback
 
-Part B is complete only when `cse-build` exists, all eight original lockfiles
-retain their recorded digests, and the generated verifier passes. Check the
-entry point and its recorded workspace state:
+Part B is complete only when `cse-build` exists, all eight current environments
+have fresh lockfiles, and the generated verifier passes. Check the entry point
+and its recorded workspace state:
 
 ```bash
 source "$HOME/STACK_TESTING/operator-sessions/blueback/blueback-trial-001/activate.sh"
