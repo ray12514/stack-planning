@@ -1103,14 +1103,18 @@ all four GCC lockfiles must record the same hash.
 
 For build-sourced Open MPI, the helper combines verified common-scope facts
 with `stack-content/pilots/cse-pilot/openmpi-policy.yaml`. The current trial
-policy is Open MPI 4.1.8 with verified `ucx+thread_multiple`, exactly one
-verified scheduler (`slurm` or `pbs`), and retained `mpirun` support. On Slurm,
+policy is Open MPI 4.1.8 with verified `ucx+thread_multiple`, at most one
+verified scheduler (`slurm` or `pbs`), and retained `mpirun`/`mpiexec` support.
+When neither scheduler is present, the helper emits `schedulers=none +rsh` and
+does not add a scheduler dependency. This is the standard launcher path; it
+does not provide direct `srun` or PBS/TM integration. On Slurm,
 the helper emits `+legacylaunchers` and enables direct `srun --mpi=pmi2` with
 `+pmi` only when the static manifest records both an advertised `pmi2` launch
 plugin and a verified PMI2 development interface. Otherwise it emits `~pmi`
 and keeps the mpirun path. It disables CUDA and Lustre and keeps ROMIO without
-a Lustre filesystem plugin. The generated root includes exact
-`^ucx@...+thread_multiple` and scheduler dependency constraints. A detected
+a Lustre filesystem plugin. The generated root includes an exact
+`^ucx@...+thread_multiple` constraint and, when a scheduler is selected, its
+exact dependency constraint. A detected
 Lustre filesystem or external does not change that spec. Do not depend on
 ambient configure detection or run a separate scheduler probe while creating
 values.
@@ -1126,10 +1130,12 @@ Open MPI and every source-built payload must resolve to the selected surface
 compiler and portable target, while site Slurm and UCX remain external with
 their inspected architecture.
 
-Do not work around an external solve failure by building a private Slurm or
-UCX. The trial integrates with the site's scheduler and selected fabric
-runtime. A separately built Slurm is not the site's controller/client runtime,
-and replacing the reviewed UCX changes the fabric integration being tested.
+Do not work around an external solve failure by building a private Slurm, PBS,
+or UCX. When a verified scheduler external is selected, the trial integrates
+with that site scheduler and the selected fabric runtime. When no scheduler is
+available, use the explicit schedulerless launcher configuration instead. A
+separately built scheduler is not the site's controller/client runtime, and
+replacing the reviewed UCX changes the fabric integration being tested.
 
 Use `source: external` for the platform compiler and for platform-provided MPI.
 Use `source: build` only for the selected MPI implementation that CSE will
