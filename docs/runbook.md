@@ -664,7 +664,11 @@ test -x "$CSE_BOOTSTRAP_PYTHON"
   'import sys; assert sys.version_info >= (3, 9), sys.version'
 "$CSE_BOOTSTRAP_PYTHON" -m venv .venv
 test -x "$CSE_PYTHON"
-"$CSE_PYTHON" -m pip install --upgrade pip
+"$CSE_PYTHON" -m pip install --upgrade \
+  pip \
+  "setuptools>=77" \
+  "wheel>=0.44,<1" \
+  "build>=1.2,<2"
 "$CSE_PYTHON" -m pip install -e '.[dev]'
 PYTHON="$CSE_PYTHON" bash scripts/build-pyz.sh
 "$CSE_PYTHON" "$STACK_COMPOSER" --help >/dev/null
@@ -680,6 +684,10 @@ every project Python command through the absolute `CSE_PYTHON` path. Do not
 depend on whichever `python` or `python3` happens to be first on `PATH`. In a
 new shell, Step 1 restores the same path. Rebuild the virtual environment only
 when its bootstrap interpreter or Stack Composer dependencies must change.
+The explicit build-tool upgrade is required even for a newly created virtual
+environment. Recreating `.venv` without that upgrade can restore an older
+`setuptools` that rejects Stack Composer's SPDX license metadata during the
+non-isolated wheel build.
 
 Verify and activate the pinned Spack checkout selected for the trials:
 
@@ -1536,7 +1544,11 @@ source "$CSE_OPERATOR_SESSION_FILE"
 cd "$COMPOSER"
 "$CSE_BOOTSTRAP_PYTHON" -m venv .venv
 test -x "$CSE_PYTHON"
-"$CSE_PYTHON" -m pip install --upgrade pip
+"$CSE_PYTHON" -m pip install --upgrade \
+  pip \
+  "setuptools>=77" \
+  "wheel>=0.44,<1" \
+  "build>=1.2,<2"
 "$CSE_PYTHON" -m pip install -e '.[dev]'
 PYTHON="$CSE_PYTHON" bash scripts/build-pyz.sh
 "$CSE_PYTHON" "$STACK_COMPOSER" --help >/dev/null
