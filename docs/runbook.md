@@ -1145,6 +1145,12 @@ Observed provider names and Spack package names can differ. Classic Intel is
 reported as `intel` under `scopes/compilers/intel/...`, but the values file uses
 `intel-oneapi-compilers-classic`. Intel MPI is reported under
 `scopes/mpi/intel-mpi/...`, but the values file uses `intel-oneapi-mpi`.
+LLVM-based Intel is reported as `oneapi` when the verified drivers are `icx`,
+`icpx`, and `ifx`; do not relabel that compiler as Classic Intel because its
+module suite is named `intel`. A oneAPI build environment must also include a
+verified GCC compiler scope because `intel-oneapi-runtime` links against
+`gcc-runtime`. That supporting GCC registration does not change the compiler
+selected for the platform roots.
 
 Record the selected tuple, roots, cache URL, and values path in the system
 notes.
