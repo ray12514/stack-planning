@@ -1850,6 +1850,11 @@ explicit Core roots. Miniforge is a compiler-independent Core root because its
 Spack package declares no compiler-language dependency and installs a prebuilt
 architecture-family binary. Do not force `%compiler` or the source-build
 microarchitecture onto it; its concrete target must be generic `x86_64`.
+Confirm that no fourth Python appears as a build dependency: Ninja and Dakota
+must reuse Python 3.12.13. In each MPI environment, Dakota must reuse the
+direct Boost 1.90 MPI root, netlib-lapack 3.12.1, CMake 3.31.12, and the lane's
+single MPI provider. A matching name and version with a different hash is a
+failed gate.
 
 Gate: all eight restricted lockfiles exist and pass review.
 
