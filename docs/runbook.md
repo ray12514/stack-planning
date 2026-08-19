@@ -1631,6 +1631,7 @@ node, use the transfer procedure recorded in that system's
 `stack-content/systems/<system>/runbook-notes.md`. Preserve the original
 workspace and lockfiles; transfer only an approved source mirror into the
 generated `config:source_cache`.
+
 ### Supported build execution choices
 
 The simplest choice is one sequential wrapper process. On the selected build
