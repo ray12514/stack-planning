@@ -1070,7 +1070,7 @@ stage path.
 |---|---|
 | `workspace.role` | `build` |
 | system/release | current profile/catalog plus `TRIAL_RELEASE` |
-| `shared.compiler` | GCC 12.5.0, `source: build`, plus the verified older compiler selected to build the GCC producer |
+| `shared.compiler` | GCC 12.5.0 `+binutils`, `source: build`, plus the verified older compiler selected to build the GCC producer |
 | compiler public names | generated CSE front-door names such as `init-GCC` and `init-CCE`; these do not replace the platform module chains copied from the catalog |
 | `shared.mpi` | OpenMPI 4.1.8 built with GCC, or the selected compatible external MPI |
 | `platform.compiler` | use the catalog manifest's observed provider name and exact version; the helper copies its Spack package name, module chain, and compiler scope path |
@@ -1095,8 +1095,10 @@ The helper selects the newest verified older GCC compiler scope as the compiler
 that builds the GCC 12.5.0 producer. Set `CSE_SHARED_COMPILER_SEED_REF` only to
 choose a different reviewed compiler from the catalog. This is a compiler
 dependency inside each GCC environment, not a separate preparatory environment
-or user-facing surface. Every GCC producer root is the same explicit spec, so
-all four GCC lockfiles must record the same hash.
+or user-facing surface. Every GCC producer root explicitly enables `+binutils`
+so the compiler uses its managed assembler/linker toolchain instead of silently
+reusing a previously concrete `~binutils` build. All four GCC lockfiles must
+record the same compiler hash.
 
 For build-sourced Open MPI, the helper combines verified common-scope facts
 with `stack-content/pilots/cse-pilot/openmpi-policy.yaml`. The current trial
@@ -1197,7 +1199,8 @@ for the selected `target=...` and a `miniforge3:require` entry for generic
 `target=x86_64`. No environment may replace either with a native or
 compiler-specific CPU target. Inspect representative environment roots as
 well. Compiler, Foundation, Core, and build-tool producer roots carry their
-explicit surface compiler/target bindings. MPI producers and payload roots
+explicit surface compiler/target bindings, and every GCC producer root contains
+`+binutils`. MPI producers and payload roots
 deliberately do not append blanket compiler/target constraints; their
 environment includes `configs/surfaces/<surface>/compiler.yaml`, which selects
 the surface's `c`, `cxx`, and `fortran` providers, while the common target
