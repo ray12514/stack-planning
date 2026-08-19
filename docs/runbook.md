@@ -896,6 +896,7 @@ Inspect the generated catalog:
 
 ```bash
 cat "$CATALOG/README.md"
+cmp "$SYSTEM_DIR/profile.yaml" "$CATALOG/profile.yaml"
 sed -n '1,260p' "$CATALOG/manifest.yaml"
 sed -n '1,320p' "$CATALOG/reports/static-plan.yaml"
 find "$CATALOG/scopes" -type f | sort
@@ -1158,13 +1159,18 @@ notes.
 Initialization copies the rendered static catalog into
 `$BUILD_WORKSPACE/catalog` and renders relative include paths. The resulting
 workspace is the complete Spack build handoff; it does not depend on the
-original `$CATALOG` path after initialization.
+original `$CATALOG` path after initialization. The CSE pilot blueprint also
+normalizes only the newly generated workspace to the declared access policy.
+For restricted build values, directories are `2770`, ordinary files are
+`0660`, and executable entry points are `0770`. The dedicated setgid parent
+supplies group `cse`; no sticky bit is used.
 
 Use `--overwrite` only after reviewing and deliberately replacing the existing
 workspace.
 
 ```bash
 cat "$BUILD_WORKSPACE/README.md"
+cmp "$SYSTEM_DIR/profile.yaml" "$BUILD_WORKSPACE/catalog/profile.yaml"
 sed -n '1,260p' "$BUILD_WORKSPACE/workspace-manifest.yaml"
 find "$BUILD_WORKSPACE/environments" -name spack.yaml -print | sort
 find "$BUILD_WORKSPACE/catalog/scopes" -type f -print | sort
@@ -1176,7 +1182,43 @@ cat "$BUILD_WORKSPACE/configs/common/config.yaml"
 cat "$BUILD_WORKSPACE/configs/common/mirrors.yaml"
 test -x "$BUILD_WORKSPACE/cse-build"
 test -r "$BUILD_WORKSPACE/BUILDER-HANDOFF.md"
+test -w "$BUILD_WORKSPACE"
+test "$(stat -c %G "$BUILD_WORKSPACE")" = "$CSE_GROUP"
+test "$(stat -c %a "$BUILD_WORKSPACE")" = 2770
+test "$(stat -c %a "$BUILD_WORKSPACE/cse-build")" = 770
+test "$(stat -c %a "$BUILD_WORKSPACE/README.md")" = 660
+test "$(stat -c %a "$BUILD_WORKSPACE/BUILDER-HANDOFF.md")" = 660
 ```
+
+If this exact dedicated workspace was initialized by an older checkout and
+already contains lockfiles or partial installs, do not use `--overwrite` merely
+to repair access. Stop every process using the workspace, confirm the guarded
+path and manifest below, then have the workspace owner or filesystem
+administrator repair that tree in place. These commands preserve all files and
+lockfiles:
+
+```bash
+case "$BUILD_WORKSPACE" in
+  "$CSE_RESTRICTED_ROOT"/workspaces/*) ;;
+  *) printf 'refusing unexpected workspace: %s\n' "$BUILD_WORKSPACE" >&2; exit 1 ;;
+esac
+test -f "$BUILD_WORKSPACE/workspace-manifest.yaml"
+
+chgrp -R "$CSE_GROUP" "$BUILD_WORKSPACE"
+find "$BUILD_WORKSPACE" -type d -exec chmod 2770 {} +
+find "$BUILD_WORKSPACE" -type f -perm /111 -exec chmod 0770 {} +
+find "$BUILD_WORKSPACE" -type f ! -perm /111 -exec chmod 0660 {} +
+
+# Backfill the review copy only when this workspace predates profile snapshots.
+if [ ! -f "$BUILD_WORKSPACE/catalog/profile.yaml" ]; then
+  install -m 0660 -g "$CSE_GROUP" \
+    "$SYSTEM_DIR/profile.yaml" "$BUILD_WORKSPACE/catalog/profile.yaml"
+fi
+cmp "$SYSTEM_DIR/profile.yaml" "$BUILD_WORKSPACE/catalog/profile.yaml"
+```
+
+Run the access checks above as the operator, then repeat the read, execute, and
+workspace-write checks from the receiving builder's login before resuming.
 
 Verify every include path, provider selection, deployment path, native
 `modules.yaml`, and private build-cache URL. Serial must contain no MPI scope.
@@ -1261,7 +1303,6 @@ verify_workspace_scopes \
   "$BUILD_EVIDENCE/config-scopes"
 
 mkdir -p "$BUILD_WORKSPACE/inputs"
-cp "$SYSTEM_DIR/profile.yaml" "$BUILD_WORKSPACE/inputs/profile.yaml"
 cp "$BUILD_VALUES" "$BUILD_WORKSPACE/inputs/cse-trials-build-values.yaml"
 cp "$CATALOG/manifest.yaml" "$BUILD_WORKSPACE/inputs/catalog-manifest.yaml"
 cp "$CATALOG/reports/static-plan.yaml" "$BUILD_WORKSPACE/inputs/static-plan.yaml"
@@ -1332,6 +1373,11 @@ printf 'CSE workspace: %s\n' "$BUILD_WORKSPACE"
 The receiving builder needs only that printed absolute path, membership in the
 `cse` group, and the site-provided absolute writable `WORKDIR`. The builder
 does not source the operator-session file and does not activate Spack first.
+`cse-build` is executable Bash. A default `tcsh` login runs it directly through
+its shebang; the builder does not source it and does not need to change the
+login shell. The exact reviewed raw facts are available for inspection at
+`catalog/profile.yaml`, but the builder does not edit or pass that file to
+Spack.
 For a workspace recorded against the shared Spack checkout, the first entry is:
 
 ```bash
@@ -1341,6 +1387,7 @@ export CSE_HANDOFF_WORKSPACE="<absolute-shared-workspace-path>"
 test -d "$CSE_HANDOFF_WORKSPACE"
 test -r "$CSE_HANDOFF_WORKSPACE/workspace-manifest.yaml"
 test -x "$CSE_HANDOFF_WORKSPACE/cse-build"
+test -w "$CSE_HANDOFF_WORKSPACE"
 
 cd "$CSE_HANDOFF_WORKSPACE"
 ./cse-build login status --spack-mode shared

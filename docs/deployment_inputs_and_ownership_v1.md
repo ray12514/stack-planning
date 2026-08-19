@@ -122,8 +122,13 @@ is absent.
 The selected install, cache, view, module, buildcache, and publication roots
 normally live on a shared filesystem. Their access policy is a deployment
 decision. It is not a profile fact. Cluster Inspector must not inspect group
-membership or change modes, and Stack Composer only renders the chosen policy;
-it does not call `chgrp` or mutate the filesystem.
+membership or change modes. The production Stack Composer render records the
+chosen policy and does not modify deployment roots. The temporary CSE
+`init-workspace` helper is narrower: while creating a new initialized workspace,
+it applies that workspace's declared read/write modes to the files and
+directories it just generated. It does not change group ownership or recurse
+outside the new workspace. The setgid parent remains responsible for assigning
+the CSE group.
 
 For the initial deployment, `deployment.yaml.access` records:
 

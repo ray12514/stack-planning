@@ -118,6 +118,17 @@ This allows connected login-node concretization to prepare Clingo once for a
 later network-restricted compute session. The receiving builder supplies no
 replacement render inputs.
 
+The initialized CSE workspace is a group-collaborative handoff. For restricted
+build values, `init-workspace` writes directories as `2770`, ordinary files as
+`0660`, and executable entry points as `0770`. Group ownership comes from the
+dedicated setgid CSE parent. No sticky bit is used. The generated `cse-build`
+file is Bash with an executable shebang; a receiving builder may run it
+directly from `tcsh` or another login shell and must not source it. The static
+catalog retains the exact reviewed Cluster Inspector input as `profile.yaml`;
+because the initializer snapshots the catalog, that review-only fact sheet is
+available to the builder at `catalog/profile.yaml` without becoming a Spack
+configuration input.
+
 The generated environment is the build execution unit. `cse-build` is a
 convenience entry point, not the build scheduler. Its unqualified `install`
 action processes all eight environments sequentially. After all eight

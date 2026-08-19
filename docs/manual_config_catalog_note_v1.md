@@ -40,6 +40,7 @@ workspace** containing everything the downstream build path needs.
 | Contract | `stack-composer render-static` | `stack-composer render` |
 |---|---|---|
 | Platform facts | reads `profile.yaml`; never probes | reads `profile.yaml`; never probes |
+| Reviewed fact snapshot | retains the exact input as `profile.yaml` for review; it is not a Spack scope | provenance is recorded in the release manifest |
 | Package intent | none; independent of a stack | reads `stack.yaml` and package sets |
 | Deployment paths | not accepted or materialized | required from `deployment.yaml` |
 | Reusable config scopes | all maintainer-supported safe choices | only scopes selected for the resolved environments |
@@ -109,6 +110,7 @@ rendered-static/
       2026.09/
         README.md
         manifest.yaml
+        profile.yaml
         reports/
           static-plan.yaml
         scopes/
@@ -123,7 +125,9 @@ rendered-static/
 ```
 
 The important property is that each file is a complete valid Spack config YAML,
-not a snippet that requires Stack Composer-specific interpretation.
+not a snippet that requires Stack Composer-specific interpretation. The one
+exception is the top-level `profile.yaml`: it is the exact reviewed input kept
+for provenance and human inspection, not a file included by Spack.
 
 An observed MPI installation whose build compiler cannot be proved remains
 review evidence in `profile.yaml`, but it is not a valid catalog input.
