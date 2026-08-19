@@ -204,12 +204,12 @@ Resume the same release only when all of these are true:
   interruption, quota exhaustion, or interrupted cache transfer;
 - no approved published artifact would be edited in place.
 
-The selected build node type, its ordered stage roots, and `build_jobs` are
-operational settings. They may change within the same trial release when the
-environment YAML, lockfiles, install tree, and concrete hashes remain
-unchanged. Preserve the original locked workspace and create a sibling
-operational workspace for the replacement node; do not overwrite the locked
-workspace.
+The selected login/compute context, its executable build stage, and
+`build_jobs` are operational settings. They may change within the same trial
+release when the environment YAML, lockfiles, install tree, and concrete hashes
+remain unchanged. Use the generated `cse-build` context selector in the same
+workspace; do not generate a sibling workspace or copy lockfiles merely to move
+between login and compute nodes.
 
 The Spack tool-root path is also operational. One builder may use the shared
 root and another a builder-local root without changing the release when both
@@ -238,7 +238,7 @@ of deleting or rewriting the old record.
 | Failure or change | Resume action |
 |---|---|
 | Scheduler timeout, node failure, temporary network failure, or resolved quota problem with unchanged inputs | Retry only the failed command or environment in the same release. |
-| Selected build node is unavailable, but another profiled node can build the same locked target | Create a sibling operational workspace for the replacement node, verify every environment YAML is unchanged, transfer the same locks, and continue the same release against the same install tree. |
+| Selected build node is unavailable, but the other recorded context can run the same locked target | Enter the same workspace through `./cse-build login` or `./cse-build compute`. The selector chooses an executable stage for that context; keep the existing locks and install tree. |
 | Source build failure caused by a transient host/tool problem | Retry the failed lane after recording the log; earlier validated lanes remain valid. |
 | Package recipe, patch, variant, compiler, MPI, or Spack version/commit change is required | Create a new trial release, reconcretize, and revalidate every affected lane. |
 | Selected Spack checkout is dirty or does not match the pinned source/tag/commit | Stop. Replace the selected root with a clean checkout of the approved identity. Do not pull, switch branches, or run `spack isolate` in place. |
@@ -283,7 +283,7 @@ cse_session_status
   --overwrite
 
 cd "$BUILD_WORKSPACE"
-./cse-build concretize
+./cse-build login concretize
 ```
 
 This deliberately replaces every diagnostic lock in that workspace. Do not
@@ -292,73 +292,39 @@ compiler/MPI boundary is DAG-significant, so all eight environments must be
 concretized and verified together. If installation or promotion already
 started, preserve the original evidence and use a new trial release instead.
 
-### Optional recovery: switch to another profiled build node
+### Switch between login and compute contexts
 
-Use this procedure only when the planned build node changes. It is not part of
-the normal Step 8 to Step 9 path.
-
-Before lockfiles exist, set `CSE_BUILD_NODE_TYPE` to the replacement node key,
-regenerate `$BUILD_VALUES`, and deliberately reinitialize the current workspace
-with `--overwrite`. The static catalog does not need to be rerendered when it
-already contains current facts for both node types.
-
-After lockfiles exist or installation has started, preserve the original
-workspace. Generate a sibling workspace that keeps the same `TRIAL_RELEASE`,
-install tree, caches, provider selections, package inputs, and Spack version:
+The initialized workspace records both reviewed contexts. Switching contexts is
+a normal runtime operation and does not regenerate the workspace, change a
+lockfile, or select another CPU target:
 
 ```bash
-export ORIGINAL_BUILD_WORKSPACE="$BUILD_WORKSPACE"
-export CSE_BUILD_NODE_TYPE="login"
-export BUILD_VALUES="$SYSTEM_DIR/cse-trials-build-values.login.yaml"
-export BUILD_WORKSPACE="${ORIGINAL_BUILD_WORKSPACE}.login"
-
-"$CSE_PYTHON" \
-  "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
-
-"$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
-  --blueprint "$CONTENT/pilots/cse-pilot" \
-  --catalog "$CATALOG" \
-  --values "$BUILD_VALUES" \
-  --output "$BUILD_WORKSPACE"
-
-verify_spack_tool_root
-source "$SPACK_ROOT/share/spack/setup-env.sh"
-SPACK_VERSION_OUTPUT="$(spack --version)"
-test "${SPACK_VERSION_OUTPUT%% *}" = "$SPACK_VERSION"
-verify_spack_tool_root
-source "$BUILD_WORKSPACE/env/setup-build-env.sh"
-ENVIRONMENTS=(
-  "$SHARED_COMPILER_NAME/core"
-  "$SHARED_COMPILER_NAME/common"
-  "$SHARED_COMPILER_NAME/serial"
-  "$SHARED_COMPILER_NAME/mpi-$SHARED_MPI_NAME"
-  "$PLATFORM_COMPILER_NAME/core"
-  "$PLATFORM_COMPILER_NAME/common"
-  "$PLATFORM_COMPILER_NAME/serial"
-  "$PLATFORM_COMPILER_NAME/mpi-$PLATFORM_MPI_NAME"
-)
-
-for environment in "${ENVIRONMENTS[@]}"; do
-  cmp \
-    "$ORIGINAL_BUILD_WORKSPACE/environments/$environment/spack.yaml" \
-    "$BUILD_WORKSPACE/environments/$environment/spack.yaml" || exit 1
-  cp \
-    "$ORIGINAL_BUILD_WORKSPACE/environments/$environment/spack.lock" \
-    "$BUILD_WORKSPACE/environments/$environment/spack.lock" || exit 1
-done
-
 cd "$BUILD_WORKSPACE"
-./cse-build verify
+
+# Connected node: bootstrap Spack, concretize, verify, and fetch sources.
+./cse-build login
+./cse-build login concretize
+./cse-build login fetch
+
+# Compute allocation: install the same locked DAGs.
+./cse-build compute
+./cse-build compute install
 ```
 
-Do not reconcretize. Confirm that the replacement node is permitted for builds,
-can load every recorded compiler/external module, and can execute the target
-architecture already recorded in the locks. The regenerated values file must
-show the same `architecture.target`; only `build.node_type` and stage paths may
-change. Continue with `spack install --only-concrete`; successful prefixes in
-the shared install tree are reused, while an unfinished package is restaged
-under the new node's stage root. Do not use `--dont-restage`, delete shared
-prefix locks, or run a broad failure-marker cleanup.
+The commands may run in separate tmux panes or at different times. Each context
+has its own tmux session, executable build-stage candidates, and mutable command
+cache. Both use the same per-builder Spack bootstrap store, workspace,
+lockfiles, source cache, install tree, views, modules, and pinned Spack identity.
+Concretize once through `login` before entering a network-restricted compute
+node so Clingo bootstrap artifacts are already available. The selector creates
+and executes a small probe in each stage candidate before Spack starts, so a
+writable `noexec` or policy-restricted temporary directory is skipped.
+`${WORKDIR}` supplies a separate final fallback for each context.
+
+Confirm that the node can see the shared workspace and store and can load every
+recorded external module. Do not reconcretize merely because the context or
+stage changed. If neither context has an executable stage, correct the site
+`WORKDIR` or profile facts before continuing.
 
 ### Failure procedure
 
@@ -545,6 +511,25 @@ git -C "$CONTENT" pull --ff-only
 
 source "$WORK_ROOT/operator-sessions/<system>/<system>-trial-001/activate.sh"
 ```
+
+The session fails immediately unless `CSE_TRIAL_ROOT` ends in
+`/initial-conversion-trials`. After sourcing it, verify the derived roots
+before creating any shared directory:
+
+```bash
+test "$CSE_RESTRICTED_ROOT" = "$CSE_TRIAL_ROOT/restricted"
+test "$CSE_PUBLISHED_ROOT" = "$CSE_TRIAL_ROOT/published"
+printf 'trial=%s\nrestricted=%s\npublished=%s\n' \
+  "$CSE_TRIAL_ROOT" "$CSE_RESTRICTED_ROOT" "$CSE_PUBLISHED_ROOT"
+```
+
+If an earlier session points at the parent CSE directory, stop. Do not move a
+Spack install tree or edit generated manifests in place. First inventory the
+wrongly rooted catalog, workspaces, locks, and install database. When no
+packages were installed, create a correctly rooted session and regenerate the
+catalog/workspace from the owning inputs. If packages were installed, preserve
+the tree and review recovery before changing any path because installed
+prefixes and Spack database records are not safely relocatable.
 
 Use `--catalog-release` and `--trial-release` when the release names are not
 the defaults. Do not overwrite a saved session after its catalog, workspace,
@@ -1001,8 +986,7 @@ Set the small provider tuple selected during catalog review. The common runbook
 does not infer this policy from the machine. The system note gives the exact
 exports for the current trial selection.
 
-Review the available node-type keys and their stage facts before selecting the
-build node:
+Review the available node-type keys and stage facts for both runtime contexts:
 
 ```bash
 sed -n '/^  node_types:/,/^template_set:/p' "$CATALOG/manifest.yaml"
@@ -1022,10 +1006,11 @@ source "$CSE_OPERATOR_SESSION_FILE"
 ```
 
 Uncomment and fill the required exports for the shared compiler/MPI, platform
-compiler/MPI, build node type, and job count. The second command reloads both
-the fixed session values and the reviewed provider selections. Every later
-login gets the same selections by sourcing only `activate.sh`; do not retype
-them into the shell.
+compiler/MPI, and job count. The standard context keys are `login` and
+`cpu_compute`; set the optional login/compute node-type overrides only when the
+catalog uses different names. The second command reloads both the fixed session
+values and the reviewed provider selections. Every later login gets the same
+selections by sourcing only `activate.sh`; do not retype them into the shell.
 
 `provider-selections.sh` is operator-local setup state, not the shared handoff
 or an additional renderer input. The helper resolves it into the tracked build
@@ -1062,20 +1047,22 @@ It intersects the detected, preferred, and alternate CPU targets of every
 build/runtime node type, then selects `x86_64_v3`, `x86_64_v2`, or `x86_64` in
 that order. A node remains part of this CPU compatibility check when it also
 has a GPU; the trial does not render GPU package environments. This target is
-architecture policy; it is not derived from `CSE_BUILD_NODE_TYPE`, and
-changing from a compute node to a login node does not change it. The helper
-rejects a requested target that any relevant node type cannot run. It also
-records the generic `x86_64` family target for architecture-specific prebuilt
-distributions such as Miniforge.
+architecture policy; it is independent of the active login or compute context,
+and changing contexts does not change it. The helper rejects a requested target
+that any relevant node type cannot run. It also records the generic `x86_64`
+family target for architecture-specific prebuilt distributions such as
+Miniforge.
 
-`CSE_BUILD_NODE_TYPE` is the node class on which the builds will run, such as
-`cpu_compute`. It must be an exact key under the catalog manifest's
-`profile_facts.node_types`. The helper converts that reviewed choice into the
-complete ordered `paths.build_stage` list. It keeps inspected writable,
-executable candidates, puts temporary/node-local storage first, then other
-inspected scratch paths, and adds `${WORKDIR}` last. Every path is namespaced
-by the Spack user, system, and trial release. Do not type or approve one manual
-stage path in place of this list.
+The helper records two build contexts from exact keys under the catalog
+manifest's `profile_facts.node_types`: `login` and `cpu_compute` by default. If
+a site uses different keys, set `CSE_LOGIN_NODE_TYPE` or
+`CSE_COMPUTE_NODE_TYPE` before generating the values. For each context the
+helper records inspected writable candidates, temporary/node-local storage
+first, other scratch paths next, and a context-specific `${WORKDIR}` fallback
+last. At workspace entry, `cse-build` performs an actual execution probe and
+selects the first usable path. Every path is namespaced by the Spack user,
+system, trial release, and context. Do not replace these lists with one manual
+stage path.
 
 | Values | Restricted build setting |
 |---|---|
@@ -1088,7 +1075,7 @@ stage path in place of this list.
 | `platform.mpi` | use the catalog manifest's Spack `package` name; build OpenMPI 4.1.8 on non-Cray systems, or select the matching external Cray MPICH 9.x/Intel MPI scope |
 | `catalog_scopes.*` | exact relative paths below `$CATALOG` |
 | install tree | `$BUILD_RELEASE_ROOT/spack/opt` |
-| build node/stages | reviewed profile node type; generated temp, scratch, then `${WORKDIR}` fallback list |
+| build contexts/stages | reviewed login and compute profile node types; separate generated temp, scratch, then `${WORKDIR}` fallback lists selected by an execution probe |
 | CPU architecture | one system-wide portable target for source-built roots on both compiler surfaces and all lanes; highest common support capped at `x86_64_v3`; inspected platform externals retain their own architecture |
 | source/misc caches | `$CSE_RESTRICTED_ROOT/cache/{source,misc}` |
 | views/modules roots | `$BUILD_RELEASE_ROOT/{views,modules}` |
@@ -1189,6 +1176,7 @@ find "$BUILD_WORKSPACE/catalog/scopes" -type f -print | sort
 find "$BUILD_WORKSPACE/configs/environments" -name modules.yaml -print | sort
 find "$BUILD_WORKSPACE/modulefiles" -type f -print | sort
 cat "$BUILD_WORKSPACE/env/setup-build-env.sh"
+cat "$BUILD_WORKSPACE/env/select-build-context.sh"
 cat "$BUILD_WORKSPACE/configs/common/config.yaml"
 cat "$BUILD_WORKSPACE/configs/common/mirrors.yaml"
 test -x "$BUILD_WORKSPACE/cse-build"
@@ -1359,26 +1347,26 @@ test -r "$CSE_HANDOFF_WORKSPACE/workspace-manifest.yaml"
 test -x "$CSE_HANDOFF_WORKSPACE/cse-build"
 
 cd "$CSE_HANDOFF_WORKSPACE"
-./cse-build status --spack-mode shared
+./cse-build login status --spack-mode shared
 ```
 
 Follow the checkpoint reported by `status`. If every lockfile already exists,
 verify it before building:
 
 ```bash
-./cse-build verify --spack-mode shared
+./cse-build login verify --spack-mode shared
 ```
 
 If lockfiles are missing, create only the missing locks instead:
 
 ```bash
-./cse-build concretize --spack-mode shared
+./cse-build login concretize --spack-mode shared
 ```
 
 Then create or reattach the prepared build session:
 
 ```bash
-./cse-build --spack-mode shared
+./cse-build login --spack-mode shared
 ```
 
 No system, release, compiler, MPI, catalog, install-tree, view, module, or
@@ -1386,14 +1374,15 @@ environment values are entered. The generated entry point reads the recorded
 workspace data, selects or provisions the exact approved shared or local Spack
 checkout, creates private cache/keyring paths for the current builder,
 activates the generated configuration, reports the lock checkpoint, and
-creates or reattaches a tmux session for this system and release. Running the
-same command after a disconnect reattaches on the same host. Use
-`./cse-build shell` to bypass tmux. If tmux is unavailable, the command falls
-back to the prepared shell.
+creates or reattaches a context-specific tmux session for this system and
+release. Running the same command after a disconnect reattaches on the same
+host. Use `./cse-build login shell` to bypass tmux. From a compute allocation,
+use `./cse-build compute` or `./cse-build compute shell`. If tmux is unavailable,
+the command falls back to the prepared shell.
 
 On later logins, the receiving builder repeats only the `WORKDIR` check, goes
 to the same absolute workspace path, and runs
-`./cse-build --spack-mode shared`. `cse-build` derives the workspace identity
+`./cse-build login --spack-mode shared`. `cse-build` derives the workspace identity
 from its own location and recreates that builder's private Spack cache and
 keyring paths as needed.
 
@@ -1411,8 +1400,8 @@ Already installed hashes are reused from the shared restricted store. An
 unfinished package is staged under the receiving builder's stage path. Do not
 reconcretize merely because the builder or Spack root path changed.
 
-Normal path: continue directly to Step 9. Use the optional build-node recovery
-procedure only when changing the selected build node.
+Normal path: continue directly to Step 9. Switching between login and compute
+uses the same workspace and does not require a recovery procedure.
 
 ### One-time adoption of an existing Blueback workspace
 
@@ -1643,8 +1632,8 @@ trial design.
   cd "$BUILD_WORKSPACE"
   test -x ./cse-build
   test -z "$(find environments -type f -name spack.lock -print -quit)"
-  ./cse-build concretize
-  ./cse-build verify
+  ./cse-build login concretize
+  ./cse-build login verify
 )
 ```
 
@@ -1663,8 +1652,8 @@ source "$HOME/STACK_TESTING/operator-sessions/blueback/blueback-trial-001/activa
 cd "$BUILD_WORKSPACE"
 
 test -x ./cse-build
-./cse-build status
-./cse-build verify
+./cse-build login status
+./cse-build login verify
 ```
 
 Blueback is then current. On every later login, resume the same workspace with:
@@ -1672,13 +1661,83 @@ Blueback is then current. On every later login, resume the same workspace with:
 ```bash
 source "$HOME/STACK_TESTING/operator-sessions/blueback/blueback-trial-001/activate.sh"
 cd "$BUILD_WORKSPACE"
-./cse-build
+./cse-build login
 ```
 
 The final command enters or reattaches Blueback's prepared tmux session. From
-there, use `./cse-build fetch`, `./cse-build install`, a surface install, or a
-selected bare-Spack environment command as described in Step 10. Do not rerun
-Parts A or B on normal logins.
+there, use `./cse-build login fetch`. From a compute allocation, use
+`./cse-build compute install`, a compute surface install, or a selected
+bare-Spack environment command as described in Step 10. Do not rerun Parts A or
+B on normal logins.
+
+### Pre-install control refresh
+
+Use this procedure when the profile/catalog selections remain valid but the
+current trial blueprint, GCC producer constraint, runtime-support scope, or
+workspace entry scripts changed before package installation was accepted. It
+replaces the generated workspace and its unaccepted lockfiles. It does not
+delete the static catalog, shared Spack install tree, source cache, or build
+cache.
+
+First stop every process using the workspace, synchronize the four repositories
+in Step 2, rebuild Stack Composer when `cse_session_status` reports it stale,
+and reload the operator session. Then verify the selected roots and regenerate
+the values from the saved provider selections:
+
+```bash
+source "$CSE_OPERATOR_SESSION_FILE"
+test "$CSE_RESTRICTED_ROOT" = "$CSE_TRIAL_ROOT/restricted"
+test "$CSE_PUBLISHED_ROOT" = "$CSE_TRIAL_ROOT/published"
+cse_session_status
+
+"$CSE_PYTHON" \
+  "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
+```
+
+If any install was attempted, retain the current locks under the evidence root
+before replacement. Do not remove installed prefixes merely because the
+control workspace is being refreshed:
+
+```bash
+REFRESH_EVIDENCE="$BUILD_EVIDENCE/pre-install-control-refresh"
+install -d -m 2770 -g "$CSE_GROUP" "$REFRESH_EVIDENCE"
+find "$BUILD_WORKSPACE/environments" -type f -name spack.lock -print > \
+  "$REFRESH_EVIDENCE/lockfiles.list"
+while IFS= read -r lockfile; do
+  relative_lock="${lockfile#"$BUILD_WORKSPACE/environments/"}"
+  destination="$REFRESH_EVIDENCE/locks/${relative_lock%/spack.lock}"
+  install -d -m 2770 -g "$CSE_GROUP" "$destination"
+  cp -p "$lockfile" "$destination/spack.lock"
+done < "$REFRESH_EVIDENCE/lockfiles.list"
+```
+
+Review `lockfiles.list` before continuing. If package installation was already
+accepted, stop and use the release recovery policy instead of this pre-install
+refresh.
+
+Render the current workspace in place, then recreate and verify all eight
+locks through the login context:
+
+```bash
+"$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
+  --blueprint "$CONTENT/pilots/cse-pilot" \
+  --catalog "$CATALOG" \
+  --values "$BUILD_VALUES" \
+  --output "$BUILD_WORKSPACE" \
+  --overwrite
+
+cd "$BUILD_WORKSPACE"
+./cse-build login concretize
+./cse-build login verify
+```
+
+A Cray MPICH flavor-baseline correction changes observed provider facts, not
+only workspace templates. For that correction on Blueback or Fran, rerun the
+Step 4 system-fragment/merge/verify sequence and Step 6 `render-static` before
+this refresh. Raider and Wheat do not repeat their probes for that Cray-only
+change. A oneAPI platform surface on Wheat must include the reviewed GCC seed
+scope that supplies `gcc-runtime`; use the same seed scope selected to build
+GCC 12.5.0, not an arbitrary latest external GCC.
 
 ## 9. Concretize and review the restricted environments
 
@@ -1700,7 +1759,7 @@ The normal builder path is:
 
 ```bash
 cd "$BUILD_WORKSPACE"
-./cse-build concretize
+./cse-build login concretize
 ```
 
 This creates only missing lockfiles, preserves locks already handed over, and
@@ -1716,6 +1775,15 @@ an already-loaded module as a failed load. This cleanup occurs only in the
 the caller's parent shell. Spack then loads the recorded external module when
 the concrete DAG requires it.
 
+Start from the site's normal clean shell. Do not manually load the selected
+`PrgEnv-*`, compiler, Cray MPICH, Intel MPI, or Open MPI modules before running
+`cse-build`. The exact module arrays in the catalog's external `packages.yaml`
+records are the durable source of truth. If that array is incomplete, correct
+the profile/catalog and regenerate the workspace; do not compensate with an
+ambient module load. On Cray, a GNU flavor suffix such as `ofi/gnu/12.3` is a
+same-family compiler floor and does not authorize loading a different GNU
+programming environment in the parent shell.
+
 Activate the pinned Spack checkout first. The generated workspace setup script
 loads workspace values; it does not activate Spack.
 
@@ -1726,6 +1794,8 @@ SPACK_VERSION_OUTPUT="$(spack --version)"
 test "${SPACK_VERSION_OUTPUT%% *}" = "$SPACK_VERSION"
 verify_spack_tool_root
 
+source "$BUILD_WORKSPACE/env/select-build-context.sh"
+cse_select_build_context login
 source "$BUILD_WORKSPACE/env/setup-build-env.sh"
 
 ENVIRONMENTS=(
@@ -1759,7 +1829,7 @@ for environment in "${ENVIRONMENTS[@]}"; do
 done
 
 cd "$BUILD_WORKSPACE"
-./cse-build verify
+./cse-build login verify
 ```
 
 The wrapper deliberately runs the verifier through the pinned Spack runtime's
@@ -1801,7 +1871,7 @@ build nodes.
 
 Before any concurrent install, confirm all of the following:
 
-- `./cse-build verify` passes for all eight lockfiles;
+- `./cse-build login verify` passes for all eight lockfiles;
 - every process uses this same workspace, restricted install tree, Spack
   database, and exact pinned Spack identity;
 - `config:locks:true` remains active; and
@@ -1819,7 +1889,7 @@ On a login node with outbound network access, prefetch all locked sources:
 
 ```bash
 cd "$BUILD_WORKSPACE"
-./cse-build fetch
+./cse-build login fetch
 ```
 
 ### Restricted-network source transfer
@@ -1830,7 +1900,8 @@ create one cumulative Spack source mirror on a connected staging system and
 copy it into Fran's generated `config:source_cache`.
 
 Use the sequence below after all eight Fran environments have been concretized
-and `./cse-build verify` passes. The original locked workspace remains on Fran.
+and `./cse-build login verify` passes. The original locked workspace remains on
+Fran.
 Only a temporary copy goes to the connected system, and only the resulting
 source bundle comes back. Do not copy the connected system's workspace back
 over the original Fran workspace.
@@ -1845,7 +1916,7 @@ must be carried into the transfer commands on the other system.
 source "$HOME/STACK_TESTING/operator-sessions/fran/fran-trial-001/activate.sh"
 
 cd "$BUILD_WORKSPACE"
-./cse-build verify
+./cse-build login verify
 
 export FRAN_TRANSFER_ROOT="$WORKDIR/$USER/cse-fran-transfer/$TRIAL_RELEASE"
 export FRAN_WORKSPACE_ARCHIVE="$FRAN_TRANSFER_ROOT/${TRIAL_RELEASE}-workspace.tar.gz"
@@ -2132,6 +2203,8 @@ Do not type or infer the destination path independently:
 ```bash
 verify_spack_tool_root
 source "$SPACK_ROOT/share/spack/setup-env.sh"
+source "$BUILD_WORKSPACE/env/select-build-context.sh"
+cse_select_build_context login
 source "$BUILD_WORKSPACE/env/setup-build-env.sh"
 
 export FRAN_REFERENCE_ENV="$BUILD_WORKSPACE/environments/$SHARED_COMPILER_NAME/core"
@@ -2169,11 +2242,12 @@ the bundle.
 
 ```bash
 cd "$BUILD_WORKSPACE"
-./cse-build verify
-./cse-build fetch
+./cse-build login verify
+./cse-build login fetch
 ```
 
-Gate: `./cse-build fetch` succeeds for all eight original Fran environments.
+Gate: `./cse-build login fetch` succeeds for all eight original Fran
+environments.
 Retain both transfer archives and their digest files until the first complete
 Fran build succeeds; they are recovery evidence for the same locked release.
 The source bundle is not the signed CSE binary build cache and does not change
@@ -2188,8 +2262,8 @@ node, enter or reattach the release tmux session and run:
 
 ```bash
 cd "$BUILD_WORKSPACE"
-./cse-build
-./cse-build install
+./cse-build compute
+./cse-build compute install
 ```
 
 The wrapper processes the eight environments in their generated order. This is
@@ -2201,11 +2275,11 @@ A second choice is the two-node compiler-surface split:
 ```bash
 # Node 1: four GCC environments, sequential within this process
 cd "$BUILD_WORKSPACE"
-./cse-build install --surface shared
+./cse-build compute install --surface shared
 
 # Node 2: four platform-compiler environments, sequential within this process
 cd "$BUILD_WORKSPACE"
-./cse-build install --surface platform
+./cse-build compute install --surface platform
 ```
 
 The surface commands provide separate mutable per-user cache directories. Do
@@ -2217,7 +2291,7 @@ are active, then choose the environment explicitly:
 
 ```bash
 cd "$BUILD_WORKSPACE"
-./cse-build shell
+./cse-build compute shell
 
 environment="$SHARED_COMPILER_NAME/mpi-$SHARED_MPI_NAME"
 environment_key="${environment//\//-}"

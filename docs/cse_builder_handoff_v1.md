@@ -16,7 +16,7 @@ Go to the handed-off workspace and run:
 
 ```bash
 cd <complete-workspace-path>
-./cse-build
+./cse-build login
 ```
 
 No system, release, compiler, MPI, catalog, install-tree, cache, view, module,
@@ -30,9 +30,10 @@ With no action, the command:
 3. creates private Spack cache and keyring state for the current builder;
 4. activates Spack and the generated workspace configuration;
 5. reports the current lockfile checkpoint; and
-6. creates or reattaches a tmux session named for the system and release.
+6. creates or reattaches a login-context tmux session named for the system and
+   release.
 
-Run `./cse-build` again after a connection loss to reattach to the same tmux
+Run `./cse-build login` again after a connection loss to reattach to the same tmux
 session on that host. A tmux session does not survive loss of the host or an
 expired compute allocation; the workspace, lockfiles, and installed packages
 remain the recovery point.
@@ -40,7 +41,7 @@ remain the recovery point.
 To use a prepared shell without tmux:
 
 ```bash
-./cse-build shell
+./cse-build login shell
 ```
 
 If tmux is unavailable, the default command reports that condition and opens
@@ -63,8 +64,8 @@ checkout and otherwise follows the recorded shared/local preference. The
 builder may choose a mode explicitly:
 
 ```bash
-./cse-build --spack-mode shared
-./cse-build --spack-mode local
+./cse-build login --spack-mode shared
+./cse-build compute --spack-mode local
 ```
 
 The local path is `$HOME/STACK_TESTING/spack/<recorded-version>`. Both modes
@@ -80,14 +81,15 @@ directory.
 ## Checkpoint actions
 
 The same entry point works before concretization, after lockfile creation, and
-partway through installation:
+partway through installation. Use the login context for connected preparation
+and the compute context for package installation:
 
 ```bash
-./cse-build status
-./cse-build concretize
-./cse-build verify
-./cse-build fetch
-./cse-build install
+./cse-build login status
+./cse-build login concretize
+./cse-build login verify
+./cse-build login fetch
+./cse-build compute install
 ```
 
 `status` reports which environments have lockfiles and which concrete specs
@@ -126,10 +128,15 @@ The wrapper determines ordering, skips environments that already have locks
 when concretizing, and stops on the first failed command. Package managers may
 inspect `./cse-build` or run the same commands manually.
 
-Run the default tmux session on the node that will perform the long-running
-operation. Fetching may occur on a login node and installation later on a
-compute node because the workspace, source cache, locks, and install tree use
-the recorded shared paths.
+The initialized workspace records both reviewed node contexts. Each invocation
+selects an executable stage by creating and running a small probe; a writable
+but `noexec` path is skipped. The login and compute contexts have separate tmux
+sessions, stages, and mutable command caches, but share the per-builder Spack
+bootstrap store, workspace, source cache, locks, install tree, views, modules,
+and pinned Spack identity. Concretize on the login node first so Clingo is
+available when installation moves to a network-restricted compute node.
+Fetching may occur on a login node and installation later on a compute node
+without reconcretization.
 
 ## Handoff record
 

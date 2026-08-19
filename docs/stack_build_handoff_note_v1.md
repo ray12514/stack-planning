@@ -80,8 +80,10 @@ under `catalog/` and emits relative paths from each environment to
 workspace manifest as provenance, but it is not a runtime dependency of the
 initialized build handoff. For this temporary initializer only, the static
 manifest also preserves the profile's node-type stage facts so a reviewed build
-node choice can become an ordered `build_stage::` list without probing the host
-or manually retyping scratch paths.
+workspace can record separate login and compute stage candidates without
+manually retyping scratch paths. The generated runtime selector performs a
+small execution probe before choosing a stage, because a writable path may
+still be unusable under a site `noexec` or execution policy.
 
 The initializer's generated `cse-build` command also prevents an ambient
 selected provider module from crossing the handoff boundary. Before Spack is
@@ -105,10 +107,16 @@ at its root. It is part of the handed-off workspace, not a new Stack Composer
 production mode. It reads the already rendered system, release, toolchain,
 path, environment, and Spack-runtime values; creates per-builder mutable state;
 and invokes bare Spack for status, missing-lock concretization, verification,
-fetch, or sequential installation. Its default action creates or reattaches a
+fetch, or sequential installation. Its interface requires a `login` or
+`compute` context. The default action creates or reattaches a context-specific
 tmux session for the system and release. `shell` provides the same prepared
 shell without tmux, and the default falls back to it when tmux is unavailable.
-The receiving builder supplies no replacement render inputs.
+Both contexts use the same rendered environments, locks, package store, source
+cache, per-builder Spack bootstrap store, views, modules, target, and Spack
+identity; only the executable build stage and mutable command cache differ.
+This allows connected login-node concretization to prepare Clingo once for a
+later network-restricted compute session. The receiving builder supplies no
+replacement render inputs.
 
 The generated environment is the build execution unit. `cse-build` is a
 convenience entry point, not the build scheduler. Its unqualified `install`

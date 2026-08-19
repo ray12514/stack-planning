@@ -10,14 +10,16 @@
 ## Initial Conversion Trials build-stage change assessment
 
 - **Requested change:** replace the pilot's manually entered single build-stage
-  path with an ordered Spack fallback list derived from the reviewed build node.
+  path with separate ordered fallback lists for reviewed login and compute
+  contexts.
 - **Design source:** the profile contract already records per-node-type stage
   candidates, and this note documents Spack 1.2.2 fallback semantics. The
   common runbook owns the trial procedure.
 - **Ownership:** Cluster Inspector owns observed candidate writability and mount
-  facts. The operator owns the selected build node type and `WORKDIR`. The
-  Initial Conversion Trials helper owns the temporary pilot translation into
-  `config.yaml`; Stack Composer still does not probe the host.
+  facts. The operator owns the reviewed login/compute node-type mapping and
+  `WORKDIR`. The Initial Conversion Trials helper owns the temporary pilot
+  translation and runtime selector; Stack Composer still does not probe the
+  host.
 - **Scope:** required trial hardening. It does not change the production
   `render-static` product into a deployment planner and does not add a new
   production mode.
@@ -27,9 +29,10 @@
 - **Risks:** stale profile facts, `noexec` paths, an unset or relative `WORKDIR`,
   and accidentally merging lower-scope Spack defaults ahead of the reviewed
   list.
-- **Decision:** implement directly before v1; fail on an absent node type or
-  invalid `WORKDIR`, exclude known unusable candidates, and emit
-  `build_stage::` so the rendered list is complete.
+- **Decision:** implement directly before v1; fail on an absent context or
+  invalid `WORKDIR`, exclude known unusable candidates, execution-test the
+  remaining candidates at workspace entry, and expose the selected path through
+  one complete `build_stage::` value.
 
 ## Initial Conversion Trials CPU-target change assessment
 
@@ -287,16 +290,20 @@ config:
   - ${WORKDIR}/cse-spack-stage
 ```
 
-The operator approves the build node type, not one manually typed stage path.
-The pilot values helper reads that node type's Cluster Inspector facts, retains
-only candidates that were writable on that node and are not known `noexec`
-mounts, orders temporary storage before other inspected scratch candidates,
-and adds the builder's absolute `WORKDIR` as the last fallback. It namespaces
-every candidate by system and trial release. The generated setup script fails
-early unless `WORKDIR` exists and is absolute, writable, and searchable. The
-variable remains in the rendered path so the same initialized workspace can be
-handed to another builder without hard-coding the first operator's personal
-directory.
+The operator approves the login and compute node types, not one manually typed
+stage path. The pilot values helper reads both node types' Cluster Inspector
+facts, retains candidates that were writable and are not known `noexec` mounts,
+orders temporary storage before other inspected scratch candidates, and adds a
+separate absolute `WORKDIR` fallback for each context. It namespaces every
+candidate by user, system, trial release, and context. At workspace entry, the
+generated selector creates and executes a small probe and exports the first
+usable path as `CSE_BUILD_STAGE`; `config.yaml` contains only that variable.
+This closes the gap where Spack accepts a writable directory that site policy
+does not allow to execute. The setup fails early unless `WORKDIR` exists and is
+absolute, writable, and searchable. Context-specific command caches retain
+concurrency isolation, while an explicit per-builder `bootstrap:root` is shared
+between login and compute so a connected concretization can prepare Clingo for
+later network-restricted installation.
 
 The v1.2.2 implementation expands environment variables and then makes a
 remaining relative path absolute relative to its configuration source/current
@@ -429,11 +436,12 @@ Path-based overlay repositories are edited directly and are not updated by
 - Permit concurrent payload installs only after lockfile comparison proves the
   intended shared compiler hashes and the shared install filesystem's locks
   have been validated.
-- Render an ordered build-stage list for one reviewed build node type: writable
-  temporary storage first, other inspected writable scratch candidates second,
-  and the absolute operator `WORKDIR` last. Exclude known `noexec` candidates,
-  namespace every root by user/system/release, and use setup-time checks for
-  capacity and executable mounts.
+- Record separate ordered build-stage candidates for reviewed login and compute
+  node types: writable temporary storage first, other inspected writable
+  scratch candidates second, and a context-specific absolute operator
+  `WORKDIR` last. Exclude known `noexec` candidates, namespace every root by
+  user/system/release/context, and execution-test candidates before selecting
+  the single active `build_stage::` value.
 - Record node-type CPU and memory facts, but let the build driver choose the
   allocation-aware `-j`/`-p` values. Spack will not derive a safe memory cap.
 - Ship the editable package-repository overlay inside the workspace and make
