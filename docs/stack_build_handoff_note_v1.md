@@ -91,7 +91,12 @@ activated, the command unloads any exact external compiler or MPI module named
 by the workspace when it is already present in `LOADEDMODULES`. This is scoped
 to the command process, preserves unrelated site/startup modules, and lets
 Spack 1.2.2 perform the recorded module activation itself. It does not change
-the parent login shell.
+the parent login shell. External module lists remain ordered: a chain such as
+`[PrgEnv-aocc, aocc/4.1.0]` first establishes the complete programming
+environment, then requests the exact compiler-family member. Spack's external
+module loader removes module-declared conflicts before loading the later entry,
+so the chain replaces the programming environment's default compiler version
+without discarding the rest of that environment.
 
 Before that workspace exists, the CSE operator uses a separate operator-local
 session entry point under

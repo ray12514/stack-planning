@@ -336,6 +336,15 @@ are stable.
 | `compiler_providers[*].modules` | probe-system | Module list used during clean-shell verification. | list of module names | `probed` | omit for prefix-only system compiler |
 | `compiler_providers[*].languages` | probe-system | Presence of C, C++, and Fortran drivers under prefix or after module load. | `[c, c++, fortran]` subset | `probed` | omit missing languages |
 
+`compiler_providers[*].modules` is an ordered desired activation state. On a
+Cray system, loading `PrgEnv-<family>` may activate that environment's default
+compiler version. If the requested provider is that default, verification does
+not load it a second time. If another version in the same compiler module
+family is requested, verification preserves the programming environment and
+explicitly switches only the loaded compiler-family member before probing the
+provider. Every version that passes this clean-shell sequence remains a
+platform compiler fact; default-version selection is not inventory policy.
+
 ### MPI Providers
 
 | Profile field | Probe location | Primary extraction | Normalize to | Confidence | Fallback |
