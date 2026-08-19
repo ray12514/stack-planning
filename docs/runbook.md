@@ -785,6 +785,10 @@ or command reports something else. A structurally valid MPI module in an
 unsupported site test/private namespace is a different case: add that reviewed
 namespace to `mpi.exclude_patterns` in `inspector-hints.yaml`, then rerun the
 system probe. Do not encode site namespace names in generic discovery logic.
+The same exclusion list filters modules recorded inside MPI activation chains,
+including per-compiler platform flavors. A slash-free pattern matches any
+module path segment; use a pattern containing `/` when the complete module path
+must match.
 
 An MPI module may identify its build compiler with a suite release rather than
 the compiler product version. For example, an `intel-2024.2.1` suffix may map
