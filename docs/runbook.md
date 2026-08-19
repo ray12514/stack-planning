@@ -1006,11 +1006,12 @@ source "$CSE_OPERATOR_SESSION_FILE"
 ```
 
 Uncomment and fill the required exports for the shared compiler/MPI, platform
-compiler/MPI, and job count. The standard context keys are `login` and
-`cpu_compute`; set the optional login/compute node-type overrides only when the
-catalog uses different names. The second command reloads both the fixed session
-values and the reviewed provider selections. Every later login gets the same
-selections by sourcing only `activate.sh`; do not retype them into the shell.
+compiler/MPI, and job count. Also review the active `CSE_LOGIN_NODE_TYPE` and
+`CSE_COMPUTE_NODE_TYPE` selections. They start as `login` and `cpu_compute`,
+but must match exact keys in the current catalog manifest. The second command
+reloads both the fixed session values and the reviewed provider selections.
+Every later login gets the same selections by sourcing only `activate.sh`; do
+not retype them into the shell.
 
 `provider-selections.sh` is operator-local setup state, not the shared handoff
 or an additional renderer input. The helper resolves it into the tracked build
@@ -1053,11 +1054,12 @@ that any relevant node type cannot run. It also records the generic `x86_64`
 family target for architecture-specific prebuilt distributions such as
 Miniforge.
 
-The helper records two build contexts from exact keys under the catalog
-manifest's `profile_facts.node_types`: `login` and `cpu_compute` by default. If
-a site uses different keys, set `CSE_LOGIN_NODE_TYPE` or
-`CSE_COMPUTE_NODE_TYPE` before generating the values. For each context the
-helper records inspected writable candidates, temporary/node-local storage
+The helper requires two reviewed build-context selections and resolves them as
+exact keys under the catalog manifest's `profile_facts.node_types`. The
+generated provider-selection file starts with `CSE_LOGIN_NODE_TYPE=login` and
+`CSE_COMPUTE_NODE_TYPE=cpu_compute`; replace either value when the catalog uses
+a different key. For each context the helper records inspected writable
+candidates, temporary/node-local storage
 first, other scratch paths next, and a context-specific `${WORKDIR}` fallback
 last. At workspace entry, `cse-build` performs an actual execution probe and
 selects the first usable path. Every path is namespaced by the Spack user,
