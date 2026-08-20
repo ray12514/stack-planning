@@ -156,7 +156,7 @@ the production renderer.
 - Stage: GCC MPI installation on Blueback
 - Scope: `fftw@3.3.11+mpi` in the shared GCC 12.5.0 / external
   Cray MPICH 9.1.0 environment
-- Status: mitigated in renderer policy; Blueback retry pending
+- Status: resolved and validated on Blueback
 - Symptom: FFTW configure finds
   `/opt/cray/pe/mpich/9.1.0/ofi/gnu/12.3/bin/mpicc`, but its `MPI_Init`
   compile/link probe fails. Direct fallback probes with `-lmpi` and `-lmpich`
@@ -170,16 +170,20 @@ the production renderer.
   but did not carry the selected platform libfabric runtime directory into
   Spack's clean package build environment.
 - Immediate recovery: pull the renderer and content updates, rerender the
-  static catalog, refresh the workspace, and freshly reconcretize only the
-  affected MPI environment. Core, Common, and Serial prefixes remain valid.
+  static catalog, refresh the workspace, and force reconcretization of only the
+  affected MPI environment with `concretize -f --reuse-deps`. Core, Common,
+  and Serial prefixes remain valid.
 - Permanent mitigation: the Cray MPICH provider adapter derives the selected
   libfabric prefix from the inspected platform runtime facts and emits
   `extra_attributes.environment.prepend_path.LD_LIBRARY_PATH` on the external
   MPI record. The adapter owns only the Cray product-tree `lib64` layout; it
   does not hard-code a system or libfabric version.
 - Validation: static and full renderer regressions verify that the selected
-  libfabric prefix is carried into the external Cray MPICH scope. The final
-  gate is a successful Blueback MPI probe and FFTW install after rerendering.
+  libfabric prefix is carried into the external Cray MPICH scope. After the
+  external metadata was refreshed and the affected MPI roots were forced to
+  reconcretize, the Blueback Cray MPICH link probe passed and both FFTW MPI
+  roots installed. The remaining Dakota failure occurred later and was
+  unrelated to libfabric.
 - Disposition: generic Cray MPI provider policy. Do not add an FFTW recipe
   exception, global `LD_LIBRARY_PATH`, `--dirty`, or a Blueback-only version.
 
@@ -201,8 +205,10 @@ the production renderer.
   1.69, and Boost 1.89 removed its compiled compatibility stub. Dakota's own
   minimum supported Boost version is 1.70.
 - Immediate recovery: pull the Stack Content update, refresh the workspace
-  package overlay, freshly reconcretize the affected MPI environment, and
-  resume its install. Already installed dependencies remain reusable.
+  package overlay, run `concretize -f --reuse-deps` for the affected MPI
+  environment, verify that both Dakota hashes changed, and resume its install.
+  `--fresh` alone does not replace roots already present in the lock. Already
+  installed dependencies remain reusable.
 - Permanent mitigation: the `cse_trials` Dakota overlay patches both approved
   Dakota releases to remove only the obsolete `system` component and
   `Boost::system` target. Program Options, Regex, and Serialization remain
@@ -215,14 +221,51 @@ the production renderer.
   CMake configuration and generation completed twice and compilation began;
   one constrained-container run reached 35 percent and built `libcolin.so`
   before the container was terminated for memory use. This validates the
-  original configuration fix, not a complete package installation. The final
-  gate is successful installation of both Dakota roots on Blueback and a
-  generic Linux trial system.
+  original configuration fix, not a complete package installation. A second
+  controlled Spack 1.2.2 replay reproduced the target-system recovery
+  boundary: `concretize --fresh` retained the old Dakota hash and reported
+  `No new specs to concretize`, while `concretize -f --reuse-deps` changed the
+  patched Dakota root and retained every dependency hash. The final gate is
+  successful installation of both Dakota roots on Blueback and a generic
+  Linux trial system.
 - Disposition: isolated upstream-compatibility patch in the CSE package
   overlay and candidate for submission to `spack-packages`. The upstream
   submission should include the unpatched reproducer and target-system
   full-install results. Do not fabricate a `boost_system` CMake package, alter
   global CMake lookup behavior, or replace the approved Boost build.
+
+### ICT-011 — CMake selected an unrelated ambient MPI launcher
+
+- Stage: GCC MPI installation on Blueback
+- Scope: Dakota CMake configuration with external Cray MPICH 9.1.0
+- Status: diagnosed; explicit launcher policy pending
+- Symptom: CMake selected the lane's Cray MPICH compiler and libraries but
+  reported `MPIEXEC=/usr/lib64/mpi/gcc/mvapich2/bin/mpiexec` from an unrelated
+  site installation.
+- Confirmed boundaries: the configure log still selected the CSE GCC 12.5
+  compiler, the GNU-flavor Cray MPICH wrapper, and Cray MPICH libraries. The
+  Dakota failure occurred later in Boost.System lookup. This is not evidence
+  that completed MPI libraries were linked against MVAPICH2.
+- Root cause: MPI wrapper/library selection and launcher selection are
+  independent. CMake `FindMPI` searched the ambient executable path for a
+  launcher because the external MPI record did not provide an explicit
+  scheduler/provider launcher command.
+- Immediate handling: do not use the unrelated launcher for configure run
+  tests or target validation. Preserve the log, verify wrapper and library
+  identity separately, and use only the reviewed site launcher when exercising
+  the installed lane.
+- Permanent mitigation: model launcher command and arguments as explicit MPI
+  provider plus scheduler policy derived from inspected facts. Pass that value
+  to CMake consumers that discover `MPIEXEC`; do not globally filter `/usr`,
+  assume every MPI prefix contains a launcher, or add a system-specific Dakota
+  patch.
+- Validation: rendered environments must record the selected launcher;
+  configure logs must contain no launcher from an unrelated MPI prefix; final
+  acceptance includes a two-rank launch through the selected site scheduler or
+  MPI launcher.
+- Disposition: generic provider/scheduler policy slice. It does not block the
+  narrow Dakota Boost.System patch or require rebuilding already completed
+  non-MPI lanes.
 
 ## Recording the next finding
 

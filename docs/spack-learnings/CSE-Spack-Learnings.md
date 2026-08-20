@@ -487,17 +487,38 @@ and built `libcolin.so` before the container was terminated for memory use.
 That result validates the configuration fix, but it is not a substitute for a
 complete installation on a target system.
 
-**Operational rule.** Refresh the workspace overlay and freshly reconcretize
-the affected MPI environment because the Dakota package hash changes. Already
-installed dependencies remain reusable. The final acceptance gate is a full
-installation of both Dakota roots on Blueback and a generic Linux trial
-system.
+**Operational rule.** Refresh the workspace overlay and run
+`spack concretize -f --reuse-deps` for the affected MPI environment because
+the Dakota package hash changes. `--fresh` alone preserves roots already in
+the lock and can report `No new specs to concretize` while retaining the old
+recipe hash. Compare the Dakota hashes before and after; already installed
+dependencies remain reusable. The final acceptance gate is a full installation
+of both Dakota roots on Blueback and a generic Linux trial system.
 
 This is a candidate for an upstream `spack-packages` change. An upstream
 submission should include the unpatched reproducer, the narrow CMake patch,
 and successful full-install results for Dakota 6.23.0 and 6.24.0 with current
 Boost. Keep the local overlay until that change is accepted and reaches the
 pinned package release.
+
+### 5.5 MPI compiler, libraries, and launcher are separate selections
+[Diagnosed, General]
+
+A CMake consumer can select the intended MPI compiler and libraries while
+independently finding an unrelated `mpiexec` from the ambient executable path.
+On Blueback, Dakota selected CSE GCC 12.5 and the GNU-flavor Cray MPICH 9.1.0
+wrapper and libraries, but CMake reported an MVAPICH2 launcher under
+`/usr/lib64/mpi`. That launcher did not cause Dakota's later Boost.System
+configuration failure, and the log does not show that completed MPI libraries
+were linked against MVAPICH2. It is still unsafe for configure run tests and
+target validation.
+
+**What works.** Treat launcher identity as provider and scheduler policy, not
+as a side effect of `PATH`. Record the reviewed launcher command and arguments
+from inspected site facts and pass them explicitly to consumers that discover
+`MPIEXEC`. Verify compiler, library, and launcher identity separately. Do not
+globally filter `/usr`, assume that every external MPI prefix contains the
+correct launcher, or encode a package- or system-specific workaround.
 
 ## 6. Checks and Known Limits
 

@@ -1642,6 +1642,28 @@ input or approved package/provider choice must change; then retain the failed
 evidence, regenerate the affected locks, rerun lock verification, and follow
 the same-release/new-release rule in the recovery section.
 
+When a package recipe, source patch, or external-provider record changes after
+the affected roots are already present in `spack.lock`, force only that
+environment to regenerate its roots while reusing unchanged dependencies:
+
+```bash
+ENVIRONMENT_PATH="$BUILD_WORKSPACE/environments/<compiler>/<lane>"
+
+spack -e "$ENVIRONMENT_PATH" find -cl
+spack -e "$ENVIRONMENT_PATH" concretize -f --reuse-deps -j 1
+spack -e "$ENVIRONMENT_PATH" find -cl
+
+cd "$BUILD_WORKSPACE"
+./cse-build login verify
+```
+
+`--fresh` alone is not a recipe-change recovery command. It changes reuse
+policy but preserves roots already recorded in the lock, which can produce
+`No new specs to concretize` while leaving the old package hash in place. The
+affected root hash must change; hashes for dependencies whose inputs did not
+change should remain identical. Do not edit the lock or broadly clean already
+installed prefixes.
+
 ## 10. Build and exercise every restricted lane
 
 The generated Spack environment is the unit of build execution. `cse-build` is
