@@ -14,6 +14,7 @@ Human-readable contracts for the stack-planning system. The JSON Schemas in
 | `end_to_end_map_v1.md` | Point-A-to-point-B map: inputs, producers, outputs, consumers, tools, cadence, worked example. |
 | `runbook.md` | Canonical CSE static-pilot procedure: probe → static catalog → restricted build/validation → private build cache → cache-only shared publication. |
 | `cse_builder_handoff_v1.md` | Resume guide for a second CSE builder: run the generated workspace entry point, reattach its tmux session, and continue from the recorded checkpoint. |
+| `initial_conversion_trials_build_findings_v1.md` | Running technical record of trial build failures, causes, recoveries, permanent mitigations, and validation gates. |
 | `software_stack_sop_v1.md` | Working SOP for an application package manager using the static platform catalog to build and publish an independently managed Spack environment. |
 | `cse_software_stack_sop_v1.md` | Working CSE SOP for restricted builds, signed build-cache promotion, cache-only publication, CSE modules, and release controls. |
 | `stack_build_handoff_note_v1.md` | Where render stops; build is a co-equal choice (spacktools / spack-build / Ansible / bare Spack); stack-content + config delivery modes. |
