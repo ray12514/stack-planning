@@ -254,11 +254,14 @@ Concretize each restricted environment and retain its lockfile:
 
 ```bash
 spack -e <environment-path> concretize --fresh -j 1
-spack -e <environment-path> find -lv
+spack -e <environment-path> find -c -d -l -v
+spack -e <environment-path> find -c -d -e -l -v
 ```
 
 `-j 1` limits concretizer parallelism for clearer trial diagnostics. It does
-not set compilation parallelism.
+not set compilation parallelism. The first `find` shows the complete concrete
+DAG, including specs not yet installed. The second filters that DAG to
+externals.
 
 Review every environment for:
 

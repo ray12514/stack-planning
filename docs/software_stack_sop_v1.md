@@ -207,8 +207,12 @@ Concretize and retain the generated lockfile:
 
 ```bash
 spack -e <environment-path> concretize --fresh
-spack -e <environment-path> find -lv
+spack -e <environment-path> find -c -d -l -v
+spack -e <environment-path> find -c -d -e -l -v
 ```
+
+The first `find` shows the complete concrete DAG, including specs not yet
+installed. The second filters that DAG to externals.
 
 Review at least:
 

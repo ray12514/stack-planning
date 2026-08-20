@@ -36,6 +36,7 @@ design calls for it:
 - `docs/stack_build_handoff_note_v1.md` — render/build seam and the stack-content handoff.
 - `docs/stack_generation_orchestration_note_v1.md` — external driver contract for multi-system render/build loops.
 - `docs/runbook.md` — canonical end-to-end operator procedure shared by all systems.
+- `docs/cse_spack_catalog_to_build_handoff_v1.md` — self-contained bare-Spack guide with a per-system path/variable handoff sheet, shared-Spack shell startup, and commands for navigating and building the populated CSE workspace.
 - `docs/cray_pe_acceptance_checklist_v1.md` — Cray PE validation deltas applied after the common runbook.
 - `docs/generic_linux_acceptance_checklist_v1.md` — conventional Linux validation deltas applied after the common runbook.
 - `docs/spack-learnings/CSE-Spack-Learnings.md` — reusable findings from real-system validation, including Blueback.

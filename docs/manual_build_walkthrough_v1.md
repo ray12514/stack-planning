@@ -86,7 +86,7 @@ whatever you want.
 
 ```yaml
 spack:
-  include:
+  include::
   - <catalog>/scopes/common
   - <catalog>/scopes/compilers/gcc/<version>
   - <catalog>/scopes/mpi/cray-mpich/<version>/gcc-<version>
@@ -101,9 +101,12 @@ scopes and stops there. A GPU build adds the GPU scope.
 
 ```bash
 spack -e . concretize
+spack -e . find -c -d -l -v
+spack -e . find -c -d -e -l -v
 ```
 
-Read the output before you install anything. The check that matters: the
+Read the concrete DAG before you install anything. The second `find` command
+filters it to externals. The check that matters: the
 compiler, `cray-mpich`, and any GPU toolkit must appear as **externals being
 used**, not as packages to build. If Spack proposes to download and build an
 MPI, the include block did not take effect, and the fix is in the environment
@@ -112,7 +115,7 @@ rather than anywhere downstream. Stop and fix it there.
 ### 5. Install
 
 ```bash
-spack -e . install
+spack -e . install --only-concrete --fail-fast
 ```
 
 ### 6. Expose it, if you want to

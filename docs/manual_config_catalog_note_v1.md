@@ -140,7 +140,7 @@ Example manual environment:
 
 ```yaml
 spack:
-  include:
+  include::
   - /apps/cse/spack-config-catalog/blueback/current/scopes/common
   - /apps/cse/spack-config-catalog/blueback/current/scopes/compilers/gcc/14.3.0
   - /apps/cse/spack-config-catalog/blueback/current/scopes/mpi/cray-mpich/9.1.0/gcc-14.3.0
