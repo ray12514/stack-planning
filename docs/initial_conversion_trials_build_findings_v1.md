@@ -183,6 +183,37 @@ the production renderer.
 - Disposition: generic Cray MPI provider policy. Do not add an FFTW recipe
   exception, global `LD_LIBRARY_PATH`, `--dirty`, or a Blueback-only version.
 
+### ICT-010 — Dakota requested the removed compiled Boost.System component
+
+- Stage: GCC MPI installation on Blueback
+- Scope: Dakota 6.23.0 and 6.24.0 with Boost 1.90.0
+- Status: mitigated in the package overlay; Blueback retry pending
+- Symptom: Dakota finds the exact approved Boost 1.90.0 prefix, then CMake
+  fails because neither `boost_systemConfig.cmake` nor
+  `boost_system-config.cmake` exists.
+- Confirmed boundaries: the current package policy enables the approved Boost
+  libraries, and the MPI lock contains Boost 1.90.0 with `+system`. All other
+  roots in the environment installed; the failure is confined to Dakota's
+  Boost component lookup.
+- Root cause: Dakota 6.23.0 and 6.24.0 still require the compiled `system`
+  component and link target. Boost.System has been header-only since Boost
+  1.69, and Boost 1.89 removed its compiled compatibility stub. Dakota's own
+  minimum supported Boost version is 1.70.
+- Immediate recovery: pull the Stack Content update, refresh the workspace
+  package overlay, freshly reconcretize the affected MPI environment, and
+  resume its install. Already installed dependencies remain reusable.
+- Permanent mitigation: the `cse_trials` Dakota overlay patches both approved
+  Dakota releases to remove only the obsolete `system` component and
+  `Boost::system` target. Program Options, Regex, and Serialization remain
+  required and continue using the approved Boost producer.
+- Validation: the overlay regression applies the patch to the shared Dakota
+  6.23/6.24 CMake logic and verifies that the remaining compiled components
+  are unchanged. The final gate is successful installation of both Dakota
+  roots on Blueback.
+- Disposition: isolated upstream-compatibility patch in the CSE package
+  overlay. Do not fabricate a `boost_system` CMake package, alter global CMake
+  lookup behavior, or replace the approved Boost build.
+
 ## Recording the next finding
 
 For each new failure, capture the following before editing a manifest or
