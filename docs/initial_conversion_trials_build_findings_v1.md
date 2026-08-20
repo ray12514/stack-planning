@@ -187,7 +187,8 @@ the production renderer.
 
 - Stage: GCC MPI installation on Blueback
 - Scope: Dakota 6.23.0 and 6.24.0 with Boost 1.90.0
-- Status: mitigated in the package overlay; Blueback retry pending
+- Status: configuration fix validated in the package overlay; target-system
+  installation pending
 - Symptom: Dakota finds the exact approved Boost 1.90.0 prefix, then CMake
   fails because neither `boost_systemConfig.cmake` nor
   `boost_system-config.cmake` exists.
@@ -208,11 +209,20 @@ the production renderer.
   required and continue using the approved Boost producer.
 - Validation: the overlay regression applies the patch to the shared Dakota
   6.23/6.24 CMake logic and verifies that the remaining compiled components
-  are unchanged. The final gate is successful installation of both Dakota
-  roots on Blueback.
+  are unchanged. A controlled differential test using Spack 1.2.2,
+  `spack-packages v2026.06.0`, and external GCC, OpenMPI, and Python reproduced
+  the missing Boost.System failure with unmodified Dakota. With the overlay,
+  CMake configuration and generation completed twice and compilation began;
+  one constrained-container run reached 35 percent and built `libcolin.so`
+  before the container was terminated for memory use. This validates the
+  original configuration fix, not a complete package installation. The final
+  gate is successful installation of both Dakota roots on Blueback and a
+  generic Linux trial system.
 - Disposition: isolated upstream-compatibility patch in the CSE package
-  overlay. Do not fabricate a `boost_system` CMake package, alter global CMake
-  lookup behavior, or replace the approved Boost build.
+  overlay and candidate for submission to `spack-packages`. The upstream
+  submission should include the unpatched reproducer and target-system
+  full-install results. Do not fabricate a `boost_system` CMake package, alter
+  global CMake lookup behavior, or replace the approved Boost build.
 
 ## Recording the next finding
 

@@ -3,7 +3,7 @@
 **Systems:** Raider (Penguin Solutions AMD CPU) and Blueback (Cray EX)\
 **Workstream:** CSE iteration work\
 **Author:** Ravon\
-**Updated:** 2026-07-14
+**Updated:** 2026-08-20
 
 This document collects what we learned while building Spack environments on Raider and Blueback. It records what worked, what failed, why the two systems needed different approaches, and what we would do when bringing the same process to another machine. The companion summary covers the main results without the build details.
 
@@ -456,6 +456,49 @@ On Blueback, a bare `curl@8.14.1` external did not describe the features in the 
 
 This lesson applies to any external package. As the broader CSE package graph grows, externals such as Perl, Python, libxml2, and SQLite need the same review.
 
+### 5.4 Dakota 6.23 and 6.24 need a Boost.System compatibility patch
+[Configuration validated, General]
+
+Dakota 6.23.0 and 6.24.0 request Boost's compiled `system` component and the
+`Boost::system` CMake target. That lookup fails with the approved Boost 1.90.0
+producer because Boost.System is header-only and the installed Boost prefix
+does not provide `boost_systemConfig.cmake` or `boost_system-config.cmake`.
+Boost's release history identifies Boost 1.68 as the last release that
+provided a separate Boost.System library. [37] The pinned Spack Dakota recipe
+does not carry a compatibility patch for this newer Boost layout. [38]
+
+The failure is not a compiler, MPI, or search-path problem. Dakota finds the
+exact approved Boost prefix and its remaining compiled components. CMake fails
+only when Dakota asks that prefix for the obsolete `system` component.
+
+**What works.** The `cse_trials` package overlay patches Dakota's shared CMake
+logic for both approved releases. It removes only `system` from
+`dakota_boost_libs` and `Boost::system` from `DAKOTA_BOOST_TARGETS`.
+Program Options, Regex, and Serialization remain required and linked from the
+approved Boost producer. The patch does not fabricate a Boost.System library,
+change global CMake lookup behavior, or replace Boost.
+
+**Validation.** A controlled differential test used the same Spack 1.2.2 and
+`spack-packages v2026.06.0` inputs with external GCC, OpenMPI, and Python. The
+unmodified Dakota source reproduced the missing Boost.System CMake-package
+failure. With the overlay patch, CMake configuration and generation completed
+twice and compilation began. One constrained-container run reached 35 percent
+and built `libcolin.so` before the container was terminated for memory use.
+That result validates the configuration fix, but it is not a substitute for a
+complete installation on a target system.
+
+**Operational rule.** Refresh the workspace overlay and freshly reconcretize
+the affected MPI environment because the Dakota package hash changes. Already
+installed dependencies remain reusable. The final acceptance gate is a full
+installation of both Dakota roots on Blueback and a generic Linux trial
+system.
+
+This is a candidate for an upstream `spack-packages` change. An upstream
+submission should include the unpatched reproducer, the narrow CMake patch,
+and successful full-install results for Dakota 6.23.0 and 6.24.0 with current
+Boost. Keep the local overlay until that change is accepted and reaches the
+pinned package release.
+
 ## 6. Checks and Known Limits
 
 ### 6.1 spack verify libraries is useful, but not a deployment gate
@@ -699,3 +742,5 @@ External citations support upstream behavior, package constraints, and system ar
 34. HPE Cray MPI 9.1.0. Local release notes excerpt showing supported compiler minimums, including GNU 12.3 or later.
 35. OFI Working Group. [fabric(7): ABI changes and compatibility](https://manpages.debian.org/testing/libfabric-dev/fabric.7.en.html). Documents the versioned-ABI approach: few directly exported symbols, provider function pointers behind static inline calls, and structure extension by appended fields.
 36. OFI Working Group. [libfabric 2.0 release discussion](https://github.com/ofiwg/libfabric/discussions/8049). States 2.0 as a minor ABI revision intended as a drop-in replacement for existing 1.x binaries, with breaking API changes.
+37. Boost Project. [Boost 1.69.0 release history](https://www.boost.org/users/history/version_1_69_0.html). Notes that Boost 1.68 was the last release to provide a separate Boost.System library.
+38. Spack Project. [Dakota package recipe, Spack packages v2026.06.0](https://github.com/spack/spack-packages/blob/v2026.06.0/repos/spack_repo/builtin/packages/dakota/package.py).
