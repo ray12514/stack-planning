@@ -1186,6 +1186,8 @@ cat "$BUILD_WORKSPACE/configs/common/config.yaml"
 cat "$BUILD_WORKSPACE/configs/common/mirrors.yaml"
 test -x "$BUILD_WORKSPACE/cse-build"
 test -r "$BUILD_WORKSPACE/BUILDER-HANDOFF.md"
+"$CSE_PYTHON" \
+  "$BUILD_WORKSPACE/scripts/verify-lockfiles.py" --workspace-only
 test -w "$BUILD_WORKSPACE"
 test "$(stat -c %G "$BUILD_WORKSPACE")" = "$CSE_GROUP"
 test "$(stat -c %a "$BUILD_WORKSPACE")" = 2770
@@ -1193,6 +1195,24 @@ test "$(stat -c %a "$BUILD_WORKSPACE/cse-build")" = 770
 test "$(stat -c %a "$BUILD_WORKSPACE/README.md")" = 660
 test "$(stat -c %a "$BUILD_WORKSPACE/BUILDER-HANDOFF.md")" = 660
 ```
+
+The workspace-input check verifies the generated `cse_trials` package
+repository before any solve or build. It currently confirms that the Dakota
+6.23.0/6.24.0 Boost.System compatibility overlay is present and complete. The
+check is independent of the selected system, compiler, and MPI provider; the
+same overlay is used by both compiler surfaces on Blueback, Fran, Raider, and
+Wheat. Generated `cse-build` entry points repeat this check before every
+action, so an incomplete workspace fails before concretization or installation
+instead of later in Dakota's CMake configuration.
+
+Pulling `stack-content` does not modify a workspace that was already rendered.
+Before package installation starts, replace an unaccepted older workspace with
+the current blueprint by following **Recovery: replace an unaccepted workspace
+after a blueprint correction**. If installation has started, preserve that
+workspace and evidence, create the required new trial release, refresh its
+workspace-owned package repository, and force only the affected MPI roots with
+`concretize -f --reuse-deps -j 1`. A normal `concretize --fresh` does not replace
+an existing Dakota root after its recipe or patch changes.
 
 If this exact dedicated workspace was initialized by an older checkout and
 already contains lockfiles or partial installs, do not use `--overwrite` merely
