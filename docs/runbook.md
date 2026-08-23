@@ -1785,6 +1785,149 @@ environments run independently on another. Do not launch the same environment
 twice: its view and generated module root are owned by that one environment
 process.
 
+#### Two-node, eight-environment fast path
+
+Use this optional fast path for an approved rebuild or when the trial needs to
+exercise maximum environment-level concurrency. It starts one Spack process per
+distinct environment: four shared/GCC workers on one compute node and four
+platform-compiler workers on a second compute node. The normal sequential
+wrapper remains the default for a first diagnosis because its output is easier
+to follow.
+
+Run the lock verification and connected-node fetch once before either compute
+allocation starts:
+
+```bash
+cd "$BUILD_WORKSPACE"
+./cse-build login verify
+./cse-build login fetch
+```
+
+On each compute node, enter that node's generated tmux session and prepared
+shell:
+
+```bash
+cd "$BUILD_WORKSPACE"
+./cse-build compute
+```
+
+Define the launcher below once in each prepared shell. Each worker receives a
+private user-cache directory and a separate log. Worker output is suppressed in
+the launch window and remains available through the shared log path. The exit
+file is written only after install, view regeneration, and module refresh have
+finished.
+
+```bash
+export JOBS_PER_WORKER=16
+export PARALLEL_RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
+export LOG_ROOT="${BUILD_EVIDENCE:-$WORKDIR/$USER/cse-spack-logs/$CSE_SYSTEM_NAME/$CSE_TRIAL_RELEASE}/parallel-$(hostname -s)/$PARALLEL_RUN_ID"
+mkdir -p "$LOG_ROOT"
+chmod 0770 "$LOG_ROOT"
+
+launch_environment() {
+  local environment="$1"
+  local environment_key="${environment//\//-}"
+  local environment_dir="$CSE_BUILD_WORKSPACE/environments/$environment"
+  local log="$LOG_ROOT/$environment_key.log"
+  local exit_file="$LOG_ROOT/$environment_key.exit"
+
+  test -r "$environment_dir/spack.yaml" || {
+    echo "missing environment: $environment_dir" >&2
+    return 2
+  }
+  test -r "$environment_dir/spack.lock" || {
+    echo "missing lock: $environment_dir/spack.lock" >&2
+    return 2
+  }
+
+  (
+    export SPACK_USER_CACHE_PATH="$SPACK_USER_STATE_ROOT/cache/compute/$environment_key"
+    install -d -m 0700 "$SPACK_USER_CACHE_PATH"
+
+    set -o pipefail
+    {
+      echo "Starting $environment on $(hostname) at $(date -u)"
+      spack -e "$environment_dir" \
+        install --only-concrete -j "$JOBS_PER_WORKER" --fail-fast &&
+      spack -e "$environment_dir" env view regenerate &&
+      spack -e "$environment_dir" \
+        module tcl refresh --delete-tree -y
+    } 2>&1 | tee "$log" >/dev/null
+
+    status="$?"
+    printf '%s\n' "$status" > "$exit_file"
+    exit "$status"
+  ) &
+
+  printf '%s  %s  %s\n' "$!" "$environment" "$log"
+}
+```
+
+On the shared/GCC compute node, launch exactly these four workers:
+
+```bash
+SHARED_ENVIRONMENTS=(
+  "$SHARED_COMPILER_NAME/core"
+  "$SHARED_COMPILER_NAME/common"
+  "$SHARED_COMPILER_NAME/serial"
+  "$SHARED_COMPILER_NAME/mpi-$SHARED_MPI_NAME"
+)
+
+for environment in "${SHARED_ENVIRONMENTS[@]}"; do
+  launch_environment "$environment"
+done
+jobs -l
+```
+
+On the platform-compiler compute node, launch exactly these four workers:
+
+```bash
+PLATFORM_ENVIRONMENTS=(
+  "$PLATFORM_COMPILER_NAME/core"
+  "$PLATFORM_COMPILER_NAME/common"
+  "$PLATFORM_COMPILER_NAME/serial"
+  "$PLATFORM_COMPILER_NAME/mpi-$PLATFORM_MPI_NAME"
+)
+
+for environment in "${PLATFORM_ENVIRONMENTS[@]}"; do
+  launch_environment "$environment"
+done
+jobs -l
+```
+
+Keep each compute-node tmux session alive. Detaching with `Ctrl-b d` does not
+stop its workers. A tmux session is normally node-local, so use one terminal or
+scheduler attachment per compute node. The logs are stored on the shared
+filesystem and may also be inspected from the login node.
+
+List the logs and follow one worker at a time:
+
+```bash
+ls -lh "$LOG_ROOT"
+tail -F "$LOG_ROOT/<environment-key>.log"
+```
+
+Within tmux, use `Ctrl-b c` to open a monitoring window, `Ctrl-b n` or
+`Ctrl-b p` to move between windows, and `Ctrl-b [` to enter scrollback. Stop
+`tail -F` with `Ctrl-c`; that does not stop the worker. After the processes
+finish, every exit file must contain `0`:
+
+```bash
+for exit_file in "$LOG_ROOT"/*.exit; do
+  printf '%s: ' "$exit_file"
+  cat "$exit_file"
+done
+```
+
+There is no node-wide Spack job server coordinating these processes.
+`JOBS_PER_WORKER` is passed independently to every `spack install`. Four
+workers at `-j 16` request up to roughly 64 compile jobs on that node; four at
+`-j 24` request up to roughly 96. Therefore, `16` is a conservative four-worker
+setting on a 92-core node, while `24` is reasonable on a 192-core node when
+memory and site usage policy allow it. Leave CPU and memory headroom for Spack,
+linkers, compression, and the operating system. Reduce the worker count or
+`JOBS_PER_WORKER` when package memory use is high.
+
 `BUILD_JOBS` (or `-j`) is a per-Spack-process build-job budget, not a node-wide
 allocation. When several processes share one node, their budgets add together.
 Choose per-process values whose total fits the allocated CPU cores and memory.
