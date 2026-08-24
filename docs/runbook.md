@@ -1470,7 +1470,7 @@ reconcretize merely because the builder or Spack root path changed.
 Normal path: continue directly to Step 9. Switching between login and compute
 uses the same workspace and does not require a recovery procedure.
 
-### Pre-install control refresh
+### Pre-install workspace refresh
 
 Use this procedure when the profile/catalog selections remain valid but the
 current trial blueprint, GCC producer constraint, runtime-support scope, or
@@ -1480,59 +1480,40 @@ delete the static catalog, shared Spack install tree, source cache, or build
 cache.
 
 When GCC 12.5.0 appears without `+binutils`, check the policy source, rendered
-inputs, and locks before replacing anything. The producer constraint is owned
-by the Stack Content blueprint; updating Cluster Inspector, Stack Composer, or
-the static catalog alone does not change it:
+inputs, and locks before replacing anything. The complete compiler policy is
+owned by the Stack Content blueprint; updating Cluster Inspector, Stack
+Composer, or the static catalog alone does not change it. The policy requires
+`+binutils` on the producer, every downstream GCC root constraint, and the
+shared C/C++/Fortran provider requirements:
 
 ```bash
 source "$CSE_OPERATOR_SESSION_FILE"
 
-if git -C "$CONTENT" merge-base --is-ancestor 9e4cb54 HEAD; then
-  echo "Stack Content includes the GCC +binutils policy"
-else
-  echo "Stack Content is too old"
-fi
+git -C "$CONTENT" pull --ff-only origin codex/simplified-render-plan
+git -C "$CONTENT" log -1 --oneline
 
 grep -R -n --include=spack.yaml \
-  'gcc@12.5.0+binutils' \
+  '%gcc@12.5.0+binutils' \
   "$BUILD_WORKSPACE/environments/gcc"
 
 cd "$BUILD_WORKSPACE"
 ./cse-build login verify
 ```
 
-The generated workspace must contain four matching producer specs: Core,
-Common, Serial, and MPI. When all four are present, synchronize Stack Content
-to commit `3ed4318` or newer and refresh only the generated controls before
-trusting the lock result:
+The generated workspace must contain managed downstream constraints in Core,
+Common, Serial, and MPI. `verify` checks those inputs before reading locks. It
+also requires every downstream GCC-surface root to use the exact same concrete
+hash as the single `gcc@12.5.0+binutils` producer. A passing result means an
+older GCC 12.5 prefix visible in the restricted store is ineligible for every
+current root and cannot enter release promotion.
 
-```bash
-git -C "$CONTENT" pull --ff-only origin codex/simplified-render-plan
-
-"$CSE_PYTHON" \
-  "$CONTENT/pilots/cse-pilot/scripts/refresh-workspace-controls.py" \
-  --composer "$STACK_COMPOSER" \
-  --blueprint "$CONTENT/pilots/cse-pilot" \
-  --values "$BUILD_VALUES" \
-  --workspace "$BUILD_WORKSPACE"
-
-cd "$BUILD_WORKSPACE"
-./cse-build login verify
-```
-
-The updated verifier requires every downstream GCC-surface root to use the
-exact same concrete hash as the single `gcc@12.5.0+binutils` producer. A
-passing result means an older GCC 12.5 prefix visible in the restricted store
-is unreachable trial residue. It is not selected by the approved locks or
-release promotion.
-
-No producer matches mean the workspace was generated from an older blueprint
-or the session points at a different workspace. A downstream-hash mismatch
-means old lockfiles survived. Synchronize Stack Content, confirm the operator
-session paths, and continue with the replacement procedure below. The
-control-only refresh installs the stronger verifier but intentionally cannot
-repair environment YAML or lockfiles. A blueprint-only producer correction
-does not require a new static catalog.
+Missing managed constraints mean the workspace was generated from an older
+blueprint or the session points at a different workspace. A downstream-hash
+mismatch means old lockfiles survived. A controls-only refresh cannot repair
+either case because it deliberately preserves environment YAML and lockfiles.
+Synchronize Stack Content, confirm the operator-session paths, and continue
+with the replacement procedure below. A blueprint-only compiler-policy
+correction does not require a new static catalog.
 
 First stop every process using the workspace, synchronize the four repositories
 in Step 2, rebuild Stack Composer when `cse_session_status` reports it stale,
