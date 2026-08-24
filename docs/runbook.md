@@ -1502,15 +1502,37 @@ cd "$BUILD_WORKSPACE"
 ```
 
 The generated workspace must contain four matching producer specs: Core,
-Common, Serial, and MPI. Four matches plus a passing verification mean the
-concrete locks are correct and an earlier display command omitted variants.
-No matches mean the workspace was generated from an older blueprint or the
-session points at a different workspace. Four matches plus a verifier failure
-mean old lockfiles survived. Synchronize Stack Content, confirm the operator
-session paths, and continue with the replacement procedure below. Do not use
-the control-only refresh script: it intentionally preserves environment YAML
-and lockfiles. A blueprint-only producer correction does not require a new
-static catalog.
+Common, Serial, and MPI. When all four are present, synchronize Stack Content
+to commit `3ed4318` or newer and refresh only the generated controls before
+trusting the lock result:
+
+```bash
+git -C "$CONTENT" pull --ff-only origin codex/simplified-render-plan
+
+"$CSE_PYTHON" \
+  "$CONTENT/pilots/cse-pilot/scripts/refresh-workspace-controls.py" \
+  --composer "$STACK_COMPOSER" \
+  --blueprint "$CONTENT/pilots/cse-pilot" \
+  --values "$BUILD_VALUES" \
+  --workspace "$BUILD_WORKSPACE"
+
+cd "$BUILD_WORKSPACE"
+./cse-build login verify
+```
+
+The updated verifier requires every downstream GCC-surface root to use the
+exact same concrete hash as the single `gcc@12.5.0+binutils` producer. A
+passing result means an older GCC 12.5 prefix visible in the restricted store
+is unreachable trial residue. It is not selected by the approved locks or
+release promotion.
+
+No producer matches mean the workspace was generated from an older blueprint
+or the session points at a different workspace. A downstream-hash mismatch
+means old lockfiles survived. Synchronize Stack Content, confirm the operator
+session paths, and continue with the replacement procedure below. The
+control-only refresh installs the stronger verifier but intentionally cannot
+repair environment YAML or lockfiles. A blueprint-only producer correction
+does not require a new static catalog.
 
 First stop every process using the workspace, synchronize the four repositories
 in Step 2, rebuild Stack Composer when `cse_session_status` reports it stale,
