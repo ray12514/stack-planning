@@ -1479,6 +1479,39 @@ replaces the generated workspace and its unaccepted lockfiles. It does not
 delete the static catalog, shared Spack install tree, source cache, or build
 cache.
 
+When GCC 12.5.0 appears without `+binutils`, check the policy source, rendered
+inputs, and locks before replacing anything. The producer constraint is owned
+by the Stack Content blueprint; updating Cluster Inspector, Stack Composer, or
+the static catalog alone does not change it:
+
+```bash
+source "$CSE_OPERATOR_SESSION_FILE"
+
+if git -C "$CONTENT" merge-base --is-ancestor 9e4cb54 HEAD; then
+  echo "Stack Content includes the GCC +binutils policy"
+else
+  echo "Stack Content is too old"
+fi
+
+grep -R -n --include=spack.yaml \
+  'gcc@12.5.0+binutils' \
+  "$BUILD_WORKSPACE/environments/gcc"
+
+cd "$BUILD_WORKSPACE"
+./cse-build login verify
+```
+
+The generated workspace must contain four matching producer specs: Core,
+Common, Serial, and MPI. Four matches plus a passing verification mean the
+concrete locks are correct and an earlier display command omitted variants.
+No matches mean the workspace was generated from an older blueprint or the
+session points at a different workspace. Four matches plus a verifier failure
+mean old lockfiles survived. Synchronize Stack Content, confirm the operator
+session paths, and continue with the replacement procedure below. Do not use
+the control-only refresh script: it intentionally preserves environment YAML
+and lockfiles. A blueprint-only producer correction does not require a new
+static catalog.
+
 First stop every process using the workspace, synchronize the four repositories
 in Step 2, rebuild Stack Composer when `cse_session_status` reports it stale,
 and reload the operator session. Then verify the selected roots and regenerate
