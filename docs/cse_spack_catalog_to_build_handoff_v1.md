@@ -324,7 +324,7 @@ spack:
       specs:
         - matrix:
             - [$foundation]
-            - ['%gcc@<version>']
+            - ['target=<portable-target>']
     - group: payload
       needs: [compiler, foundation]
       specs:

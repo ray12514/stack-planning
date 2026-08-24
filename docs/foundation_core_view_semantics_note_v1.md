@@ -200,14 +200,14 @@ This avoids pretending that every dependency version can be globally unified.
 Foundation reuse must be a policy decision, not an accidental consequence of a view path.
 
 The concretizer should reuse Foundation and build-tool packages when the stack
-explicitly pins them. A stack-built compiler is first built in its own
-bootstrap environment and exposed at a fixed compiler view. Downstream
-environments model that installation as a non-buildable external, then repeat
-Foundation and build-tool groups with the same specs and Spack 1.2 toolchain.
-`needs` orders those groups within each environment. The lockfile gate verifies
-that the independently concretized environments produced the same external
-compiler identity and Foundation/build-tool hashes. Restricted and publication
-installs reuse those hashes through the shared store and configured build cache.
+explicitly pins them. Each independent environment on a stack-built compiler
+repeats the exact compiler producer group. Foundation, Core, and payload groups
+inherit that concrete producer through Spack 1.2 `needs`; they do not model it
+as an external and do not repeat a separate legacy `%compiler` constraint.
+The lockfile gate verifies that the independently concretized environments
+produced the same compiler, Foundation, and build-tool hashes. Restricted and
+publication installs reuse those hashes through the shared store and configured
+build cache.
 
 Do not rely on `PATH`, `LD_LIBRARY_PATH`, or a flat view alone to make payload lanes reuse foundation packages.
 

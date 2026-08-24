@@ -177,6 +177,16 @@ one environment:
 
 ```yaml
 spack:
+  packages:
+    c:
+      prefer: [gcc@<version>]
+    cxx:
+      prefer: [gcc@<version>]
+    fortran:
+      prefer: [gcc@<version>]
+    mpi:
+      require: [openmpi]
+
   specs:
     - group: compiler
       specs:
@@ -185,21 +195,23 @@ spack:
     - group: mpi
       needs: [compiler]
       specs:
-        - openmpi@<version> %gcc@<version>
+        - openmpi@<version>
 
     - group: applications
-      needs: [mpi]
+      needs: [compiler, mpi]
       specs:
-        - hdf5@<version>+mpi+fortran %gcc@<version>
+        - hdf5@<version>+mpi+fortran
 
   concretizer:
     unify: false
     reuse: true
 ```
 
-`needs` applies inside one environment. Reuse between separate environments
-requires the same shared install tree, enabled reuse policy, compatible
-concrete hashes, and normal Spack locking.
+The preferences select the managed compiler while `needs` supplies its exact
+concrete hash. Do not repeat a second `%gcc@<version>` constraint on MPI or
+application roots. `needs` applies inside one environment. Reuse between
+separate environments requires the same shared install tree, enabled reuse
+policy, compatible concrete hashes, and normal Spack locking.
 
 ## 8. Concretize and review
 

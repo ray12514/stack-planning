@@ -3,7 +3,7 @@
 | Document control | |
 |---|---|
 | Date | 2026-07-25 |
-| Status | Handoff note. Groundwork is committed; the remaining work needs the decisions below settled first. |
+| Status | Design decision recorded; full-render implementation remains pending. |
 | Scope | `externals.compilers: build_all` in the full render only. The static catalog path is complete and needs none of this. |
 
 ## Why this exists
@@ -46,10 +46,10 @@ A `build_all` stack renders end to end after these.
 the payload only, with no compiler root, so nothing tells Spack to build the
 named compiler and nothing binds the payload to it.
 
-## The decision that blocks it
+## Resolved design
 
-The two lane kinds bind their compiler differently today, and `build_all` has
-to pick one shape or reconcile them.
+The full renderer uses one explicit toolchain model for platform compilers and
+one producer/`needs` model for stack-built compilers.
 
 An MPI lane binds through a rendered toolchain:
 
@@ -65,25 +65,9 @@ specs:
   - hdf5@1.14.5~mpi+fortran
 ```
 
-Toolchains are rendered for MPI providers (`configs/mpi/<provider>/toolchains.yaml`)
-and not for compiler-only lanes. So the options are:
-
-1. **Render a compiler toolchain for every lane, then reference it.** Most
-   consistent, and it makes the serial lane's compiler explicit for the first
-   time. It changes rendered output for existing lanes that do not use
-   `build_all`, so it needs a deliberate blessing rather than a quiet
-   improvement.
-
-2. **Emit a direct `%<compiler-ref>` on payload specs under `build_all` only.**
-   Smallest change and touches nothing else, but it leaves two binding styles
-   in the tree and a third under the new posture.
-
-3. **Add the compiler as a concretization-group root and leave binding alone.**
-   Builds the compiler but does not guarantee the payload uses it, so a serial
-   lane could still concretize against something else. Not recommended on its
-   own; it only works combined with 1 or 2.
-
-Whichever is chosen, the specs block gains groups:
+For `build_all`, every environment repeats the exact compiler producer group.
+Language-provider preferences select that compiler, and downstream groups use
+`needs: [compiler]` so Spack must reuse the producer's concrete hash:
 
 ```yaml
 specs:
@@ -94,17 +78,17 @@ specs:
   specs: [...]
 ```
 
-`group` and `needs` require Spack 1.2 or newer, which the pilot already
-standardizes on.
+Do not also add a legacy `%gcc@14.3.0` to the application roots. That is a
+second compiler constraint and can split the producer hash. External compiler
+lanes remain bound through explicit compiler or compiler-plus-MPI toolchains,
+including Serial. `group` and `needs` require Spack 1.2 or newer, which the
+trial already standardizes on.
 
 ## Secondary observations, both worth a look
 
-- **Serial lanes do not pin a compiler in their specs.** This predates
-  `build_all` and is not caused by it. Whether `environments/gcc/serial` and
-  `environments/cce/serial` reliably concretize against their own compiler
-  today, or rely on Spack preference plus the vendor scope, was not chased
-  down. Worth confirming before the first full render regardless of this
-  posture.
+- **Serial lanes must bind a compiler.** A stack-built Serial lane inherits its
+  compiler producer through `needs`; an external Serial lane uses an explicit
+  compiler toolchain.
 
 - **Where the built compiler's version is named.** The stack schema forbids a
   top-level `compilers` key; site selection lives in `defaults.yaml` and a

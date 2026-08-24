@@ -144,18 +144,22 @@ the production renderer.
   even though the trial required the `+binutils` compiler producer. After the
   producer constraint was corrected, an older GCC 12.5 prefix could still
   remain in the trial store and appear in installation inventory.
-- Root cause: leaving the variant unspecified allowed another valid GCC
-  concrete spec. The first verifier revision checked that the repeated
-  producer roots shared one `+binutils` hash and that downstream roots shared
-  one GCC 12.5 hash, but did not require those two hashes to be identical.
+- Root cause: downstream groups repeated a legacy `%gcc@12.5.0` constraint in
+  addition to inheriting the compiler producer through `needs`. That second
+  compiler solve could create another GCC hash even after both constraints
+  requested `+binutils`. The first verifier revision accepted the duplicate
+  constraint instead of rejecting it before concretization.
 - Immediate recovery: regenerate the workspace and reconcretize all locks that
   contain the shared GCC producer. An old `~binutils` prefix may remain as
   unreachable trial residue; do not publish it, and do not treat the lock set
   as valid if any downstream root still reaches it.
 - Permanent mitigation: every repeated GCC producer explicitly requests
-  `+binutils`. The lockfile verifier rejects a producer without the managed
-  Binutils edge and requires every downstream GCC-surface root to reference
-  the exact same concrete hash as that producer.
+  `+binutils`; downstream groups select it through language-provider
+  preferences and inherit its exact hash through `needs`, without a separate
+  `%gcc` constraint. The workspace gate rejects a duplicate compiler
+  constraint or missing `needs` edge before the solve. The lockfile verifier
+  requires every downstream GCC-surface root to reference the exact producer
+  hash.
 - Release rule: promotion is driven by the verified lockfiles, views, modules,
   and selected build-cache entries. An unreachable older GCC prefix may remain
   in the restricted trial store, but it is excluded from the published

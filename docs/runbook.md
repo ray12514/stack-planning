@@ -312,6 +312,14 @@ and executes a small probe in each stage candidate before Spack starts, so a
 writable `noexec` or policy-restricted temporary directory is skipped.
 `${WORKDIR}` supplies a separate final fallback for each context.
 
+On the first concretization for a builder, Spack may install solver support such
+as `re2c`, `gmake`, `cmake`, `python-venv`, and `gcc-runtime` below that
+builder's bootstrap store. This is Spack bootstrapping its concretizer; it is
+not the CSE `core-independent` group and it does not install the CSE package
+roster. It normally happens once for the selected Spack identity and per-user
+cache, then the remaining environments reuse it. Changing Spack versions or
+the user-cache/bootstrap location, or clearing that store, can trigger it again.
+
 Confirm that the node can see the shared workspace and store and can load every
 recorded external module. Do not reconcretize merely because the context or
 stage changed. If neither context has an executable stage, correct the site
@@ -1100,10 +1108,10 @@ The helper selects the newest verified older GCC compiler scope as the compiler
 that builds the GCC 12.5.0 producer. Set `CSE_SHARED_COMPILER_SEED_REF` only to
 choose a different reviewed compiler from the catalog. This is a compiler
 dependency inside each GCC environment, not a separate preparatory environment
-or user-facing surface. Every GCC producer root explicitly enables `+binutils`
-so the compiler uses its managed assembler/linker toolchain instead of silently
-reusing a previously concrete `~binutils` build. All four GCC lockfiles must
-record the same compiler hash.
+or user-facing surface. Every GCC producer root explicitly enables `+binutils`.
+Downstream groups inherit that exact concrete producer through
+`needs: [compiler]`; they do not repeat `%gcc@12.5.0` as a second compiler
+constraint. All four GCC lockfiles must record the same compiler hash.
 
 For build-sourced Open MPI, the helper combines verified common-scope facts
 with `stack-content/pilots/cse-pilot/openmpi-policy.yaml`. The current trial
@@ -1492,10 +1500,11 @@ When GCC 12.5.0 appears without `+binutils`, check the policy source, rendered
 inputs, and locks before replacing anything. The complete compiler policy is
 owned by the Stack Content blueprint; updating Cluster Inspector, Stack
 Composer, or the static catalog alone does not change it. The policy requires
-`+binutils` on the producer and every downstream GCC compiler constraint.
-Shared C/C++/Fortran preferences select that provider without imposing a global
-compiler requirement on packages, so the older bootstrap compiler remains
-usable:
+`+binutils` on the producer, C/C++/Fortran preferences for that provider, and
+`needs: [compiler]` on downstream build groups. It forbids a second
+`%gcc@12.5.0` downstream constraint: that constraint starts another compiler
+solve and can create two hashes even when it also requests `+binutils`. The
+older seed compiler remains usable only to build the managed producer:
 
 ```bash
 source "$CSE_OPERATOR_SESSION_FILE"
@@ -1504,24 +1513,36 @@ git -C "$CONTENT" pull --ff-only origin codex/simplified-render-plan
 git -C "$CONTENT" log -1 --oneline
 
 grep -R -n --include=spack.yaml \
-  '%gcc@12.5.0+binutils' \
+  "gcc@12.5.0+binutils languages='c,c++,fortran'" \
   "$BUILD_WORKSPACE/environments/gcc"
+
+if grep -R -n --include=spack.yaml \
+  '%gcc@12.5.0' \
+  "$BUILD_WORKSPACE/environments/gcc"; then
+  echo "ERROR: duplicate downstream GCC constraint remains" >&2
+  false
+fi
+
+"$CSE_PYTHON" \
+  "$BUILD_WORKSPACE/scripts/verify-lockfiles.py" \
+  --workspace-only
 
 cd "$BUILD_WORKSPACE"
 ./cse-build login verify
 ```
 
-The generated workspace must contain managed downstream constraints in Core,
-Common, Serial, and MPI. `verify` checks those inputs before reading locks. It
-also requires every downstream GCC-surface root to use the exact same concrete
-hash as the single `gcc@12.5.0+binutils` producer. A passing result means an
-older GCC 12.5 prefix visible in the restricted store is ineligible for every
-current root and cannot enter release promotion.
+The first `grep` must show one producer in each GCC environment. The second
+must produce no output. The workspace-only gate checks the producer, every
+required `needs` relationship, and the language-provider preferences before a
+solve. After concretization, `verify` also requires every downstream
+GCC-surface root to use the exact same concrete hash as the single
+`gcc@12.5.0+binutils` producer.
 
-Missing managed constraints mean the workspace was generated from an older
-blueprint or the session points at a different workspace. A downstream-hash
-mismatch means old lockfiles survived. A controls-only refresh cannot repair
-either case because it deliberately preserves environment YAML and lockfiles.
+Missing `needs` relationships or any downstream `%gcc@12.5.0` line mean the
+workspace was generated from an older blueprint or the session points at a
+different workspace. A downstream-hash mismatch means the locks were created
+from those older inputs. A controls-only refresh cannot repair either case
+because it deliberately preserves environment YAML and lockfiles.
 Synchronize Stack Content, confirm the operator-session paths, and continue
 with the replacement procedure below. A blueprint-only compiler-policy
 correction does not require a new static catalog.

@@ -76,6 +76,14 @@ spack:
   - <catalog>/scopes/mpi/cray-mpich/<mpich-version>/gcc-<flavor-gcc-version>
   # compilers scope deliberately omitted: GCC is built here
 
+  packages:
+    c:
+      prefer: [gcc@<cse-gcc-version>]
+    cxx:
+      prefer: [gcc@<cse-gcc-version>]
+    fortran:
+      prefer: [gcc@<cse-gcc-version>]
+
   specs:
   - group: compiler
     specs:
@@ -84,13 +92,13 @@ spack:
   - group: apps
     needs: [compiler]
     specs:
-    - hdf5@<version> +mpi +fortran %gcc@<cse-gcc-version>
-    - netcdf-c@<version> +mpi %gcc@<cse-gcc-version>
-    - netcdf-fortran@<version> %gcc@<cse-gcc-version>
-    - fftw@<version> +mpi %gcc@<cse-gcc-version>
-    - openblas@<version> %gcc@<cse-gcc-version>
-    - netlib-scalapack@<version> %gcc@<cse-gcc-version>
-    - boost@<version> +mpi %gcc@<cse-gcc-version>
+    - hdf5@<version> +mpi +fortran
+    - netcdf-c@<version> +mpi
+    - netcdf-fortran@<version>
+    - fftw@<version> +mpi
+    - openblas@<version>
+    - netlib-scalapack@<version>
+    - boost@<version> +mpi
 
   concretizer:
     unify: false
@@ -176,6 +184,12 @@ spack:
   # compilers and mpi scopes deliberately omitted: both are built here
 
   packages:
+    c:
+      prefer: [gcc@<gcc-version>]
+    cxx:
+      prefer: [gcc@<gcc-version>]
+    fortran:
+      prefer: [gcc@<gcc-version>]
     mpi:
       require: [openmpi]
 
@@ -187,18 +201,18 @@ spack:
   - group: mpi
     needs: [compiler]
     specs:
-    - openmpi@<newest-supported> %gcc@<gcc-version>
+    - openmpi@<newest-supported>
 
   - group: apps
-    needs: [mpi]
+    needs: [compiler, mpi]
     specs:
-    - hdf5@<version> +mpi +fortran %gcc@<gcc-version>
-    - netcdf-c@<version> +mpi %gcc@<gcc-version>
-    - netcdf-fortran@<version> %gcc@<gcc-version>
-    - fftw@<version> +mpi %gcc@<gcc-version>
-    - openblas@<version> %gcc@<gcc-version>
-    - netlib-scalapack@<version> %gcc@<gcc-version>
-    - boost@<version> +mpi %gcc@<gcc-version>
+    - hdf5@<version> +mpi +fortran
+    - netcdf-c@<version> +mpi
+    - netcdf-fortran@<version>
+    - fftw@<version> +mpi
+    - openblas@<version>
+    - netlib-scalapack@<version>
+    - boost@<version> +mpi
 
   concretizer:
     unify: false
@@ -208,6 +222,9 @@ spack:
 `group` and `needs` require Spack 1.2 or newer. On Spack 1.0 a stack-built
 compiler had to be installed and registered as an external first; 1.2 removed
 that requirement, which is one reason the pilot standardizes on it.
+The language-provider preferences select the managed compiler. `needs` supplies
+its exact concrete hash; do not repeat a legacy `%gcc@...` constraint on the
+MPI or application roots.
 
 `packages: mpi: require: [openmpi]` pins the MPI virtual so nothing else can
 satisfy it. The common scope stays included because OpenSSL, curl, and the

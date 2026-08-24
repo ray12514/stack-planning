@@ -247,19 +247,26 @@ spack:
     specs:
     - matrix:
       - [$foundation]
-      - ['%gcc@13.3.1']
+      - ['target=x86_64_v3']
   - group: core
     needs: [compiler, foundation]
     specs:
     - matrix:
       - [$core]
-      - ['%gcc@13.3.1']
+      - ['target=x86_64_v3']
   view:
     compiler:
       root: /shared/cse/views/gcc/compiler
       link: roots
       group: compiler
 ```
+
+The producer group is the only GCC root. The needed group supplies that exact
+concrete compiler to Foundation and Core. Do not add a second legacy
+`%gcc@13.3.1` constraint to those matrices; it can start an independent
+compiler solve instead of selecting the producer. Language-provider
+preferences may select the managed compiler, while `needs` provides the exact
+hash.
 
 The groups are environment-local. Separate Core, Common, Serial, MPI, and GPU
 environments repeat the compiler, Foundation, build-tool, and MPI producer
