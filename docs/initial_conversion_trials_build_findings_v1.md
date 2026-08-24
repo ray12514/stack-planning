@@ -10,7 +10,8 @@ not wait for the build to finish.
 Each entry identifies the observed symptom, root cause, immediate recovery,
 and permanent mitigation. The disposition states where the durable fix
 belongs. System-specific recovery remains in that system's Stack Content
-runbook. Generic fixes belong in the CSE pilot templates, provider policy, or
+runbook. Generic fixes belong in the Initial Conversion Trials workspace
+templates, provider policy, or
 the production renderer.
 
 ## Current findings
@@ -114,7 +115,7 @@ the production renderer.
   in workspace module-state preparation.
 - Validation: a reduced LAPACK flag-selection reproducer failed with GNU
   Fortran under `PE_ENV=CRAY` and passed with the marker removed. The Stack
-  Content pilot test suite passes with a regression for this condition.
+  Stack Content trial-workspace test suite passes with a regression for this condition.
 - Disposition: generic build-process hygiene in the workspace template, with
   Blueback recovery documented in its system runbook.
 

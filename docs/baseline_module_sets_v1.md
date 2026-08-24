@@ -1,6 +1,8 @@
 # Baseline module sets (v1)
 
-Status: design note. This records the contract before implementation.
+Status: parked follow-on design. The current profile reports observed loaded
+modules and verified providers but does not implement `baseline_module_sets`.
+Do not use the proposed YAML below in the Initial Conversion Trials.
 
 ## Purpose
 

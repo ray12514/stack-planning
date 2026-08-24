@@ -1,6 +1,8 @@
 # Initial Conversion Trials Package Version Check
 
-Status: working input for the Initial Conversion Trials email, 2026-08-11.
+Status: current package-repository availability record for the Initial
+Conversion Trials roster, reviewed 2026-08-24. `stack-content` roster and
+workspace tests are authoritative if this record and the implementation differ.
 
 ## Source basis
 

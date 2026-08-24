@@ -3,13 +3,13 @@
 | Document control | |
 |---|---|
 | Date | 2026-08-13 |
-| Status | Research note for CSE initial conversion trials |
+| Status | Research note supporting the Initial Conversion Trials |
 | Scope | Spack `v1.2.2` only |
 | Method | Primary sources only: the official `spack/spack` documentation and source at tag `v1.2.2` |
 
 ## Initial Conversion Trials build-stage change assessment
 
-- **Requested change:** replace the pilot's manually entered single build-stage
+- **Requested change:** replace the trial's manually entered single build-stage
   path with separate ordered fallback lists for reviewed login and compute
   contexts.
 - **Design source:** the profile contract already records per-node-type stage
@@ -17,7 +17,7 @@
   common runbook owns the trial procedure.
 - **Ownership:** Cluster Inspector owns observed candidate writability and mount
   facts. The operator owns the reviewed login/compute node-type mapping and
-  `WORKDIR`. The Initial Conversion Trials helper owns the temporary pilot
+  `WORKDIR`. The Initial Conversion Trials helper owns the temporary workspace
   translation and runtime selector; Stack Composer still does not probe the
   host.
 - **Scope:** required trial hardening. It does not change the production
@@ -69,7 +69,7 @@
   `packages:all:prefer`; Miniforge is therefore the named generic-target
   exception.
 
-## Conclusions for the pilot
+## Conclusions for the Initial Conversion Trials
 
 1. `group`/`needs` orders concretization and forces reuse **inside one
    environment**. It is not a cross-environment or cross-process scheduler.
@@ -133,7 +133,7 @@ Unlike `needs`, included-environment specs are subject to the consumer's
 
 ### CSE implication
 
-There are two valid pilot shapes:
+There are two valid trial shapes:
 
 - **Ordered checkpoint:** concretize/install the GCC producer first, verify it,
   then concretize the independent payload environments with local-store reuse
@@ -200,7 +200,7 @@ It is not needed for a Spack 1.2.2 DAG to use a GCC package already installed
 in the same configured store. Registering that installation again as an
 external would also discard the cleaner “Spack-built” provenance.
 
-If the pilot instead records the compiler view as a `packages.yaml` external,
+If the trial instead records the compiler view as a `packages.yaml` external,
 that changes the dependency semantics: the external prefix is assumed to
 already exist and Spack does not own installing it as part of the consumer
 DAG. In that design the GCC-first checkpoint is mandatory. A view-plus-external
@@ -291,7 +291,7 @@ config:
 ```
 
 The operator approves the login and compute node types, not one manually typed
-stage path. The pilot values helper reads both node types' Cluster Inspector
+stage path. The trial values helper reads both node types' Cluster Inspector
 facts, retains candidates that were writable and are not known `noexec` mounts,
 orders temporary storage before other inspected scratch candidates, and adds a
 separate absolute `WORKDIR` fallback for each context. It namespaces every
@@ -420,7 +420,7 @@ the latest branch state when branch-pinned/unpinned
 Path-based overlay repositories are edited directly and are not updated by
 `spack repo update`.
 
-## Recommended pilot posture
+## Recommended Initial Conversion Trials posture
 
 - Keep GCC 12.5.0 as the current common compiler producer, but represent
   compiler surfaces as a list so AOCC, Intel, another CCE, or a newer GCC can

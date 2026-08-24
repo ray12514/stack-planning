@@ -2,19 +2,9 @@
 
 ## Status
 
-Design note / hardening target. This records intended semantics that are not fully settled in the current implementation.
-
-## Provenance
-
-The foundation/Core split below was settled in the original v6 master design
-(`docs/spack_stack_generation_design_v6.md`, deleted in `9ca9f6e`; recover with
-`git show 9ca9f6e^:docs/spack_stack_generation_design_v6.md`). Earlier
-revisions of this note drifted from it: Core tools were described as
-"internal unless explicitly public" and foundation was pushed into an internal
-build view. Restored 2026-07-08 to the settled semantics: **foundation is
-ambient in the user-facing view; Core tools are the loadable layer.** The
-ALCF Polaris Spack PE (spack-pe-base / spack-pe-gnu) independently converges
-on the same structure and corroborates the model.
+Current design note. Foundation is ambient in the user-facing view; Core tools
+are the loadable layer. The Initial Conversion Trials build both layers per
+compiler surface and verify reuse only within that surface.
 
 ## Context
 
@@ -29,7 +19,9 @@ Core tools (user-loadable):     cmake, ninja, pkgconf, git, python, miniforge
 Foundation libraries (ambient): zlib, xz, zstd, bzip2
 ```
 
-These packages may be built once with a baseline compiler and baseline CPU target, then used as build tools or low-level dependencies by many payload lanes.
+These packages are built once per compiler surface at the baseline CPU target,
+then reused by the Common, Serial, and MPI environments on that same compiler
+surface.
 
 ## Working definitions
 
@@ -49,7 +41,8 @@ A foundation package should generally be:
 
 - independent of MPI provider;
 - independent of GPU runtime;
-- safe to reuse across payload compilers as a build tool or low-level dependency;
+- safe to reuse across payload lanes on the same compiler surface as a build
+  tool or low-level dependency;
 - built for a baseline CPU target such as `x86_64_v2` or `x86_64_v3`, not for a specific compute-node microarchitecture;
 - narrow enough that version policy remains understandable.
 
@@ -68,21 +61,27 @@ target. A prebuilt architecture-specific distribution is different from a
 source-built Core tool: Miniforge uses the generic `x86_64` family target and
 has no compiler-language dependency.
 
-The current pre-v1 deployment shape uses one shared GCC-built Core. Foundation
-and Core are groups inside the Core environment. Payload environments repeat
-the shared compiler, Foundation, and required build-tool groups and use Spack
-1.2 `needs` to make those producers available for exact reuse:
+The current pre-v1 deployment shape owns Foundation and Core per compiler
+surface. Foundation and Core are groups inside each surface's Core environment.
+The Common, Serial, and MPI environments repeat that surface's compiler,
+Foundation, and required build-tool groups and use Spack 1.2 `needs` to make
+those producers available for exact reuse:
 
 ```text
-shared GCC producer -> Foundation group -> Core group
+shared GCC producer -> GCC Foundation -> GCC Core
                     \-> GCC Common/Serial/MPI payload groups
-                    \-> platform Common/Serial/MPI payload groups
+
+platform compiler external -> platform Foundation -> platform Core
+                           \-> platform Common/Serial/MPI payload groups
 ```
 
 There is no separate public Foundation environment or lane. Cross-environment
-reuse is accepted only when the repeated producer hashes match in every
-lockfile. The shared Spack store and build cache then avoid rebuilding those
-exact hashes.
+reuse is accepted only when the repeated producer hashes match across the
+environments on that compiler surface. The shared Spack store and build cache
+then avoid rebuilding those exact hashes. The trial's current front-door
+exposure may prepend the shared GCC Foundation view for both compiler surfaces;
+that is an exposure choice and does not make the platform surface consume the
+GCC-built Foundation during concretization.
 
 ## Visibility policy
 
@@ -200,14 +199,15 @@ This avoids pretending that every dependency version can be globally unified.
 Foundation reuse must be a policy decision, not an accidental consequence of a view path.
 
 The concretizer should reuse Foundation and build-tool packages when the stack
-explicitly pins them. Each independent environment on a stack-built compiler
-repeats the exact compiler producer group. Foundation, Core, and payload groups
-inherit that concrete producer through Spack 1.2 `needs`; they do not model it
-as an external and do not repeat a separate legacy `%compiler` constraint.
-The lockfile gate verifies that the independently concretized environments
-produced the same compiler, Foundation, and build-tool hashes. Restricted and
-publication installs reuse those hashes through the shared store and configured
-build cache.
+explicitly pins them. Each independent environment on the shared GCC surface
+repeats the exact stack-built compiler producer group. Each platform environment
+uses the exact selected external compiler and builds its own Foundation and
+build-tool roots. Foundation, Core, and payload groups inherit their surface's
+compiler through Spack 1.2 `needs` and language-provider policy; they do not use
+a separate legacy bootstrap environment. The lockfile gate verifies one shared
+GCC producer hash and matching Foundation/build-tool hashes within each compiler
+surface. Restricted and publication installs reuse those hashes through the
+shared store and configured build cache.
 
 Do not rely on `PATH`, `LD_LIBRARY_PATH`, or a flat view alone to make payload lanes reuse foundation packages.
 

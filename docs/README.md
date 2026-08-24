@@ -1,7 +1,26 @@
 # Documentation Index
 
-Human-readable contracts for the stack-planning system. The JSON Schemas in
-`../schemas/` are the machine-readable form and the source of truth.
+This is the routing index for the four-repository stack-generation project.
+The architecture and ownership contracts live in this repository. The JSON
+Schemas in `../schemas/` are the machine-readable contracts. Exact command
+syntax lives with the implementing tool and in the current operator runbook.
+
+Use the following precedence when two documents appear to disagree:
+
+1. `../CONTEXT.md`, the current-model documents below, and `../schemas/` define
+   the architecture and data contracts.
+2. `runbook.md` defines the common Initial Conversion Trials procedure.
+3. `../../stack-content/systems/<system>/runbook-notes.md` contains only the
+   system-specific delta and recovery commands for that system.
+4. The current tool `--help`, generated workspace `README.md`, and
+   `BUILDER-HANDOFF.md` define the exact executable surface.
+5. Research, readiness, branch-history, and presentation notes provide
+   evidence and context; they do not override the current model or runbook.
+
+The internal source directory remains `stack-content/pilots/cse-pilot/` while
+the temporary initializer is in use. The activity described to operators and
+stakeholders is the **Initial Conversion Trials**, not a separate production
+mode.
 
 ## Current model: start here
 
@@ -12,22 +31,76 @@ Human-readable contracts for the stack-planning system. The JSON Schemas in
 | `lane_and_module_model_v1.md` | **Lane + module model.** Lanes, per-compiler Core, the three GPU lane kinds, toolchain binding, externalization, exposure, front-door module anatomy, provenance, build order. |
 | `stack_workspace_lifecycle_v1.md` | Per-stack workspaces, the one shared hash-deduplicated install tree, and the three lifetimes (kept / regenerable / durable). |
 | `end_to_end_map_v1.md` | Point-A-to-point-B map: inputs, producers, outputs, consumers, tools, cadence, worked example. |
-| `runbook.md` | Canonical CSE static-pilot procedure: probe → static catalog → restricted build/validation → private build cache → cache-only shared publication. |
+| `runbook.md` | Canonical Initial Conversion Trials procedure: probe → static catalog → restricted build/validation → private build cache → cache-only shared publication. |
 | `cse_builder_handoff_v1.md` | Resume guide for a second CSE builder: run the generated workspace entry point, reattach its tmux session, and continue from the recorded checkpoint. |
 | `cse_spack_catalog_to_build_handoff_v1.md` | Self-contained bare-Spack guide with a per-system path/variable handoff sheet, shared-Spack startup, environment selection, scope inspection, concretization, fetching, installation, and build-state inspection. |
 | `initial_conversion_trials_build_findings_v1.md` | Running technical record of trial build failures, causes, recoveries, permanent mitigations, and validation gates. |
+| `cse_spack_customization_and_upstream_inventory_v1.md` | Consolidated inventory of CSE Spack policy, integration controls, provider adapters, active package overlays, and the upstream retirement queue. |
 | `software_stack_sop_v1.md` | Working SOP for an application package manager using the static platform catalog to build and publish an independently managed Spack environment. |
 | `cse_software_stack_sop_v1.md` | Working CSE SOP for restricted builds, signed build-cache promotion, cache-only publication, CSE modules, and release controls. |
 | `stack_build_handoff_note_v1.md` | Where render stops; build is a co-equal choice (spacktools / spack-build / Ansible / bare Spack); stack-content + config delivery modes. |
 | `stack_generation_orchestration_note_v1.md` | Render across systems: the intersection model, input cadence, re-render/rebuild triggers, tool-agnostic driver contract. |
 | `deployment_inputs_and_ownership_v1.md` | Auto-vs-explicit ownership and the `deployment.yaml` overlay; the install tree is never auto-derived. |
-| `manual_config_catalog_note_v1.md` | Follow-up manual-user product: render complete reusable Spack config YAML files from profile facts without generating a managed environment. |
 | `spack_1_2_rendered_environment_reference_v1.md` | Spack 1.2 full-render reference: native config-file seam, groups/`needs`, toolchains, Foundation/Core/Common views, modules, and Cray/Linux examples. |
 | `pre_v1_hosting_and_external_inventory_note_v1.md` | Four-repo GitLab layout, the stack-content repo, and the (realized) provider-family generalization. |
-| `cray_runtime_package_repo_note_v1.md` | Follow-up Cray runtime package-repo direction: GTL, PMI/PALS, libfabric/CXI, and removing LD_PRELOAD workarounds. |
 | `cluster_inspector_stack_profile_design_v1.md` | `cluster-inspector` boundary, CLI, packaging. |
 | `cluster_inspector_profile_extraction_map_v1.md` | Field-by-field extraction map for `profile.yaml` (provider inventories). |
 | `../schemas/README.md` | The schemas (`profile`, `defaults`, `stack`, `package-set`, `release-manifest`). |
+
+## Active supporting design and decision notes
+
+These documents refine the current model. They are normative within their
+stated scope and must remain aligned with the current-model documents above.
+
+| File | Purpose |
+|---|---|
+| `compiler_mpi_provider_package_mapping_v1.md` | Mapping from compiler/MPI provider facts to Spack packages, externals, and toolchains. |
+| `compiler_provisioning_note_v1.md` | Rules for external and stack-built compiler producers. |
+| `default_selection_policy_v1.md` | Explicit default-selection policy; profiles report candidates and never choose the deployment default. |
+| `environment_granularity_note_v1.md` | Decision to keep one independent Spack environment per lane/surface. |
+| `foundation_core_view_semantics_note_v1.md` | Foundation/Core build, reuse, view, and public-module semantics. |
+| `full_render_open_decisions_v1.md` | Accepted full-render direction and remaining implementation work. |
+| `platform_runtime_set_design_v1.md` | Coherent platform runtime-set selection across compiler, MPI, fabric, and CPE facts. |
+| `cray_runtime_package_repo_note_v1.md` | Cray runtime package-repository direction for GTL, PMI/PALS, libfabric/CXI, and runtime closure. |
+| `cpe_rocm_compatibility_note_v1.md` | Compatibility evidence and validation rules for CPE, ROCm, and Cray MPICH. |
+| `manual_config_catalog_note_v1.md` | `render-static` product contract for reusable, include-ready platform configuration scopes. |
+
+## Initial Conversion Trials operations and acceptance
+
+These documents apply to the active four-system trial. General commands belong
+in `runbook.md`; system-specific commands belong in Stack Content system notes.
+
+| File | Purpose |
+|---|---|
+| `cray_pe_acceptance_checklist_v1.md` | Cray PE validation gates applied after the common runbook. |
+| `generic_linux_acceptance_checklist_v1.md` | Generic Linux validation gates applied after the common runbook. |
+| `initial_conversion_trials_dependency_risk_audit_v1.md` | Dependency/reuse risks and the checks that guard the current package graph. |
+| `initial_conversion_trials_package_version_check_v1.md` | Approved root versions and their availability in the pinned package repository. |
+| `spack_1_2_2_build_orchestration_semantics_research_v1.md` | Verified Spack 1.2.2 build-stage, jobserver, locking, and multi-process behavior used by the trial launcher. |
+| `spack_1_2_concretizer_cache_and_cray_pe_runtime_note_v1.md` | Concretization-cache behavior and the current clean-shell Cray PE runtime boundary. |
+| `spack_1_2_signing_sbom_security_note_v1.md` | Spack signing, SBOM, trust, and security behavior used by the CSE SOP. |
+
+## Research and evidence
+
+These notes record evidence or earlier decision preparation. They are not
+operator procedures and do not override the current model.
+
+| File | Purpose |
+|---|---|
+| `cce_aocc_cpu_baseline_research_v1.md` | CPU-baseline research for CCE, AOCC, and GNU on AMD-based Cray EX systems. |
+| `cray_mpich_gcc_compatibility_v1.md` | Evidence for treating Cray MPICH GNU path versions as compiler-family baselines rather than exact lane pins. |
+| `related_tools_assessment_v1.md` | Comparison with Stackinator and spack-stack. |
+| `site_stack_survey_v1.md` | External HPC-site survey used as background evidence. |
+| `spack-learnings/CSE-Spack-Learnings.md` | Full technical findings from system validation. |
+| `spack-learnings/CSE-Spack-Learnings-Summary.md` | Short summary of those findings. |
+| `robust_testing_roadmap_v1.md` | Testing roadmap and remaining acceptance coverage. |
+
+## Parked follow-on architecture
+
+| File | Purpose |
+|---|---|
+| `baseline_module_sets_v1.md` | Parked profile extension for named baseline module sets; not implemented or used by the Initial Conversion Trials. |
+| `cse_platform_compatibility_fingerprinting_concept_v1.md` | Parked design for compute-authoritative compatibility classes and per-lane Platform Compatibility IDs used to prepare promotion candidates for restricted sister systems. Implementation waits for completion and adoption of the Initial Conversion Trials confidence and acceptance gates. |
 
 The model in one line: one site `defaults.yaml` (no contract/toolchain/class);
 generic `compiler_providers` + `mpi_providers` tagged by `provider_family`;

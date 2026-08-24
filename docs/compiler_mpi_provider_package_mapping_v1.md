@@ -6,7 +6,7 @@
 configuration records the package identity used by the pinned Spack package
 repository. Those names are often the same, but they are not required to be.
 
-For the initial conversion trials, the renderer applies these mappings:
+For the Initial Conversion Trials, the renderer applies these mappings:
 
 | Observed profile provider | Spack package |
 |---|---|

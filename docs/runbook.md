@@ -777,6 +777,28 @@ compiler pairing for the selected MPI. Preserve incorrect discovery evidence,
 fix the inspector or hints, and regenerate. Do not hand-enter a guess as a
 durable fact.
 
+Before selecting the trial compiler, compare the profile's complete verified
+compiler inventory with the site's visible compiler and `PrgEnv-*` modules.
+The inventory is a fact report; it may contain AOCC, GNU, Intel, and CCE even
+when the trial selects only one platform compiler. If an expected compiler is
+missing, inspect the recorded discovery and the system fragment before changing
+policy:
+
+```bash
+grep -nE 'aocc|PrgEnv-aocc|compiler' \
+  "$PROBE_DIR/system-probe-transcript.yaml" \
+  "$PROBE_DIR/system.frag.yaml"
+```
+
+The transcript distinguishes a module that was never enumerated from a module
+that was found but could not be activated or verified. A compiler-looking
+directory under a Cray MPICH or LibSci product tree is compatibility/flavor
+evidence, not proof that the compiler provider is installed. Also confirm that
+the probe used the rebuilt current inspector and that the merge consumed the
+new `system.frag.yaml`. Use `inspector-hints.yaml` only to expose a reviewed
+module that the normal module inventory cannot reach; do not add a compiler
+provider by hand.
+
 A directly observed non-Ethernet fabric may legitimately have an empty driver
 inventory when no separate driver package, module version, or installation
 prefix is queryable. Cluster Inspector retains the observed fabric with
@@ -1180,7 +1202,8 @@ notes.
 Initialization copies the rendered static catalog into
 `$BUILD_WORKSPACE/catalog` and renders relative include paths. The resulting
 workspace is the complete Spack build handoff; it does not depend on the
-original `$CATALOG` path after initialization. The CSE pilot blueprint also
+original `$CATALOG` path after initialization. The Initial Conversion Trials
+workspace blueprint also
 normalizes only the newly generated workspace to the declared access policy.
 For restricted build values, directories are `2770`, ordinary files are
 `0660`, and executable entry points are `0770`. The dedicated setgid parent

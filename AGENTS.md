@@ -37,6 +37,7 @@ design calls for it:
 - `docs/stack_generation_orchestration_note_v1.md` — external driver contract for multi-system render/build loops.
 - `docs/runbook.md` — canonical end-to-end operator procedure shared by all systems.
 - `docs/cse_spack_catalog_to_build_handoff_v1.md` — self-contained bare-Spack guide with a per-system path/variable handoff sheet, shared-Spack shell startup, and commands for navigating and building the populated CSE workspace.
+- `docs/cse_spack_customization_and_upstream_inventory_v1.md` — consolidated inventory of CSE Spack policy, integration controls, provider adapters, active package overlays, and upstream retirement gates.
 - `docs/cray_pe_acceptance_checklist_v1.md` — Cray PE validation deltas applied after the common runbook.
 - `docs/generic_linux_acceptance_checklist_v1.md` — conventional Linux validation deltas applied after the common runbook.
 - `docs/spack-learnings/CSE-Spack-Learnings.md` — reusable findings from real-system validation, including Blueback.
@@ -61,7 +62,7 @@ design calls for it:
 - **Install tree, caches, view/module roots, and module exposure are installer-chosen, never auto-derived.** The profile offers candidates only; the installer records the choice in `systems/<system>/deployment.yaml` (or build-time flags). Read `docs/deployment_inputs_and_ownership_v1.md` before changing install-tree, `config.yaml`, module-exposure, or deployment-path handling.
 - Preserve full provider module chains. A compatibility lane such as Intel compiler/runtime plus Intel MPI may need modules like `PrgEnv-intel`, the Intel compiler module, and the Intel MPI module recorded together.
 - MPI provider selection should be provider/defaults-driven. Do not choose MPI solely from `system.family == cray` or by assuming every Cray-hosted MPI lane means `cray-mpich`.
-- **Foundation and Core have opposite exposure shapes — do not blur them.** Foundation libraries (zlib-class, ABI-stable, single-version pinned) are ambient in the user-facing lane view and never get per-package modules. Core tools (cmake, git, python/miniforge) are the user-loadable layer. See `docs/foundation_core_view_semantics_note_v1.md` § Provenance for the recovered v6 semantics.
+- **Foundation and Core have opposite exposure shapes — do not blur them.** Foundation libraries (zlib-class, ABI-stable, single-version pinned) are ambient in the user-facing lane view and never get per-package modules. Core tools (cmake, git, python/miniforge) are the user-loadable layer. See `docs/foundation_core_view_semantics_note_v1.md` for the current per-compiler build and exposure semantics.
 - Do not project every transitive dependency into one flat public view. Foundation/Core view semantics must handle version collisions and shared library name conflicts explicitly.
 - Read `docs/foundation_core_view_semantics_note_v1.md` before changing foundation lanes, Core lanes, views, module visibility, lockfile composition, buildcache reuse, or foundation package pins.
 
@@ -107,19 +108,19 @@ strict when the venv exists (blocks the commit on a non-zero exit).
 - **Strict**: every object that lists explicit properties sets
   `additionalProperties: false`.
 - `$id` placeholder URLs at `https://stack-composer.example/schemas/`.
-- Enums for closed vocabularies (no `...` in v6); `string` for open vocabularies.
+- Enums for closed vocabularies; `string` for open vocabularies.
 - `$defs` for repeated sub-objects inside one schema; no cross-document `$ref`.
-- Required keys mirror `# R` annotations in the v6 reference YAML;
-  optional keys are `# O`. Defaults from `# O - default <x>` become
-  `default: <x>` and stay absent from `required`.
+- Required and optional keys follow the current model documents and validated
+  examples. Defaults stay absent from `required`.
 - Before a deployed v1 tag, schemas may be edited in place when the
   design changes. After a deployed v1 tag, incompatible schema changes
   live as new files (`profile-v2.json`) alongside the previous
   version.
 
 ### Design docs
-- v6 is the cross-component master; per-tool docs defer to v6 on cross-cutting
-  seams (render contract, profile schema, manifest lifecycle).
+- `CONTEXT.md`, `docs/README.md`, the current-model documents, and `schemas/`
+  define the cross-component seams. Per-tool docs defer to those sources on the
+  render contract, profile schema, and manifest lifecycle.
 - A doc-fix that affects a schema requires updating both: doc first,
   schema next, in the same PR.
 
@@ -154,7 +155,7 @@ strict when the venv exists (blocks the commit on a non-zero exit).
 | What variables can templates reference? | `docs/stack_generation_structure_v1.md`, plus implementation docs in `stack-composer` |
 | What does `stack-composer render` do? | `docs/end_to_end_map_v1.md` Stage 5 + `docs/stack_build_handoff_note_v1.md` |
 | How should Stack Composer avoid hardcoded site/vendor policy? | `docs/stack_generation_structure_v1.md` |
-| What's in a `profile.yaml`? | v6 § Durable Inputs / `profile.yaml`, then `schemas/profile-v1.json` |
+| What's in a `profile.yaml`? | `docs/cluster_inspector_stack_profile_design_v1.md`, then `schemas/profile-v1.json` |
 | How does `cluster-inspector` discover modules? | `docs/cluster_inspector_stack_profile_design_v1.md` § Module Discovery And Hints |
 | Where do specific probe rules for `profile.yaml` fields live? | `docs/cluster_inspector_profile_extraction_map_v1.md` |
 | How should MPI provider policy work? | `docs/stack_generation_structure_v1.md` § Resolution |
@@ -169,12 +170,13 @@ strict when the venv exists (blocks the commit on a non-zero exit).
 
 ## When you are tempted to add a new top-level concept
 
-Stop. Read v6's § Glossary and § Guiding Principles first. The model
+Stop. Read `CONTEXT.md`, `docs/README.md`, and
+`docs/stack_generation_structure_v1.md` first. The model
 is intentionally small; most "new" concepts turn out to be a profile
 fact, a contract resolver name, a build class, or a scope path. If
-after that read it's still a genuine new concept, write the change as a
-v6 amendment first, then update the schemas, then update the
-implementations — never the other way around.
+after that read it is still a genuine new concept, update the current-model
+document first, then the schemas, then the implementations—never the other way
+around.
 
 ## Model and agent usage
 

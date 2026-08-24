@@ -584,11 +584,14 @@ three controls together:
 
 This is compiler/MPI binding, not a new CSE spec language.
 
-## Required Stack Composer changes
+## Required production `render` changes
 
-The current rendered examples predate this Spack 1.2 target and embed module
-configuration in `spack.yaml`. The implementation should be changed as one
-coherent render update:
+The production `render` examples predate this complete Spack 1.2 target and
+embed module configuration in `spack.yaml`. The temporary Initial Conversion
+Trials `init-workspace` path already validates native `modules.yaml`, groups,
+`needs`, and explicit toolchains for its narrower workspace. That temporary
+initializer does not complete the production renderer. Change `render` as one
+coherent update:
 
 1. emit one native `modules.yaml` per rendered environment;
 2. add that environment's configuration directory to `include::`;

@@ -1,9 +1,9 @@
 # Compiler Provisioning Note (v1)
 
-Status: design note, direction approved 2026-07-10. Implementation is
-deliberately deferred until after the four-system build-out; the stack
-schema's kind enum and the planner are unchanged until that pass. This note
-is the spec that pass implements against.
+Status: production `render` design, not the Initial Conversion Trials launcher.
+The temporary trial initializer repeats one GCC producer group in each GCC
+environment and verifies one producer hash. Production `render` still needs
+the explicit compiler-provisioning lifecycle described here.
 
 ## Problem
 

@@ -1,7 +1,10 @@
 # Platform Runtime Set: Design v1
 
-Status: proposed 2026-07-04, refined after review the same day. Written after a
-day of Blueback render thrash to stop patching a catalog that should not exist.
+Status: accepted target with partial implementation. Compiler/MPI flavor
+selection is implemented; exact multi-CPE runtime-tuple binding remains open.
+Written after a
+day of Blueback render validation to stop independently selecting facts that
+must be treated as one coherent platform set.
 Builds on `cpe_rocm_compatibility_note_v1.md` (policy matrix,
 family_min_version), `cray_runtime_package_repo_note_v1.md` (GTL/runtime
 packaging), `lane_and_module_model_v1.md`, and `manual_config_catalog_note_v1.md`.

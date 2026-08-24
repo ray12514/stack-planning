@@ -149,7 +149,7 @@ Before transferring responsibility, record:
 - whether source fetching is complete.
 
 Do not run the same release on the same system from both builder accounts at
-the same time. Spack locking remains enabled, but the initial conversion trials
+the same time. Spack locking remains enabled, but the Initial Conversion Trials
 use an explicit single-operator handoff on each system.
 
 Signing authority is not transferred through this workspace. Publishing a

@@ -8,7 +8,7 @@
 
 ## Why this exists
 
-The pilot builds from the static catalog, where building your own compiler is
+The Initial Conversion Trials build from the static catalog, where building a compiler is
 already possible: leave the compiler scope out of `include::` and name the
 compiler in the specs. The full render has no equivalent yet. The schema has
 advertised `externals.compilers` with a `build_all` value for some time, but no
@@ -48,21 +48,21 @@ named compiler and nothing binds the payload to it.
 
 ## Resolved design
 
-The full renderer uses one explicit toolchain model for platform compilers and
-one producer/`needs` model for stack-built compilers.
+The full renderer uses explicit compiler constraints, compiler-plus-MPI
+toolchains, and one producer/`needs` model for stack-built compilers.
 
-An MPI lane binds through a rendered toolchain:
+An MPI lane binds through a rendered compiler-plus-MPI toolchain:
 
 ```yaml
 specs:
-  - hdf5@1.14.5+mpi+fortran %gcc1330_craympich8129
+  - hdf5@2.1.0+mpi+fortran %gcc1250_craympich910
 ```
 
-A serial lane binds nothing at all:
+A serial lane carries an explicit compiler constraint:
 
 ```yaml
 specs:
-  - hdf5@1.14.5~mpi+fortran
+  - hdf5@2.1.0~mpi+fortran %gcc@12.5.0
 ```
 
 For `build_all`, every environment repeats the exact compiler producer group.
@@ -80,15 +80,15 @@ specs:
 
 Do not also add a legacy `%gcc@14.3.0` to the application roots. That is a
 second compiler constraint and can split the producer hash. External compiler
-lanes remain bound through explicit compiler or compiler-plus-MPI toolchains,
-including Serial. `group` and `needs` require Spack 1.2 or newer, which the
+lanes use an explicit compiler constraint for Serial or a compiler-plus-MPI
+toolchain for MPI. `group` and `needs` require Spack 1.2 or newer, which the
 trial already standardizes on.
 
 ## Secondary observations, both worth a look
 
 - **Serial lanes must bind a compiler.** A stack-built Serial lane inherits its
   compiler producer through `needs`; an external Serial lane uses an explicit
-  compiler toolchain.
+  compiler constraint.
 
 - **Where the built compiler's version is named.** The stack schema forbids a
   top-level `compilers` key; site selection lives in `defaults.yaml` and a
