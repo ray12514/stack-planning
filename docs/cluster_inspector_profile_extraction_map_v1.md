@@ -306,6 +306,27 @@ Section 4 acceptance:
 - InfiniBand/RoCE systems do not get mislabeled as Ethernet when IB devices exist.
 - Install-tree candidates are reviewable and never silently invented without
   evidence or hints.
+
+Direct device evidence is sufficient to identify a non-Ethernet fabric even
+when the host does not expose a queryable driver package, kernel-module version,
+or `/opt/cray/pe/cxi` installation. In that case the generated profile retains
+`drivers: []` and the evidence report records what was and was not observed.
+Semantic verification must not reject that schema-valid observation or invent a
+driver identity merely to make the list non-empty. A later render policy may
+decline to externalize an unobserved driver; Cluster Inspector still reports the
+fabric type it actually observed.
+
+Pre-change assessment for this rule:
+
+| Question | Decision |
+|---|---|
+| Requested change | Accept a directly observed non-Ethernet fabric with an empty driver inventory. |
+| Design source | The extraction fallback for `fabric.drivers` is "omit if absent," and the schema permits an empty required array. |
+| Ownership | Fabric and driver presence are observed profile facts owned by Cluster Inspector. |
+| Scope | Required correction to make semantic validation match the existing profile contract. |
+| Seam | `validateFabricSemantics`; probe and merge behavior remain unchanged. |
+| Risk | Removing the extra semantic gate must not fabricate facts or weaken schema validation. Downstream externalization still requires observed entries. |
+| Decision | Remove only the contradictory non-empty semantic requirement and retain the schema, evidence, and existing probe behavior. |
 - A verified Slurm external records `srun` MPI plugins and PMI/PMIx development
   interfaces separately. Cluster Inspector does not convert either list into
   Open MPI variants or a preferred launch method.

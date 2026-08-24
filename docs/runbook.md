@@ -1483,8 +1483,10 @@ When GCC 12.5.0 appears without `+binutils`, check the policy source, rendered
 inputs, and locks before replacing anything. The complete compiler policy is
 owned by the Stack Content blueprint; updating Cluster Inspector, Stack
 Composer, or the static catalog alone does not change it. The policy requires
-`+binutils` on the producer, every downstream GCC root constraint, and the
-shared C/C++/Fortran provider requirements:
+`+binutils` on the producer and every downstream GCC compiler constraint.
+Shared C/C++/Fortran preferences select that provider without imposing a global
+compiler requirement on packages, so the older bootstrap compiler remains
+usable:
 
 ```bash
 source "$CSE_OPERATOR_SESSION_FILE"
