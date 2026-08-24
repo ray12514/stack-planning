@@ -141,14 +141,25 @@ the production renderer.
 - Scope: shared GCC producer
 - Status: mitigated
 - Symptom: a concrete GCC producer without managed Binutils could be reused
-  even though the trial required the `+binutils` compiler producer.
+  even though the trial required the `+binutils` compiler producer. After the
+  producer constraint was corrected, an older GCC 12.5 prefix could still
+  remain in the trial store and appear in installation inventory.
 - Root cause: leaving the variant unspecified allowed another valid GCC
-  concrete spec.
+  concrete spec. The first verifier revision checked that the repeated
+  producer roots shared one `+binutils` hash and that downstream roots shared
+  one GCC 12.5 hash, but did not require those two hashes to be identical.
 - Immediate recovery: regenerate the workspace and reconcretize all locks that
-  contain the shared GCC producer.
+  contain the shared GCC producer. An old `~binutils` prefix may remain as
+  unreachable trial residue; do not publish it, and do not treat the lock set
+  as valid if any downstream root still reaches it.
 - Permanent mitigation: every repeated GCC producer explicitly requests
-  `+binutils`, and the lockfile verifier rejects a producer without the managed
-  Binutils edge.
+  `+binutils`. The lockfile verifier rejects a producer without the managed
+  Binutils edge and requires every downstream GCC-surface root to reference
+  the exact same concrete hash as that producer.
+- Release rule: promotion is driven by the verified lockfiles, views, modules,
+  and selected build-cache entries. An unreachable older GCC prefix may remain
+  in the restricted trial store, but it is excluded from the published
+  release.
 - Disposition: shared-compiler producer policy and lockfile verification.
 
 ### ICT-009 — Cray MPICH clean build environment omitted its libfabric runtime
