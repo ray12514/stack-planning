@@ -769,6 +769,15 @@ compiler pairing for the selected MPI. Preserve incorrect discovery evidence,
 fix the inspector or hints, and regenerate. Do not hand-enter a guess as a
 durable fact.
 
+A directly observed non-Ethernet fabric may legitimately have an empty driver
+inventory when no separate driver package, module version, or installation
+prefix is queryable. Cluster Inspector retains the observed fabric with
+`drivers: []`; it does not invent a driver identity. If schema verification
+passes but an older inspector rejects the profile because the non-Ethernet
+fabric has no driver, update and rebuild Cluster Inspector, then verify the
+existing merged profile again. That validator-only correction does not require
+rerunning the probes or merge.
+
 The `show` MPI section is the compact review surface. Every MPI row must name
 its exact compiler reference, prefix, and module evidence. A verified MPI
 identity that lacks an exact compiler relationship remains failed-candidate
