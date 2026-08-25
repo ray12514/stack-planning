@@ -562,9 +562,10 @@ unique to `$USER`, writable by that builder, and outside the shared tool and
 package trees. Keep the GPG home private (`0700`) and persistent for as long as
 the release signing/trust record is needed. `SPACK_USER_CACHE_PATH` does not
 relocate Spack's GPG keyring, so `SPACK_GNUPGHOME` is required separately.
-The generated builder entry point also keeps `SPACK_MISC_CACHE_PATH` private
-and persistent because Spack's mutable provider/concretization indexes are not
-safe to share between Unix users.
+The generated builder entry point keeps `SPACK_MISC_CACHE_PATH` in a persistent
+builder-named partition below the shared restricted misc-cache root. It
+recursively restores CSE-group access before and after Spack; separate builder
+partitions prevent concurrent users from replacing one mutable index.
 `PYTHONDONTWRITEBYTECODE=1` also prevents Python from attempting to create
 ignored bytecode caches inside the selected checkout.
 
@@ -1123,7 +1124,7 @@ stage path.
 | build contexts/stages | reviewed login and compute profile node types; separate generated temp, scratch, then `${WORKDIR}` fallback lists selected by an execution probe |
 | CPU architecture | one system-wide portable target for source-built roots on both compiler surfaces and all lanes; highest common support capped at `x86_64_v3`; inspected platform externals retain their own architecture |
 | source cache | `$CSE_RESTRICTED_ROOT/cache/source` (shared) |
-| misc/concretization cache | `$WORKDIR/$USER/cse-spack/$CSE_RECORDED_SYSTEM/$CSE_RECORDED_SPACK_VERSION/misc` (private to each builder, persistent across contexts and surfaces) |
+| misc/concretization cache | `$CSE_RESTRICTED_ROOT/cache/misc/$USER` (builder-partitioned, recursively CSE-group-accessible, persistent across contexts and surfaces) |
 | views/modules roots | `$BUILD_RELEASE_ROOT/{views,modules}` |
 | build-cache name | `cse-initial-conversion-trials` |
 | build-cache URL | `$BUILDCACHE_URL` expanded to an absolute `file:///...` URL |
@@ -1523,18 +1524,17 @@ uses the same workspace and does not require a recovery procedure.
 ### Shared-builder misc-cache permission recovery
 
 Use this procedure when another builder receives `PermissionError`, unreadable
-index, or replacement failures below the old shared `cache/misc/providers`,
-`cache/misc/concretization`, `cache/misc/patches`, or `cache/misc/indices`
-tree. Spack creates some of these mutable files with mode `0600`; setgid and a
-group-writable parent directory cannot make that file format a dependable
-multi-user cache.
+index, or replacement failures below `cache/misc/providers`,
+`cache/misc/concretization`, `cache/misc/patches`, or `cache/misc/indices`.
+Spack creates some mutable files with mode `0600`; setgid, `umask 0007`, and a
+group-writable parent cannot correct those nested entries by themselves.
 
 The corrected generated config keeps downloads in the shared source cache but
 sets `config:misc_cache` to `${SPACK_MISC_CACHE_PATH}`. `cse-build` exports
-that variable as persistent state owned by the current builder:
+that variable as a builder-named partition below the shared restricted root:
 
 ```text
-$WORKDIR/$USER/cse-spack/$CSE_RECORDED_SYSTEM/$CSE_RECORDED_SPACK_VERSION/misc
+$CSE_RESTRICTED_ROOT/cache/misc/$USER
 ```
 
 Stop processes using the workspace, synchronize Stack Content, and refresh the
@@ -1543,6 +1543,11 @@ declared controls in place:
 ```bash
 source "$CSE_OPERATOR_SESSION_FILE"
 git -C "$CONTENT" pull --ff-only origin codex/simplified-render-plan
+
+"$CSE_PYTHON" \
+  "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
+
+grep -n 'misc_cache:' "$BUILD_VALUES"
 
 "$CSE_PYTHON" \
   "$CONTENT/pilots/cse-pilot/scripts/refresh-workspace-controls.py" \
@@ -1561,15 +1566,18 @@ cd "$BUILD_WORKSPACE"
 ```
 
 This controls-only refresh replaces `cse-build`, the common config, generated
-helpers, verifier, and handoff note. It preserves environment YAML, lockfiles,
-the source cache, views, installed prefixes, and every other build input. Each
-builder must enter through the refreshed `cse-build`; do not bypass it without
-exporting the same builder-private `SPACK_MISC_CACHE_PATH`.
+cache-permission helper, other environment helpers, verifier, and handoff note.
+It preserves environment YAML, lockfiles, the source cache, views, installed
+prefixes, and every other build input. On entry and exit, `cse-build`
+recursively sets the active builder's cache directories to `2770`, ordinary
+files to `0660`, and the declared CSE group. A prepared interactive shell does
+the same when it exits. Each builder receives a separate `$USER` partition,
+so the recursive repair does not race another builder's live mutable index.
 
-Leave the old shared `cache/misc` tree in place until the filesystem owner
-removes it under normal retention policy. It is no longer consulted by the
-refreshed workspace. Do not recursively `chmod` it: widening old entries would
-not prevent the next Spack atomic write from creating another user-only file.
+Every builder must enter through the refreshed `cse-build`. The former
+unpartitioned entries directly below `cache/misc` and the earlier private
+`$WORKDIR/$USER/.../misc` tree are no longer consulted. Retain or remove those
+obsolete entries only under the filesystem owner's normal recovery policy.
 
 ### Pre-install workspace refresh
 

@@ -15,8 +15,8 @@ workspaces:
    and the selected CPE release.
 
 The note separates upstream facts, CSE-specific inferences, and CSE policy. The
-per-builder cache policy described below is implemented in the generated
-Initial Conversion Trial workspace controls.
+builder-partitioned shared-root cache policy described below is implemented in
+the generated Initial Conversion Trial workspace controls.
 
 ## 2. Executive answer
 
@@ -26,10 +26,12 @@ skip Clingo, but a slightly different solve does not reuse part of the old
 solver state. With `unify: false`, roots are solved separately, so an unchanged
 root can hit the cache even when a different root needs a new solve.
 
-The CSE configuration places `misc_cache` under persistent, builder-owned
-state. It is shared by that builder's login/compute contexts and surfaces but
-not by different builders. This distinction is required because Spack creates
-cache entries through `mkstemp`, which normally produces mode `0600`.
+The CSE configuration places `misc_cache` in a persistent builder-named
+partition below the shared restricted misc-cache root. It is reused by that
+builder's login/compute contexts and surfaces. The launcher recursively assigns
+the partition to the CSE group before and after Spack because entries created
+through `mkstemp` can initially have mode `0600`. Different builders retain
+different mutable index partitions.
 
 For Cray PE, loading a `PrgEnv-*` or `cray-mpich` module is not intrinsically
 required by Spack when an exact compiler-flavor prefix, the Cray MPICH wrappers,
@@ -127,7 +129,7 @@ concretizer:
 and renders `config:misc_cache` from a prepared-shell variable:
 
 ```text
-SPACK_MISC_CACHE_PATH=<per-user-state>/misc
+SPACK_MISC_CACHE_PATH=<restricted-root>/cache/misc/<builder>
 ```
 
 See the current
@@ -140,12 +142,14 @@ The generated `cse-build` launcher separately sets:
 
 ```text
 SPACK_USER_CACHE_PATH=<per-user-state>/cache/<login-or-compute>/<surface>
-SPACK_MISC_CACHE_PATH=<per-user-state>/misc
+SPACK_MISC_CACHE_PATH=<restricted-root>/cache/misc/<builder>
 ```
 
 That variable isolates ordinary per-user cache data by node context and surface,
 while `SPACK_MISC_CACHE_PATH` keeps the concretization and provider indexes
-persistent across those contexts and surfaces for one builder. See the
+persistent across those contexts and surfaces for one builder. The generated
+permission helper recursively restores CSE group ownership and access before
+and after Spack. See the
 [CSE build launcher](../../stack-content/pilots/cse-pilot/templates/cse-build.j2).
 
 The resulting behavior is:
@@ -153,40 +157,40 @@ The resulting behavior is:
 - workspace control refresh does not remove the concretization cache;
 - changing between login and compute contexts does not remove it;
 - changing surfaces does not remove it;
-- changing builders selects a different cache owner and path;
+- changing builders selects a different cache partition;
 - removing and regenerating a lockfile can reuse an exact prior solver result;
   and
 - an existing lockfile avoids a new solve altogether unless the environment is
   explicitly reconcretized.
 
-This ownership split fixes a multi-user limitation in the earlier workspace
-configuration. Spack writes each cache entry using Python's `tempfile.mkstemp`
-and atomically renames it into place. `mkstemp` normally creates a `0600` file.
-A group-writable shared cache directory therefore does not make entries
-reliably readable by a second builder. Depending on directory and sticky-bit
-policy, the second builder can see a cache miss, a permission failure handled
-as a corrupt/unreadable entry, or an inability to replace the entry.
+This partition-and-normalize design fixes a multi-user limitation in the
+earlier workspace configuration. Spack writes each cache entry using Python's
+`tempfile.mkstemp` and atomically renames it into place. `mkstemp` normally
+creates a `0600` file. A group-writable parent alone is therefore insufficient.
+The launcher repairs files owned by the active builder recursively, and the
+builder suffix prevents a second user from replacing that same live index.
 
 ### 3.4 CSE recommendation
 
-Use one persistent concretization cache per builder, shared by that builder's
-login and compute contexts and by the surfaces that should reuse identical
-solves. Keep it outside generated workspaces. The generated launcher uses:
+Use one persistent concretization cache partition per builder, reused by that
+builder's login and compute contexts and by the surfaces that should reuse
+identical solves. Keep it outside generated workspaces but below the
+deployment-owned shared restricted cache root. The generated launcher uses:
 
 ```text
-${WORKDIR}/${USER}/cse-spack/<system>/<spack-version>/misc/concretization/v1
+<restricted-root>/cache/misc/${USER}/concretization/v1
 ```
 
-The exact parent directory must follow the approved CSE permissions policy; the
-important properties are that the builder owns the files, the path persists,
-and both node contexts can reach it.
+The exact parent directory follows the approved CSE permissions policy. The
+active builder owns its entries, the CSE group can traverse/read/write them,
+the path persists, and both node contexts can reach it. Directories are `2770`
+and ordinary files are `0660` on the target Linux systems after normalization.
 
 Continue sharing the immutable source cache and the Spack install tree under
-their existing group and locking rules. Do not try to obtain cross-user solver
-cache sharing by recursively widening the permissions of Spack-created cache
-files. If cross-user solver caching becomes a requirement, it needs an explicit
-publication or permissions design and a validation test against the pinned
-Spack implementation.
+their existing group and locking rules. The recursive permission step makes
+cache evidence available to the CSE group; it does not make two builders use
+one live mutable solver index. Cross-builder solver-result reuse would require
+a separate publication/locking design and validation against pinned Spack.
 
 For timing comparisons, distinguish these cases:
 
@@ -354,8 +358,9 @@ environment, scheduler context, and runtime evidence.
 
 ## 5. Decisions for the current work
 
-- Preserve solver caching with the implemented persistent per-builder
-  `misc_cache` that spans login and compute contexts and compiler surfaces.
+- Preserve solver caching with the implemented persistent builder partition
+  below the shared restricted `misc_cache`; it spans login and compute contexts
+  and compiler surfaces and is recursively CSE-group-accessible.
 - Treat `unify: false` cache reuse as exact per-root answer reuse, not partial or
   incremental solving.
 - Keep the shared GCC build free of `PrgEnv-*` compiler selection.

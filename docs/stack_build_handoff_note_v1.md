@@ -117,9 +117,11 @@ fetch, or sequential installation. Its interface requires a `login` or
 tmux session for the system and release. `shell` provides the same prepared
 shell without tmux, and the default falls back to it when tmux is unavailable.
 Both contexts use the same rendered environments, locks, package store, shared
-source cache, per-builder Spack misc/concretization cache and bootstrap store,
-views, modules, target, and Spack identity; only the executable build stage and
-mutable command cache differ.
+source cache, builder-partitioned Spack misc/concretization cache and bootstrap
+store, views, modules, target, and Spack identity; only the executable build
+stage and mutable command cache differ. Misc-cache partitions live below the
+shared restricted cache root and are recursively kept accessible to the CSE
+group; bootstrap state remains private.
 This allows connected login-node concretization to prepare Clingo once for a
 later network-restricted compute session. The receiving builder supplies no
 replacement render inputs.
@@ -145,11 +147,12 @@ directly with bare Spack. The processes use the same locked workspace, store,
 and database. Exact shared hashes wait on the shared prefix/database lock and
 reuse the first successful install; different hashes build concurrently.
 Every process gets a distinct mutable per-user cache path, and only one process
-owns a given environment's view and module refresh. One persistent
-builder-private misc cache is reused across that builder's processes; it is not
-shared between builders because Spack creates some mutable index entries with
-user-only modes. Do not launch the same environment twice. Per-process
-build-job budgets are cumulative on a node.
+owns a given environment's view and module refresh. One persistent misc-cache
+partition is reused across that builder's processes. The partition is
+CSE-group-accessible, but different builders use different partitions because
+Spack creates and atomically replaces mutable index entries. Do not launch the
+same environment twice. Per-process build-job budgets are cumulative on a
+node.
 None of these execution choices weakens the global eight-lock verification
 gate. The complete rationale, hash-sharing contract, execution sequence, and
 full-render adoption requirements are recorded in
@@ -233,7 +236,8 @@ branches. Mutable state is separated:
 
 - `SPACK_USER_CACHE_PATH` is absolute and unique to the builder;
 - the Initial Conversion Trial launcher sets `SPACK_MISC_CACHE_PATH` to a
-  persistent builder-private provider and concretization cache;
+  persistent builder-named provider/concretization partition below the shared
+  restricted cache root and recursively preserves CSE-group access;
 - `SPACK_GNUPGHOME` is a private per-builder or site-approved keyring outside
   the checkout;
 - `PYTHONDONTWRITEBYTECODE=1` prevents Python bytecode caches in the checkout;

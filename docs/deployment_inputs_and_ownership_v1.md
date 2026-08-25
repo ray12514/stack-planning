@@ -238,9 +238,12 @@ fail if an unexpected active user, system, or site policy scope appears.
 
 The Initial Conversion Trial workspace currently applies a narrower
 build-path override: its generated launcher resolves Spack's mutable
-`config:misc_cache` through a persistent builder-private
-`SPACK_MISC_CACHE_PATH`, because real Spack provider and concretization indexes
-were observed with user-only file modes. That trial evidence is a required
+`config:misc_cache` through a persistent builder-named
+`SPACK_MISC_CACHE_PATH` below the deployment-owned shared misc-cache root.
+Because real Spack provider and concretization indexes were observed with
+user-only file modes, the launcher recursively restores the declared group and
+group access before and after Spack. Builder partitions avoid concurrent
+cross-user replacement of one mutable index. That trial evidence is a required
 input to the later full-render cache design; it does not change the current
 `deployment.yaml` schema in this note.
 

@@ -291,9 +291,10 @@ parallel contract is:
   `install --only-concrete`;
 - no two processes install the same environment concurrently;
 - each process has a distinct mutable `SPACK_USER_CACHE_PATH`;
-- each builder has one persistent private `SPACK_MISC_CACHE_PATH`, reused by
-  that builder's contexts and processes because Spack writes some provider and
-  concretization index files with user-only modes;
+- each builder has one persistent `SPACK_MISC_CACHE_PATH` partition below the
+  shared restricted misc-cache root; the launcher recursively assigns that
+  partition to the CSE group before and after Spack because provider and
+  concretization index files may initially be user-only;
 - the package store, Spack database, source cache, and build cache remain shared
   as configured;
 - each environment process alone owns its view and module refresh; and
@@ -403,10 +404,11 @@ renderer takes over:
    target, MPI, environment-set, and hash-sharing checks are general. Dakota or
    particular NetCDF/HDF5 chain checks should be emitted from package policy or
    release acceptance data.
-8. **Classify shared and builder-owned mutable paths explicitly.** Source
-   archives may remain shared, but provider, patch, index, and concretization
-   metadata must use a builder-owned cache unless the pinned Spack release has
-   a separately validated cross-user publication/permissions design.
+8. **Classify shared and builder-partitioned mutable paths explicitly.** Source
+   archives remain shared. Provider, patch, index, and concretization metadata
+   uses a builder-named partition below the deployment-owned cache root. The
+   generated launcher recursively preserves CSE-group access while preventing
+   simultaneous builders from replacing the same mutable index.
 
 A future verifier may consume a rendered machine-readable invariant manifest
 instead of embedding all expectations directly in Python. That is an
@@ -429,8 +431,9 @@ Before parallel installation:
 - [ ] The portable target and named binary exceptions pass.
 - [ ] The real shared install tree passes the cross-node prefix-lock test.
 - [ ] Each parallel process has a unique environment and mutable user cache.
-- [ ] Each builder's misc/concretization cache is private and persists across
-      that builder's login/compute contexts and processes.
+- [ ] Each builder's misc/concretization cache partition persists across that
+      builder's login/compute contexts and processes and passes the recursive
+      CSE-group permission check.
 - [ ] The sum of per-process job budgets fits the allocation.
 
 After installation:
