@@ -147,7 +147,9 @@ Every process gets a distinct mutable per-user cache path, and only one process
 owns a given environment's view and module refresh. Do not launch the same
 environment twice. Per-process build-job budgets are cumulative on a node.
 None of these execution choices weakens the global eight-lock verification
-gate.
+gate. The complete rationale, hash-sharing contract, execution sequence, and
+full-render adoption requirements are recorded in
+`initial_conversion_trials_build_execution_model_v1.md`.
 
 The generated lock verifier is invoked through `spack python`, so it must remain
 compatible with the oldest host Python supported by the pinned Spack runtime.

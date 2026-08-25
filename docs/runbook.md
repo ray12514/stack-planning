@@ -31,6 +31,10 @@ trial convenience that combines an exact catalog selection with the authored
 Initial Conversion Trials blueprint; it is not required to consume the static
 catalog.
 
+The rationale for the eight-environment layout, hash-sharing rules, parallel
+install boundary, and generated lock verifier is recorded in
+`initial_conversion_trials_build_execution_model_v1.md`.
+
 ## What the current direction establishes
 
 The current working direction establishes the workflow, not a frozen package
