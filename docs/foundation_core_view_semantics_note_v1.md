@@ -202,12 +202,14 @@ The concretizer should reuse Foundation and build-tool packages when the stack
 explicitly pins them. Each independent environment on the shared GCC surface
 repeats the exact stack-built compiler producer group. Each platform environment
 uses the exact selected external compiler and builds its own Foundation and
-build-tool roots. Foundation, Core, and payload groups inherit their surface's
-compiler through Spack 1.2 `needs` and language-provider policy; they do not use
-a separate legacy bootstrap environment. The lockfile gate verifies one shared
-GCC producer hash and matching Foundation/build-tool hashes within each compiler
-surface. Restricted and publication installs reuse those hashes through the
-shared store and configured build cache.
+build-tool roots. `needs` orders stack-built producers and makes their concrete
+results available; a conditional compiler toolchain on Foundation, Core, and
+payload roots actually selects the surface. Soft language-provider preferences
+alone are insufficient because Spack may select the external seed compiler.
+The lockfile gate verifies one shared GCC producer hash and matching
+Foundation/build-tool hashes within each compiler surface. Restricted and
+publication installs reuse those hashes through the shared store and configured
+build cache.
 
 Do not rely on `PATH`, `LD_LIBRARY_PATH`, or a flat view alone to make payload lanes reuse foundation packages.
 

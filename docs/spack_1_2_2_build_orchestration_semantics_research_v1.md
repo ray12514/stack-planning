@@ -71,8 +71,10 @@
 
 ## Conclusions for the Initial Conversion Trials
 
-1. `group`/`needs` orders concretization and forces reuse **inside one
-   environment**. It is not a cross-environment or cross-process scheduler.
+1. `group`/`needs` orders concretization and exposes producer roots as reuse
+   candidates **inside one environment**. It does not select a producer for a
+   consumer's language virtuals, and it is not a cross-environment or
+   cross-process scheduler.
 2. A compiler installed by Spack in the shared store is already a compiler
    candidate. It does **not** need to be exposed through a view or rediscovered
    as an external. External compilers do need a `packages.yaml` record with
@@ -101,9 +103,11 @@ checkpoint can still be useful for early failure isolation and handoff review.
 Spec groups are entries in one environment's `spack.yaml`. For a group with
 `needs: [compiler]`, Spack orders the `compiler` group before the dependent
 group during **that environment's concretization**, and makes the needed
-group's specs mandatory reuse candidates for the dependent group. The official
-example is explicitly described as “building and using a compiler in a single
-environment”
+group's specs available as mandatory reuse candidates for the dependent group.
+That reuse filter does not add a language-provider constraint to the consumer:
+without `%c=...`, `%cxx=...`, or `%fortran=...`, the solver may still choose an
+external seed compiler. The official example is explicitly described as
+“building and using a compiler in a single environment”
 ([environment groups](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/environments.rst#L925-L963)).
 The implementation reads needed specs from the same `Environment` object's
 already-concretized groups and places them in a mandatory reuse filter
@@ -133,19 +137,22 @@ Unlike `needs`, included-environment specs are subject to the consumer's
 
 ### CSE implication
 
-There are two valid trial shapes:
+There are two useful orchestration shapes:
 
-- **Ordered checkpoint:** concretize/install the GCC producer first, verify it,
-  then concretize the independent payload environments with local-store reuse
-  enabled. This is operationally clearest.
-- **Concrete-lock fan-out:** concretize the GCC producer, include that producer
-  `spack.lock` in each consumer, keep reuse enabled, and constrain the consumer
-  toolchain to GCC 12.5.0. After verifying that every consumer selected the
-  producer's exact language-provider hash, run the installs concurrently.
-  Prefix locking ensures only one process installs that exact GCC prefix.
+- **Self-contained fresh fan-out (current Initial Conversion Trials):** repeat
+  the same managed GCC producer in every independent environment, order it with
+  `needs`, and apply a conditional compiler toolchain to every dependent root.
+  Resolve new locks with concrete-spec reuse disabled. Equivalent inputs yield
+  the same producer hash, and prefix locking or the build cache reuses that
+  exact hash during parallel installation.
+- **Concrete-lock checkpoint:** concretize the compiler producer separately,
+  include that producer `spack.lock` in each consumer, enable reuse, and
+  constrain each consumer with the same conditional toolchain. Verify that
+  every consumer selected the producer's exact language-provider hash before
+  running installs concurrently.
 
-The second shape does not require the first process to “announce” GCC through
-a view. It does require the independent concretizations to select the **same
+The checkpoint shape does not require the first process to “announce” GCC
+through a view. It does require the independent concretizations to select the **same
 concrete GCC DAG**. Merely writing `gcc@12.5.0` is not proof of identical hashes
 if environment configuration, targets, variants, package-repository commits,
 or dependency constraints differ. Including the producer lock only makes the

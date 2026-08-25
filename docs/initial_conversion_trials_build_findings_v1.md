@@ -145,22 +145,24 @@ the production renderer.
   even though the trial required the `+binutils` compiler producer. After the
   producer constraint was corrected, an older GCC 12.5 prefix could still
   remain in the trial store and appear in installation inventory.
-- Root cause: downstream groups repeated a legacy `%gcc@12.5.0` constraint in
-  addition to inheriting the compiler producer through `needs`. That second
-  compiler solve could create another GCC hash even after both constraints
-  requested `+binutils`. The first verifier revision accepted the duplicate
-  constraint instead of rejecting it before concretization.
+- Root cause: `needs: [compiler]` was treated as a compiler selector, but Spack
+  uses it only to order groups and expose the producer as a reuse candidate.
+  After the older direct `%gcc@12.5.0` selector was removed, soft
+  language-provider preferences could still choose the cheaper external seed
+  compiler for every downstream root, including in an empty store with
+  `concretize --fresh`.
 - Immediate recovery: regenerate the workspace and reconcretize all locks that
   contain the shared GCC producer. An old `~binutils` prefix may remain as
   unreachable trial residue; do not publish it, and do not treat the lock set
   as valid if any downstream root still reaches it.
 - Permanent mitigation: every repeated GCC producer explicitly requests
-  `+binutils`; downstream groups select it through language-provider
-  preferences and inherit its exact hash through `needs`, without a separate
-  `%gcc` constraint. The workspace gate rejects a duplicate compiler
-  constraint or missing `needs` edge before the solve. The lockfile verifier
-  requires every downstream GCC-surface root to reference the exact producer
-  hash.
+  `+binutils`; every downstream root group selects the managed surface through
+  a conditional `cse_shared` toolchain and lists the producer in `needs`.
+  Fresh concretization prevents an older same-coordinate producer from being
+  reused, while the toolchain makes the external seed version ineligible. The
+  workspace gate rejects a missing toolchain or `needs` edge before the solve,
+  and the lockfile verifier requires every downstream GCC-surface root to
+  reference the exact producer hash.
 - Release rule: promotion is driven by the verified lockfiles, views, modules,
   and selected build-cache entries. An unreachable older GCC prefix may remain
   in the restricted trial store, but it is excluded from the published

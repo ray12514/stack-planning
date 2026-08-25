@@ -301,6 +301,7 @@ has this shape:
 spack:
   include::
     - ../../../configs/surfaces/shared/compiler.yaml
+    - ../../../configs/surfaces/shared/toolchains.yaml
     - ../../../catalog/scopes/common
     - ../../../catalog/scopes/compilers/gcc/<seed-version>
     - ../../../configs/common
@@ -324,12 +325,13 @@ spack:
       specs:
         - matrix:
             - [$foundation]
-            - ['target=<portable-target>']
+            - ['target=<portable-target> %cse_shared']
     - group: payload
       needs: [compiler, foundation]
       specs:
         - matrix:
             - [$payload]
+            - ['%cse_shared']
 
   view:
     cse_modules:
@@ -355,7 +357,8 @@ example above is only a map of the sections.
 | `configs/common/repos.yaml` | package repositories and recipe versions |
 | `configs/common/mirrors.yaml` | private build-cache location |
 | `configs/common/bootstrap.yaml` | where Spack stores bootstrap software such as the concretizer |
-| `configs/surfaces/.../compiler.yaml` | selected C, C++, and Fortran language provider for the surface |
+| `configs/surfaces/.../compiler.yaml` | preferred C, C++, and Fortran language provider for the surface |
+| `configs/surfaces/.../toolchains.yaml` | conditional compiler/MPI binding applied to each root on the surface |
 | `configs/surfaces/.../packages.yaml` | surface-specific provider requirements, especially MPI |
 | `configs/environments/.../modules.yaml` | module-generation rules for this one environment |
 | inline `definitions`, `specs`, and `view` | this environment's roots, group ordering, and exposure paths |

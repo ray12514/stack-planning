@@ -222,10 +222,11 @@ Each environment contains the producer groups it needs. The normal order is:
 compiler -> foundation -> build tools/core -> payload
 ```
 
-Groups and `needs` order those producers and require reuse inside the same
-environment. The same compiler, Foundation, and build-tool specs may appear in
-several environments. Identical concrete hashes reuse the shared restricted
-store; they are not separate package builds.
+Groups and `needs` order and expose those producers inside the same environment;
+conditional toolchains select them for dependent roots. The same compiler,
+Foundation, and build-tool specs may appear in several environments. Identical
+concrete hashes reuse the shared restricted store; they are not separate
+package builds.
 
 ### 7.2 CSE package and dependency policy
 

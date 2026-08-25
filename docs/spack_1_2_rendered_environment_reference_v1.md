@@ -235,25 +235,41 @@ verified seed compiler from the platform catalog; it is not discovered from
 ambient state:
 
 ```yaml
+# configs/surfaces/shared/toolchains.yaml
+toolchains:
+  cse_shared:
+  - spec: '%c=gcc@13.3.1+binutils'
+    when: '%c'
+  - spec: '%cxx=gcc@13.3.1+binutils'
+    when: '%cxx'
+  - spec: '%fortran=gcc@13.3.1+binutils'
+    when: '%fortran'
+```
+
+```yaml
 spack:
   include::
   - /catalog/scopes/compilers/gcc/11.5.0
+  - /configs/surfaces/shared/toolchains.yaml
+  concretizer:
+    unify: false
+    reuse: false
   specs:
   - group: compiler
     specs:
-    - gcc@13.3.1 languages='c,c++,fortran' %gcc@11.5.0
+    - gcc@13.3.1+binutils languages='c,c++,fortran' %gcc@11.5.0
   - group: foundation
     needs: [compiler]
     specs:
     - matrix:
       - [$foundation]
-      - ['target=x86_64_v3']
+      - ['target=x86_64_v3 %cse_shared']
   - group: core
     needs: [compiler, foundation]
     specs:
     - matrix:
       - [$core]
-      - ['target=x86_64_v3']
+      - ['target=x86_64_v3 %cse_shared']
   view:
     compiler:
       root: /shared/cse/views/gcc/compiler
@@ -261,12 +277,20 @@ spack:
       group: compiler
 ```
 
-The producer group is the only GCC root. The needed group supplies that exact
-concrete compiler to Foundation and Core. Do not add a second legacy
-`%gcc@13.3.1` constraint to those matrices; it can start an independent
-compiler solve instead of selecting the producer. Language-provider
-preferences may select the managed compiler, while `needs` provides the exact
-hash.
+The producer group is the only explicit GCC root. `needs` orders the producer
+before Foundation and Core and makes its concrete result available, but it does
+not require consumers to select it. The conditional `cse_shared` toolchain is
+the selector: it constrains only the language virtuals each root actually uses,
+so a C-only root is not overconstrained to require C++ or Fortran. Concretize a
+new or intentionally replaced lock set with reuse disabled (`--fresh`); then
+the exact producer offered by the needed group satisfies the selector and all
+downstream roots record that producer hash.
+
+Do not rely on `packages:{c,cxx,fortran}:prefer` for this invariant. Preferences
+may lose to a cheaper external seed compiler even in an empty install tree.
+Also do not replace the conditional toolchain with a legacy `%gcc@13.3.1`
+shorthand: that shorthand is underconstrained for mixed-language packages and
+does not express the conditional per-language binding.
 
 The groups are environment-local. Separate Core, Common, Serial, MPI, and GPU
 environments repeat the compiler, Foundation, build-tool, and MPI producer
@@ -275,15 +299,23 @@ locks; the shared store and build cache reuse those concrete prefixes. Install
 Core first on the initial pass, but all environments may be concretized before
 the compiler is installed.
 
-## Compiler selection without a toolchain
+## Compiler selection with a conditional toolchain
 
-A toolchain represents a compiler/MPI pairing. A compiler by itself remains a
-normal compiler constraint and does not get a `toolchains.yaml` alias.
-Definitions plus a matrix apply the compiler constraint once to a whole
-package list; package managers do not repeat it in every root spec.
+A toolchain may represent a compiler alone or a compiler/MPI pairing. Use the
+compiler-only form whenever a homogeneous package list must bind to one
+compiler surface. Its `when` clauses apply only the languages each package
+actually needs. Definitions plus a matrix apply the selector once to a whole
+package list; package managers do not repeat language bindings in every root
+spec.
 
 ```yaml
 spack:
+  toolchains:
+    gcc1331:
+    - {spec: '%c=gcc@13.3.1', when: '%c'}
+    - {spec: '%cxx=gcc@13.3.1', when: '%cxx'}
+    - {spec: '%fortran=gcc@13.3.1', when: '%fortran'}
+
   definitions:
   - common:
     - openblas@0.3.33
@@ -294,7 +326,7 @@ spack:
   specs:
   - matrix:
     - [$common]
-    - ['%gcc@13.3.1']
+    - ['%gcc1331']
 ```
 
 This is an `N x 1` expansion: every package in `common` receives the same
@@ -575,11 +607,12 @@ GPU:       compiler producer when needed -> Foundation/build tools -> MPI produc
 Spack 1.2 toolchains apply to the root where `%toolchain` appears and constrain
 direct language/MPI dependencies. They do not recursively impose arbitrary
 constraints on every transitive dependency. The renderer therefore uses all
-three controls together:
+four controls together:
 
-1. a toolchain matrix to avoid repeating `%compiler`/`%mpi` on every root;
-2. `packages.yaml` provider requirements so the MPI virtual cannot drift;
-3. explicit dependency pairings in roots whose version compatibility matters,
+1. a conditional toolchain matrix to bind every root to its compiler surface;
+2. `needs` to order and expose exact stack-built compiler/MPI producers;
+3. `packages.yaml` provider requirements so the MPI virtual cannot drift;
+4. explicit dependency pairings in roots whose version compatibility matters,
    such as the two HDF5/NetCDF families.
 
 This is compiler/MPI binding, not a new CSE spec language.

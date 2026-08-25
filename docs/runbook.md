@@ -1131,9 +1131,10 @@ that builds the GCC 12.5.0 producer. Set `CSE_SHARED_COMPILER_SEED_REF` only to
 choose a different reviewed compiler from the catalog. This is a compiler
 dependency inside each GCC environment, not a separate preparatory environment
 or user-facing surface. Every GCC producer root explicitly enables `+binutils`.
-Downstream groups inherit that exact concrete producer through
-`needs: [compiler]`; they do not repeat `%gcc@12.5.0` as a second compiler
-constraint. All four GCC lockfiles must record the same compiler hash.
+Downstream groups order and expose that producer through `needs: [compiler]`
+and select it through the conditional `%cse_shared` toolchain. `needs` alone is
+not a compiler selector. All four GCC lockfiles must record the same compiler
+hash.
 
 For build-sourced Open MPI, the helper combines verified common-scope facts
 with `stack-content/pilots/cse-pilot/openmpi-policy.yaml`. The current trial
@@ -1153,13 +1154,13 @@ Lustre filesystem or external does not change that spec. Do not depend on
 ambient configure detection or run a separate scheduler probe while creating
 values.
 
-The selected surface compiler and portable CPU target are applied to built
-Open MPI and its payload through the surface language-provider preferences and
-the common target preference. Do not append a blanket `%compiler` or
-`target=...` constraint to the Open MPI producer or MPI payload roots. In Spack
-1.2.2 those root constraints can propagate into dependency externals and
-incorrectly require the site Slurm or UCX installation to claim the CSE
-compiler and source-build target. The lock verifier is the enforcement point:
+The selected surface compiler and MPI provider are applied to built Open MPI
+and its payload through a conditional toolchain; the portable CPU target stays
+a common preference at this boundary. Do not append a blanket `target=...`
+constraint to the Open MPI producer or MPI payload roots. In Spack 1.2.2 that
+root constraint can propagate into dependency externals and incorrectly require
+the site Slurm or UCX installation to claim the source-build target. The lock
+verifier is the final enforcement point:
 Open MPI and every source-built payload must resolve to the selected surface
 compiler and portable target, while site Slurm and UCX remain external with
 their inspected architecture.
@@ -1523,11 +1524,10 @@ When GCC 12.5.0 appears without `+binutils`, check the policy source, rendered
 inputs, and locks before replacing anything. The complete compiler policy is
 owned by the Stack Content blueprint; updating Cluster Inspector, Stack
 Composer, or the static catalog alone does not change it. The policy requires
-`+binutils` on the producer, C/C++/Fortran preferences for that provider, and
-`needs: [compiler]` on downstream build groups. It forbids a second
-`%gcc@12.5.0` downstream constraint: that constraint starts another compiler
-solve and can create two hashes even when it also requests `+binutils`. The
-older seed compiler remains usable only to build the managed producer:
+`+binutils` on the producer, a conditional `%cse_shared` language/MPI
+toolchain on downstream roots, and `needs: [compiler]` on downstream build
+groups. The older seed compiler remains usable only to build the managed
+producer:
 
 ```bash
 source "$CSE_OPERATOR_SESSION_FILE"
@@ -1539,12 +1539,12 @@ grep -R -n --include=spack.yaml \
   "gcc@12.5.0+binutils languages='c,c++,fortran'" \
   "$BUILD_WORKSPACE/environments/gcc"
 
-if grep -R -n --include=spack.yaml \
-  '%gcc@12.5.0' \
-  "$BUILD_WORKSPACE/environments/gcc"; then
-  echo "ERROR: duplicate downstream GCC constraint remains" >&2
-  false
-fi
+grep -R -n --include=spack.yaml \
+  '%cse_shared' \
+  "$BUILD_WORKSPACE/environments/gcc"
+
+grep -n '%c=gcc@12.5.0+binutils' \
+  "$BUILD_WORKSPACE/configs/surfaces/shared/toolchains.yaml"
 
 "$CSE_PYTHON" \
   "$BUILD_WORKSPACE/scripts/verify-lockfiles.py" \
@@ -1555,16 +1555,17 @@ cd "$BUILD_WORKSPACE"
 ```
 
 The first `grep` must show one producer in each GCC environment. The second
-must produce no output. The workspace-only gate checks the producer, every
-required `needs` relationship, and the language-provider preferences before a
-solve. After concretization, `verify` also requires every downstream
+must show the conditional selector on every downstream root group, and the
+third must show the generated per-language binding. The workspace-only gate
+checks the producer, every required `needs` relationship, and the toolchain
+before a solve. After concretization, `verify` also requires every downstream
 GCC-surface root to use the exact same concrete hash as the single
 `gcc@12.5.0+binutils` producer.
 
-Missing `needs` relationships or any downstream `%gcc@12.5.0` line mean the
-workspace was generated from an older blueprint or the session points at a
-different workspace. A downstream-hash mismatch means the locks were created
-from those older inputs. A controls-only refresh cannot repair either case
+Missing `needs` relationships, `%cse_shared` selectors, or the shared
+toolchain file mean the workspace was generated from an older blueprint or the
+session points at a different workspace. A downstream-hash mismatch means the
+locks were created from older inputs. A controls-only refresh cannot repair either case
 because it deliberately preserves environment YAML and lockfiles.
 Synchronize Stack Content, confirm the operator-session paths, and continue
 with the replacement procedure below. A blueprint-only compiler-policy

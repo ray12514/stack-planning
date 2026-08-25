@@ -66,8 +66,8 @@ specs:
 ```
 
 For `build_all`, every environment repeats the exact compiler producer group.
-Language-provider preferences select that compiler, and downstream groups use
-`needs: [compiler]` so Spack must reuse the producer's concrete hash:
+Downstream groups use `needs: [compiler]` to order and expose that producer and
+a conditional compiler toolchain to select it:
 
 ```yaml
 specs:
@@ -75,20 +75,24 @@ specs:
   specs: [gcc@14.3.0]
 - group: apps
   needs: [compiler]
-  specs: [...]
+  specs:
+  - matrix:
+    - [...]
+    - ['%cse_shared']
 ```
 
-Do not also add a legacy `%gcc@14.3.0` to the application roots. That is a
-second compiler constraint and can split the producer hash. External compiler
-lanes use an explicit compiler constraint for Serial or a compiler-plus-MPI
-toolchain for MPI. `group` and `needs` require Spack 1.2 or newer, which the
-trial already standardizes on.
+`needs` alone does not select the producer, and soft provider preferences may
+still choose the external compiler that built it. Do not substitute a legacy
+`%gcc@14.3.0` shorthand for the conditional toolchain. External compiler lanes
+retain their existing explicit compiler constraint or compiler-plus-MPI
+toolchain. `group`, `needs`, and conditional toolchains require Spack 1.2 or
+newer, which the trial already standardizes on.
 
 ## Secondary observations, both worth a look
 
-- **Serial lanes must bind a compiler.** A stack-built Serial lane inherits its
-  compiler producer through `needs`; an external Serial lane uses an explicit
-  compiler constraint.
+- **Serial lanes must bind a compiler.** A stack-built Serial lane orders its
+  producer through `needs` and selects it with a conditional toolchain. An
+  external Serial lane retains its explicit compiler constraint.
 
 - **Where the built compiler's version is named.** The stack schema forbids a
   top-level `compilers` key; site selection lives in `defaults.yaml` and a

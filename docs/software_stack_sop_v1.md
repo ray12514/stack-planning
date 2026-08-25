@@ -139,6 +139,13 @@ configuration:
 
 ```yaml
 spack:
+  toolchains:
+    cse_shared:
+      - {spec: '%c=gcc@<version>', when: '%c'}
+      - {spec: '%cxx=gcc@<version>', when: '%cxx'}
+      - {spec: '%fortran=gcc@<version>', when: '%fortran'}
+      - {spec: '%mpi=openmpi@<version>', when: '%mpi'}
+
   include::
     - ../../../catalog/scopes/common
     - ../../../catalog/scopes/compilers/<compiler>/<version>
@@ -195,23 +202,27 @@ spack:
     - group: mpi
       needs: [compiler]
       specs:
-        - openmpi@<version>
+        - openmpi@<version> %cse_shared
 
     - group: applications
       needs: [compiler, mpi]
       specs:
-        - hdf5@<version>+mpi+fortran
+        - hdf5@<version>+mpi+fortran %cse_shared
 
   concretizer:
     unify: false
-    reuse: true
+    reuse: false
 ```
 
-The preferences select the managed compiler while `needs` supplies its exact
-concrete hash. Do not repeat a second `%gcc@<version>` constraint on MPI or
-application roots. `needs` applies inside one environment. Reuse between
-separate environments requires the same shared install tree, enabled reuse
-policy, compatible concrete hashes, and normal Spack locking.
+The toolchain selects the compiler and MPI providers conditionally for the
+languages and virtuals each root actually uses. `needs` orders the groups and
+makes their producer hashes available; it is not a selector. The soft
+preferences remain useful defaults but are not sufficient enforcement. Resolve
+new lockfiles for this stack-built-compiler surface without concrete-spec reuse,
+then reuse identical hashes between environments through the shared install
+tree, build cache, and normal Spack locking. An external compiler surface may
+retain its established reuse policy because it has no managed producer to
+protect from an installed seed-compiler DAG.
 
 ## 8. Concretize and review
 
