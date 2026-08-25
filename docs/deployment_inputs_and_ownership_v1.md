@@ -236,16 +236,19 @@ Mutable state remains outside the shared tool root:
 that scope. The build path must retain `spack config scopes -vp` evidence and
 fail if an unexpected active user, system, or site policy scope appears.
 
-The Initial Conversion Trial workspace currently applies a narrower
-build-path override: its generated launcher resolves Spack's mutable
+The Initial Conversion Trial workspace currently applies a build-path
+implementation: its generated launcher resolves Spack's mutable
 `config:misc_cache` through a persistent builder-named
 `SPACK_MISC_CACHE_PATH` below the deployment-owned shared misc-cache root.
 Because real Spack provider and concretization indexes were observed with
 user-only file modes, the launcher recursively restores the declared group and
-group access before and after Spack. Builder partitions avoid concurrent
-cross-user replacement of one mutable index. That trial evidence is a required
-input to the later full-render cache design; it does not change the current
-`deployment.yaml` schema in this note.
+group access before and after Spack. The same lifecycle hook normalizes
+owner-created workspace/lock, source-cache, view, module, and file-backed
+build-cache content. Builder partitions avoid concurrent cross-user replacement
+of one mutable index. Installed prefixes remain under Spack's native package
+permission policy rather than a wrapper-level recursive chmod. That trial
+evidence is a required input to the later full-render build/publish adapter; it
+does not change the current `deployment.yaml` schema in this note.
 
 ## Status and open questions
 

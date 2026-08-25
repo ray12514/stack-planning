@@ -32,7 +32,8 @@ Initial Conversion Trials blueprint; it is not required to consume the static
 catalog.
 
 The rationale for the eight-environment layout, hash-sharing rules, parallel
-install boundary, and generated lock verifier is recorded in
+install boundary, generated lock verifier, and shared-builder permission
+contract is recorded in
 `initial_conversion_trials_build_execution_model_v1.md`.
 
 ## What the current direction establishes
@@ -1521,13 +1522,22 @@ reconcretize merely because the builder or Spack root path changed.
 Normal path: continue directly to Step 9. Switching between login and compute
 uses the same workspace and does not require a recovery procedure.
 
-### Shared-builder misc-cache permission recovery
+### Shared generated-content permission recovery
 
-Use this procedure when another builder receives `PermissionError`, unreadable
-index, or replacement failures below `cache/misc/providers`,
-`cache/misc/concretization`, `cache/misc/patches`, or `cache/misc/indices`.
-Spack creates some mutable files with mode `0600`; setgid, `umask 0007`, and a
-group-writable parent cannot correct those nested entries by themselves.
+The restricted build contract is owner/group parity: directories are `2770`,
+ordinary files are `0660`, executable files are `0770`, every entry carries the
+recorded CSE group, and no access is granted to others. It applies to the shared
+workspace and lockfiles, source cache, builder-partitioned misc cache, views,
+modules, and a file-backed build cache. Installed package prefixes use the same
+policy through Spack `packages:all:permissions`; do not recursively chmod the
+install tree around Spack's database and prefix locks.
+
+Use this procedure when another builder receives `PermissionError`, cannot
+search a directory, or cannot read/replace generated content on any of those
+surfaces. Spack and other tools may explicitly create `0600` files or `0700`
+directories; setgid, `umask 0007`, and a group-writable parent cannot correct
+those entries by themselves. A recursive `chmod 660` is also invalid because a
+directory needs execute/search permission.
 
 The corrected generated config keeps downloads in the shared source cache but
 sets `config:misc_cache` to `${SPACK_MISC_CACHE_PATH}`. `cse-build` exports
@@ -1566,15 +1576,54 @@ cd "$BUILD_WORKSPACE"
 ```
 
 This controls-only refresh replaces `cse-build`, the common config, generated
-cache-permission helper, other environment helpers, verifier, and handoff note.
+shared-permission helper, other environment helpers, verifier, and handoff note.
 It preserves environment YAML, lockfiles, the source cache, views, installed
 prefixes, and every other build input. On entry and exit, `cse-build`
-recursively sets the active builder's cache directories to `2770`, ordinary
-files to `0660`, and the declared CSE group. A prepared interactive shell does
-the same when it exits. Each builder receives a separate `$USER` partition,
-so the recursive repair does not race another builder's live mutable index.
+normalizes entries owned by the active builder across every handoff-critical
+generated surface and verifies those entries against the group/no-world
+contract. `status`, `concretize`, and `verify` additionally verify all entries
+on the declared surfaces; use `status` as the cross-user handoff gate after
+parallel actions stop. A prepared interactive shell normalizes its builder's
+entries when it exits. Each builder receives a separate `$USER` misc-cache
+partition, so its repair does not race another builder's live mutable index.
 
-Every builder must enter through the refreshed `cse-build`. The former
+If an accidental recursive `chmod 660` prevents `cse-build` from reaching the
+misc tree, stop all processes using that tree and have the owning builder repair
+only the exact affected root. On Wheat, set `BROKEN_ROOT` to the reported misc
+root; do not point it at the release root, install tree, or a broad shared
+parent:
+
+```bash
+export BROKEN_ROOT="$CSE_RESTRICTED_ROOT/cache/misc"
+export CSE_GROUP="<recorded-cse-collaboration-group>"
+test -d "$BROKEN_ROOT"
+: "${CSE_GROUP:?CSE_GROUP must name the collaboration group}"
+
+# Restore traversal in preorder so find can descend into nested 0660 dirs.
+chmod 0770 "$BROKEN_ROOT"
+find "$BROKEN_ROOT" -xdev -user "$USER" -type d \
+  -exec chmod 0770 {} \;
+
+find "$BROKEN_ROOT" -xdev -user "$USER" -type d \
+  -exec chgrp "$CSE_GROUP" {} +
+find "$BROKEN_ROOT" -xdev -user "$USER" -type f \
+  -exec chgrp "$CSE_GROUP" {} +
+find "$BROKEN_ROOT" -xdev -user "$USER" -type d \
+  -exec chmod 2770 {} +
+find "$BROKEN_ROOT" -xdev -user "$USER" -type f -perm -0100 \
+  -exec chmod 0770 {} +
+find "$BROKEN_ROOT" -xdev -user "$USER" -type f ! -perm -0100 \
+  -exec chmod 0660 {} +
+```
+
+Then run `./cse-build login status` as that owner. If it reports an entry owned
+by someone else, stop: that owner or the filesystem administrator must repair
+it. Do not use `sudo chmod -R` as a substitute for resolving mixed ownership.
+
+Every builder must enter through the refreshed `cse-build` or a prepared shell
+launched by it. Before a handoff, the originating builder exits the prepared
+shell and runs `./cse-build login status`; the receiving builder runs the same
+command. The former
 unpartitioned entries directly below `cache/misc` and the earlier private
 `$WORKDIR/$USER/.../misc` tree are no longer consulted. Retain or remove those
 obsolete entries only under the filesystem owner's normal recovery policy.

@@ -32,7 +32,7 @@ mode.
 | `stack_workspace_lifecycle_v1.md` | Per-stack workspaces, the one shared hash-deduplicated install tree, and the three lifetimes (kept / regenerable / durable). |
 | `end_to_end_map_v1.md` | Point-A-to-point-B map: inputs, producers, outputs, consumers, tools, cadence, worked example. |
 | `runbook.md` | Canonical Initial Conversion Trials procedure: probe → static catalog → restricted build/validation → private build cache → cache-only shared publication. |
-| `initial_conversion_trials_build_execution_model_v1.md` | Why the trial uses eight independent environments, how exact hashes enable reuse during parallel installation, what the generated lock verifier proves, and which execution invariants should move into the full renderer. |
+| `initial_conversion_trials_build_execution_model_v1.md` | Why the trial uses eight independent environments, how exact hashes enable reuse during parallel installation, what the generated lock verifier and shared-builder permission contract prove, and which execution invariants should move into the full renderer. |
 | `cse_builder_handoff_v1.md` | Resume guide for a second CSE builder: run the generated workspace entry point, reattach its tmux session, and continue from the recorded checkpoint. |
 | `cse_spack_catalog_to_build_handoff_v1.md` | Self-contained bare-Spack guide with a per-system path/variable handoff sheet, shared-Spack startup, environment selection, scope inspection, concretization, fetching, installation, and build-state inspection. |
 | `initial_conversion_trials_build_findings_v1.md` | Running technical record of trial build failures, causes, recoveries, permanent mitigations, and validation gates. |

@@ -2,7 +2,7 @@
 
 | Document control | |
 |---|---|
-| Date | 2026-08-24 |
+| Date | 2026-08-25 |
 | Status | Active design and implementation record |
 | Scope | CPU-only Initial Conversion Trials using Spack 1.2.2 |
 | Future use | Source design for the build and lock-verification seam in the full renderer |
@@ -295,6 +295,9 @@ parallel contract is:
   shared restricted misc-cache root; the launcher recursively assigns that
   partition to the CSE group before and after Spack because provider and
   concretization index files may initially be user-only;
+- the launcher applies the same owner/group handoff contract to generated
+  workspace files and lockfiles, the shared source cache, views, modules, and
+  file-backed build-cache content before and after each action;
 - the package store, Spack database, source cache, and build cache remain shared
   as configured;
 - each environment process alone owns its view and module refresh; and
@@ -305,6 +308,37 @@ Different hashes build concurrently. When two environments reach the same
 hash, Spack's shared prefix/database locks allow one process to install it while
 the other waits and then reuses the completed prefix. This is how independent
 environment parallelism and package deduplication coexist.
+
+### Restricted shared-output permission contract
+
+The restricted workspace is a group handoff, not merely a tree that happens to
+have a setgid parent. Every generated directory must be readable, writable,
+and searchable by both its owner and the recorded CSE group; every ordinary
+file must be readable and writable by both; an executable file must also be
+executable by both. Access for users outside that group remains disabled.
+
+| Generated surface | Restricted-build policy owner |
+|---|---|
+| Workspace, environment YAML, lockfiles, reports, views, modules, shared source cache, builder misc-cache partition, file-backed build cache | `cse-build` and its prepared-shell entry/exit hook: directories `2770`, ordinary files `0660`, executables `0770`, recorded group, no “other” access |
+| Installed package prefixes and Spack database/locks | Spack `packages:all:permissions` plus the cross-node prefix-lock/access smoke test; the wrapper validates the install root but does not recursively rewrite package prefixes |
+| Initial rendered workspace | Stack Composer `init-workspace` applies the same modes to the newly rendered tree; group ownership comes from the dedicated setgid parent |
+| Build stage, `SPACK_USER_CACHE_PATH`, bootstrap store, and GPG home | Per-builder private state; not handed to another builder |
+
+`umask 0007` and setgid inheritance are necessary but not sufficient. A tool
+that explicitly creates `0600` or `0700` content masks out the group bits. The
+entry/exit hook therefore normalizes entries owned by the active builder and
+verifies those entries. The `status`, `concretize`, and `verify` gates also
+verify every entry on the declared shared surfaces. Keeping full-tree
+verification at those gates avoids treating another builder's still-running
+parallel action as a completed handoff. A builder must use `cse-build` or a
+prepared shell launched by it; direct bare-Spack commands outside that shell do
+not satisfy the handoff contract.
+
+Before changing builders, the originating builder exits the prepared shell and
+runs `./cse-build login status`. The receiving builder runs the same status
+command from the shared workspace. A process terminated with `SIGKILL` cannot
+run an exit hook, so its owner or a filesystem administrator must repair any
+reported path before handoff.
 
 ## 7. Why the generated Python verifier exists
 
@@ -434,6 +468,9 @@ Before parallel installation:
 - [ ] Each builder's misc/concretization cache partition persists across that
       builder's login/compute contexts and processes and passes the recursive
       CSE-group permission check.
+- [ ] Workspace files and lockfiles, source-cache content, views, modules, and
+      file-backed build-cache content pass the same owner/group permission
+      check before a different builder resumes.
 - [ ] The sum of per-process job budgets fits the allocation.
 
 After installation:

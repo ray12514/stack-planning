@@ -120,16 +120,22 @@ Both contexts use the same rendered environments, locks, package store, shared
 source cache, builder-partitioned Spack misc/concretization cache and bootstrap
 store, views, modules, target, and Spack identity; only the executable build
 stage and mutable command cache differ. Misc-cache partitions live below the
-shared restricted cache root and are recursively kept accessible to the CSE
-group; bootstrap state remains private.
+shared restricted cache root. The generated entry/exit hook recursively
+preserves the restricted CSE-group contract for owner-created workspace and
+lock files, source and misc cache content, views, modules, and file-backed
+build-cache content. Installed package prefixes use Spack's native package
+permission policy; bootstrap, user-cache, and keyring state remain private.
 This allows connected login-node concretization to prepare Clingo once for a
 later network-restricted compute session. The receiving builder supplies no
 replacement render inputs.
 
 The initialized CSE workspace is a group-collaborative handoff. For restricted
 build values, `init-workspace` writes directories as `2770`, ordinary files as
-`0660`, and executable entry points as `0770`. Group ownership comes from the
-dedicated setgid CSE parent. No sticky bit is used. The generated `cse-build`
+`0660`, and executable entry points as `0770`. Later `cse-build` and prepared
+shell actions restore those same modes and the recorded group across the
+handoff-critical generated surfaces before and after work, closing the gap for
+tools that explicitly create `0600` or `0700` content. Group ownership comes
+from the dedicated setgid CSE parent. No sticky bit is used. The generated `cse-build`
 file is Bash with an executable shebang; a receiving builder may run it
 directly from `tcsh` or another login shell and must not source it. The static
 catalog retains the exact reviewed Cluster Inspector input as `profile.yaml`;

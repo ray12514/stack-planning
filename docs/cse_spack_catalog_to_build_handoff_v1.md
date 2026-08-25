@@ -86,7 +86,7 @@ test -d "$WORKDIR" && test -w "$WORKDIR" && test -x "$WORKDIR"
 test -f "$WORKSPACE/env/select-build-context.sh"
 test -f "$WORKSPACE/env/setup-build-env.sh"
 test -f "$WORKSPACE/env/prepare-module-state.sh"
-test -f "$WORKSPACE/env/share-cache-permissions.sh"
+test -f "$WORKSPACE/env/share-generated-permissions.sh"
 
 # Select login-node stage and node type from the recorded candidates.
 export CSE_NODE_CONTEXT="login"
@@ -120,17 +120,18 @@ install -d -m 0700 \
   "$SPACK_GNUPGHOME" \
   "$CSE_BUILD_STAGE"
 
-source "$WORKSPACE/env/share-cache-permissions.sh"
-cse_normalize_shared_misc_cache "$SPACK_MISC_CACHE_PATH" "$CSE_GROUP"
-cse_manual_cache_on_exit() {
+export CSE_BUILD_WORKSPACE="$WORKSPACE"
+source "$WORKSPACE/env/share-generated-permissions.sh"
+cse_normalize_shared_generated_content "$CSE_GROUP"
+cse_manual_shared_content_on_exit() {
   status=$?
   trap - EXIT
-  if ! cse_normalize_shared_misc_cache "$SPACK_MISC_CACHE_PATH" "$CSE_GROUP"; then
+  if ! cse_normalize_shared_generated_content "$CSE_GROUP"; then
     [ "$status" -ne 0 ] || status=2
   fi
   exit "$status"
 }
-trap cse_manual_cache_on_exit EXIT
+trap cse_manual_shared_content_on_exit EXIT
 
 # Clear only a selected external compiler/MPI module that is already loaded.
 source "$WORKSPACE/env/prepare-module-state.sh"
