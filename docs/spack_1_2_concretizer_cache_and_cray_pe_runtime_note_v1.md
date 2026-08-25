@@ -1,6 +1,6 @@
 # Spack 1.2 Concretizer Cache and Cray PE Runtime Note v1
 
-Date: 2026-08-24  
+Date: 2026-08-25
 Status: Current technical note for the Initial Conversion Trials
 
 ## 1. Purpose
@@ -14,8 +14,9 @@ workspaces:
    shell, including the roles of modules, wrappers, `PE_ENV`, libfabric, PMI,
    and the selected CPE release.
 
-The note separates upstream facts, CSE-specific inferences, and recommended CSE
-policy. It does not change the current workspaces.
+The note separates upstream facts, CSE-specific inferences, and CSE policy. The
+per-builder cache policy described below is implemented in the generated
+Initial Conversion Trial workspace controls.
 
 ## 2. Executive answer
 
@@ -25,12 +26,10 @@ skip Clingo, but a slightly different solve does not reuse part of the old
 solver state. With `unify: false`, roots are solved separately, so an unchanged
 root can hit the cache even when a different root needs a new solve.
 
-The current CSE configuration places `misc_cache` under the persistent
-restricted cache root. That preserves the concretization cache across workspace
-regeneration and login/compute switching. It is not controlled by the
-node-context-specific `SPACK_USER_CACHE_PATH`. However, Spack creates cache
-entries through `mkstemp`, which normally produces mode `0600`. The current
-shared path therefore must not be treated as a reliable cross-user cache.
+The CSE configuration places `misc_cache` under persistent, builder-owned
+state. It is shared by that builder's login/compute contexts and surfaces but
+not by different builders. This distinction is required because Spack creates
+cache entries through `mkstemp`, which normally produces mode `0600`.
 
 For Cray PE, loading a `PrgEnv-*` or `cray-mpich` module is not intrinsically
 required by Spack when an exact compiler-flavor prefix, the Cray MPICH wrappers,
@@ -125,11 +124,10 @@ concretizer:
   reuse: true
 ```
 
-and explicitly renders `config:misc_cache` from `values.paths.misc_cache`. The
-build-values generator defaults that path to:
+and renders `config:misc_cache` from a prepared-shell variable:
 
 ```text
-<restricted-root>/cache/misc
+SPACK_MISC_CACHE_PATH=<per-user-state>/misc
 ```
 
 See the current
@@ -142,39 +140,41 @@ The generated `cse-build` launcher separately sets:
 
 ```text
 SPACK_USER_CACHE_PATH=<per-user-state>/cache/<login-or-compute>/<surface>
+SPACK_MISC_CACHE_PATH=<per-user-state>/misc
 ```
 
 That variable isolates ordinary per-user cache data by node context and surface,
-but it does not relocate the concretization cache because the environment
-already supplies an explicit `config:misc_cache`. See the
+while `SPACK_MISC_CACHE_PATH` keeps the concretization and provider indexes
+persistent across those contexts and surfaces for one builder. See the
 [CSE build launcher](../../stack-content/pilots/cse-pilot/templates/cse-build.j2).
 
 The resulting behavior is:
 
-- workspace regeneration does not remove the concretization cache;
+- workspace control refresh does not remove the concretization cache;
 - changing between login and compute contexts does not remove it;
 - changing surfaces does not remove it;
+- changing builders selects a different cache owner and path;
 - removing and regenerating a lockfile can reuse an exact prior solver result;
   and
 - an existing lockfile avoids a new solve altogether unless the environment is
   explicitly reconcretized.
 
-There is one multi-user limitation. Spack writes each cache entry using Python's
-`tempfile.mkstemp` and atomically renames it into place. `mkstemp` normally
-creates a `0600` file. A group-writable shared cache directory therefore does
-not make entries reliably readable by a second builder. Depending on directory
-and sticky-bit policy, the second builder can see a cache miss, a permission
-failure handled as a corrupt/unreadable entry, or an inability to replace the
-entry. Cross-user reuse must not be assumed from the shared path alone.
+This ownership split fixes a multi-user limitation in the earlier workspace
+configuration. Spack writes each cache entry using Python's `tempfile.mkstemp`
+and atomically renames it into place. `mkstemp` normally creates a `0600` file.
+A group-writable shared cache directory therefore does not make entries
+reliably readable by a second builder. Depending on directory and sticky-bit
+policy, the second builder can see a cache miss, a permission failure handled
+as a corrupt/unreadable entry, or an inability to replace the entry.
 
 ### 3.4 CSE recommendation
 
 Use one persistent concretization cache per builder, shared by that builder's
 login and compute contexts and by the surfaces that should reuse identical
-solves. Keep it outside generated workspaces. For example:
+solves. Keep it outside generated workspaces. The generated launcher uses:
 
 ```text
-<restricted-cache-root>/misc/<builder>/concretization/v1
+${WORKDIR}/${USER}/cse-spack/<system>/<spack-version>/misc/concretization/v1
 ```
 
 The exact parent directory must follow the approved CSE permissions policy; the
@@ -354,9 +354,8 @@ environment, scheduler context, and runtime evidence.
 
 ## 5. Decisions for the current work
 
-- Preserve solver caching, but change its intended ownership model from one
-  shared multi-user `misc_cache` to a persistent per-builder cache that spans
-  login and compute contexts.
+- Preserve solver caching with the implemented persistent per-builder
+  `misc_cache` that spans login and compute contexts and compiler surfaces.
 - Treat `unify: false` cache reuse as exact per-root answer reuse, not partial or
   incremental solving.
 - Keep the shared GCC build free of `PrgEnv-*` compiler selection.

@@ -51,7 +51,8 @@ builder a quick reference.
 | Required Unix group | `CSE_GROUP` | `<group>` | workspace-recorded |
 | Approved Spack identity | `CSE_SPACK_VERSION`, `CSE_SPACK_TAG`, `CSE_SPACK_COMMIT` | `<version, tag, commit>` | workspace-recorded |
 | Restricted install tree | `config:install_tree:root` | `<absolute path>` | encoded in workspace config; verify only |
-| Source and misc caches | `config:source_cache`, `config:misc_cache` | `<absolute paths>` | encoded in workspace config; verify only |
+| Shared source cache | `config:source_cache` | `<absolute path>` | encoded in workspace config; verify only |
+| Builder-private misc/concretization cache | `config:misc_cache`, `SPACK_MISC_CACHE_PATH` | `<WORKDIR>/<builder>/.../misc` | generated config and prepared shell; persists across that builder's contexts |
 | Private build-cache mirror | `mirrors` | `<absolute path or URL>` | encoded in workspace config; verify only |
 | View and module roots | `view`, `modules` | `<absolute paths>` | encoded per environment; verify only |
 
@@ -61,7 +62,7 @@ There are three categories of shell variables in this guide:
 |---|---|---|
 | Owner/site inputs | `WORKSPACE`, `WORKDIR`, `DEFAULT_ENVIRONMENT` | Fill these in with values for the target system. They are the normal handoff inputs. |
 | Workspace-recorded values | `CSE_GROUP`, `CSE_CPU_TARGET`, `CSE_SYSTEM_NAME`, `CSE_TRIAL_RELEASE`, `CSE_SPACK_*`, compiler/MPI names, default `BUILD_JOBS`, and stage candidates | Read them by sourcing the scripts under `env/`; do not retype them for each builder. |
-| Session selections or derived values | `CSE_NODE_CONTEXT`, `CSE_BUILD_NODE_TYPE`, `CSE_BUILD_STAGE`, `ENVIRONMENT`, `ENV_DIR`, `ENV_KEY`, `SPACK_ROOT`, `SPACK_USER_STATE_ROOT`, `SPACK_BOOTSTRAP_ROOT`, `SPACK_USER_CACHE_PATH`, `SPACK_GNUPGHOME`, `SPACK_DISABLE_LOCAL_CONFIG`, and `PYTHONDONTWRITEBYTECODE` | Select or derive these when preparing the shell. |
+| Session selections or derived values | `CSE_NODE_CONTEXT`, `CSE_BUILD_NODE_TYPE`, `CSE_BUILD_STAGE`, `ENVIRONMENT`, `ENV_DIR`, `ENV_KEY`, `SPACK_ROOT`, `SPACK_USER_STATE_ROOT`, `SPACK_BOOTSTRAP_ROOT`, `SPACK_USER_CACHE_PATH`, `SPACK_MISC_CACHE_PATH`, `SPACK_GNUPGHOME`, `SPACK_DISABLE_LOCAL_CONFIG`, and `PYTHONDONTWRITEBYTECODE` | Select or derive these when preparing the shell. |
 
 ### Start the recorded shared Spack instance
 
@@ -107,6 +108,7 @@ export PYTHONDONTWRITEBYTECODE=1
 export SPACK_USER_STATE_ROOT="$WORKDIR/$USER/cse-spack/$CSE_SYSTEM_NAME/$CSE_SPACK_VERSION"
 export SPACK_BOOTSTRAP_ROOT="$SPACK_USER_STATE_ROOT/bootstrap"
 export SPACK_USER_CACHE_PATH="$SPACK_USER_STATE_ROOT/cache/$CSE_NODE_CONTEXT/$ENV_KEY"
+export SPACK_MISC_CACHE_PATH="$SPACK_USER_STATE_ROOT/misc"
 export SPACK_GNUPGHOME="$SPACK_USER_STATE_ROOT/gnupg"
 
 test -f "$SPACK_ROOT/share/spack/setup-env.sh"
@@ -114,6 +116,7 @@ test -f "$ENV_DIR/spack.yaml"
 install -d -m 0700 \
   "$SPACK_BOOTSTRAP_ROOT" \
   "$SPACK_USER_CACHE_PATH" \
+  "$SPACK_MISC_CACHE_PATH" \
   "$SPACK_GNUPGHOME" \
   "$CSE_BUILD_STAGE"
 
@@ -162,7 +165,6 @@ under it is:
       modules/                      generated package modules
     cache/
       source/                       downloaded source archives
-      misc/                         shared Spack metadata cache
     buildcache/<system>/<trial-release>/
     evidence/<system>/<trial-release>/
 
@@ -174,6 +176,11 @@ under it is:
       modules/
       evidence/
 ```
+
+Mutable provider and concretization indexes are deliberately absent from the
+shared tree. The prepared shell places them below each builder's
+`$SPACK_USER_STATE_ROOT/misc` so Spack's user-only cache files cannot block a
+coworker.
 
 The restricted side is where source builds occur. The published side is the
 user-facing release area and is not the place to experiment, concretize, or
@@ -449,7 +456,10 @@ If no candidate passes, the site owner must supply another approved absolute
 stage path; do not silently use an unreviewed filesystem.
 
 `SPACK_DISABLE_LOCAL_CONFIG` disables Spack's user and system configuration.
-`SPACK_USER_CACHE_PATH` moves per-user cache data. These are standard Spack
+`SPACK_USER_CACHE_PATH` moves per-process cache data. The generated
+`config:misc_cache` references `SPACK_MISC_CACHE_PATH`, which keeps mutable
+provider and concretization indexes private to one builder but persistent
+across that builder's contexts. These are standard Spack path and config
 variables documented under
 [local configuration overrides](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/configuration.rst#L669-L705).
 
@@ -549,7 +559,9 @@ At minimum, confirm:
   placeholder literally because expansion occurs when Spack uses the path);
 - `bootstrap:root` references `${SPACK_BOOTSTRAP_ROOT}`, and that shell variable
   points outside the shared Spack checkout;
-- source and misc caches point to the intended restricted cache roots;
+- the source cache points to the intended shared restricted cache root;
+- `config:misc_cache` references `${SPACK_MISC_CACHE_PATH}`, whose resolved
+  directory is private to this builder and outside the generated workspace;
 - `config:locks` is `true`;
 - the portable target and package pins are present;
 - the selected compiler and MPI requirements match this environment;
@@ -829,7 +841,7 @@ Use the same:
 - workspace and `spack.lock`;
 - pinned Spack 1.2.2 identity;
 - restricted install tree;
-- source and misc caches; and
+- shared source cache and builder-private misc/concretization cache; and
 - bootstrap root.
 
 Only the build context, stage, and per-process cache need to change. In an

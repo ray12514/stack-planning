@@ -291,8 +291,11 @@ parallel contract is:
   `install --only-concrete`;
 - no two processes install the same environment concurrently;
 - each process has a distinct mutable `SPACK_USER_CACHE_PATH`;
-- the package store, Spack database, source cache, and build cache remain
-  shared as configured;
+- each builder has one persistent private `SPACK_MISC_CACHE_PATH`, reused by
+  that builder's contexts and processes because Spack writes some provider and
+  concretization index files with user-only modes;
+- the package store, Spack database, source cache, and build cache remain shared
+  as configured;
 - each environment process alone owns its view and module refresh; and
 - `BUILD_JOBS` is a per-process budget, so the sum of simultaneous processes
   must fit the node/allocation's CPU and memory limits.
@@ -400,6 +403,10 @@ renderer takes over:
    target, MPI, environment-set, and hash-sharing checks are general. Dakota or
    particular NetCDF/HDF5 chain checks should be emitted from package policy or
    release acceptance data.
+8. **Classify shared and builder-owned mutable paths explicitly.** Source
+   archives may remain shared, but provider, patch, index, and concretization
+   metadata must use a builder-owned cache unless the pinned Spack release has
+   a separately validated cross-user publication/permissions design.
 
 A future verifier may consume a rendered machine-readable invariant manifest
 instead of embedding all expectations directly in Python. That is an
@@ -422,6 +429,8 @@ Before parallel installation:
 - [ ] The portable target and named binary exceptions pass.
 - [ ] The real shared install tree passes the cross-node prefix-lock test.
 - [ ] Each parallel process has a unique environment and mutable user cache.
+- [ ] Each builder's misc/concretization cache is private and persists across
+      that builder's login/compute contexts and processes.
 - [ ] The sum of per-process job budgets fits the allocation.
 
 After installation:

@@ -236,6 +236,14 @@ Mutable state remains outside the shared tool root:
 that scope. The build path must retain `spack config scopes -vp` evidence and
 fail if an unexpected active user, system, or site policy scope appears.
 
+The Initial Conversion Trial workspace currently applies a narrower
+build-path override: its generated launcher resolves Spack's mutable
+`config:misc_cache` through a persistent builder-private
+`SPACK_MISC_CACHE_PATH`, because real Spack provider and concretization indexes
+were observed with user-only file modes. That trial evidence is a required
+input to the later full-render cache design; it does not change the current
+`deployment.yaml` schema in this note.
+
 ## Status and open questions
 
 The schema exists now; first-system testing still needs to confirm the final
