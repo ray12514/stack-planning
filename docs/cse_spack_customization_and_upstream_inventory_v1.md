@@ -248,6 +248,17 @@ Human and module names do not always equal Spack package names. The renderer use
 - `oneapi` to `intel-oneapi-compilers`;
 - Intel MPI to `intel-oneapi-mpi`.
 
+The adapter also owns the oneAPI prefix-layout translation. Cluster Inspector
+retains the verified component directory, such as
+`/p/app/intel/2024.2.1/compiler/2024.2`, because that is where the language
+drivers live. Spack's `intel-oneapi-compilers` external prefix is instead the
+suite root, `/p/app/intel/2024.2.1`; its package implementation appends
+`compiler/<major.minor>` itself. Stack Composer therefore renders the suite
+root as the external `prefix` while retaining the exact component paths for
+`icx`, `icpx`, and `ifx`. Passing the component directory as the package prefix
+would produce `compiler/2024.2/compiler/2024.2`. Do not rewrite the reviewed
+profile fact to compensate for this package-specific layout.
+
 See [provider package identities](../../stack-composer/src/stack_composer/render/provider_packages.py) and [static catalog rendering](../../stack-composer/src/stack_composer/render/static_catalog.py). This mapping is generic renderer behavior driven by authored policy, not an upstream Spack patch.
 
 ### 6.7 AOCC and classic Intel
