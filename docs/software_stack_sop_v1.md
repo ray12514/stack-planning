@@ -57,7 +57,8 @@ Keep the following locations separate:
 - the pinned Spack tool root;
 - the Spack package install tree;
 - the build workspace;
-- build stages and source caches;
+- shared source and package-manager metadata caches;
+- per-builder build stages and mutable user state;
 - build caches;
 - views and module roots; and
 - release records and test evidence.
@@ -82,6 +83,24 @@ is assembled. Use the site's approved group, setgid directories, and default
 ACL or umask policy. Published users receive read and execute access, not write
 access.
 
+Record which paths are shared and which are builder-private before work starts:
+
+| State class | Normal policy |
+|---|---|
+| Shared build state | Workspace, generated environment files and lockfiles, source cache, package install tree/database/locks, views, modules, file-backed build cache, and release evidence. Restrict write access to the approved build group. |
+| Builder-partitioned shared state | Mutable package-manager metadata may use a persistent `$USER` partition below a shared root when concurrent replacement is unsafe. The partition remains accessible to the build group for handoff and recovery. |
+| Builder-private state | Build stage, `SPACK_USER_CACHE_PATH`, bootstrap state, signing keyring, and other temporary command state. A receiving builder creates its own paths rather than inheriting another user's. |
+| Spack tool root | Shared and read-only, or an identity-equivalent builder-local checkout treated as immutable for the release. Never use it as a cache or package store. |
+
+Setgid, default ACLs, and a group-friendly umask establish creation defaults,
+but do not override software that explicitly requests `0600` files or `0700`
+directories. The selected build adapter must therefore normalize owner-created
+content on every shared non-package surface and verify access from another
+group member before handoff. A typical restricted policy uses `2770` for
+directories, `0660` for ordinary files, and `0770` for executables. Spack's
+native package-permission configuration owns installed prefixes; do not use a
+blind recursive chmod around the package database and prefix locks.
+
 ## 5. Preflight
 
 Complete these checks from the node types that will perform the build and
@@ -90,6 +109,8 @@ runtime tests:
 - the catalog release and selected scopes are readable;
 - the selected compiler and compiler–MPI pairing are present in the catalog;
 - the install tree, caches, views, and module root are reachable;
+- shared generated content is readable, writable, and traversable by another
+  member of the approved build group;
 - the selected build stage is writable and has adequate space and inodes;
 - the Spack version matches the approved version;
 - the package-recipe source is available;
@@ -262,6 +283,12 @@ spack -e <environment-path> fetch -D
 
 The later install may run on a different node when it uses the same workspace,
 source cache, install tree, Spack version, and lockfile.
+
+When several environments install in parallel, verify the complete lock set
+first, give every process a distinct mutable user cache, never run the same
+environment twice, and assign view/module refresh to that environment's one
+owning process. After parallel work stops, run the shared-output permission gate
+before transferring responsibility to another builder.
 
 Install and refresh the environment-owned presentation:
 

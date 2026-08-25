@@ -16,8 +16,14 @@ Go to the handed-off workspace and run:
 
 ```bash
 cd <complete-workspace-path>
+./cse-build login status
 ./cse-build login
 ```
+
+`status` is the cross-user entry gate. It normalizes entries owned by the
+current builder and verifies the shared workspace, source cache, the current
+builder's misc-cache partition, views, modules, and file-backed build cache
+before responsibility changes hands.
 
 No system, release, compiler, MPI, catalog, install-tree, cache, view, module,
 or environment values are entered by the builder. `cse-build` uses the values
@@ -77,6 +83,25 @@ session's selected mode automatically.
 Do not run `spack isolate`, edit the selected Spack checkout, pull or switch
 branches in place, or replace one pinned version with another in the same
 directory.
+
+## Shared and builder-private state
+
+The handoff transfers durable shared build state, not another builder's
+temporary process state:
+
+| State | Handoff behavior |
+|---|---|
+| Workspace, generated YAML and lockfiles, source cache, install tree/database/locks, views, modules, and file-backed build cache | Shared by the recorded CSE group. The restricted contract is `2770` directories, `0660` ordinary files, `0770` executables, and no access for others. |
+| Misc/provider/concretization cache | One persistent group-accessible partition below the shared misc root for each `$USER`; the receiving builder uses its own partition. |
+| Build stage, `SPACK_USER_CACHE_PATH`, bootstrap store, and GPG home | Private to each builder and recreated automatically. They are not copied or inherited during handoff. |
+| Shared Spack checkout | Read-only; a builder-local alternative is allowed only when it has the exact recorded runtime identity. |
+
+Setgid and `umask 0007` do not fix a child that Spack explicitly creates as
+`0600` or `0700`. `cse-build` therefore normalizes owner-created shared output
+at entry and exit. `status`, `concretize`, and `verify` additionally perform the
+shared-output permission check after parallel work has stopped. Each builder
+must normalize its own misc-cache partition; the receiving builder never
+rewrites another builder's mutable partition.
 
 ## Checkpoint actions
 
@@ -148,9 +173,15 @@ Before transferring responsibility, record:
 - result and relevant log or evidence path; and
 - whether source fetching is complete.
 
-Do not run the same release on the same system from both builder accounts at
-the same time. Spack locking remains enabled, but the Initial Conversion Trials
-use an explicit single-operator handoff on each system.
+Two builders may work on the same release concurrently only after all eight
+lockfiles pass verification and the real shared install tree passes the
+cross-node prefix-lock test. They must use distinct environments or the
+disjoint `--surface shared` and `--surface platform` commands, distinct private
+user caches, and separate builder-named misc-cache partitions. Never launch the
+same environment twice, and let only that environment's owning process refresh
+its view and modules. When parallel work stops, both builders exit their
+prepared shells and the designated owner runs `./cse-build login status` before
+the next handoff.
 
 Signing authority is not transferred through this workspace. Publishing a
 signed build cache remains a separate authorized release operation.

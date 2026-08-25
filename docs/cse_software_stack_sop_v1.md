@@ -66,6 +66,8 @@ Use separate locations for restricted work and published content:
   restricted/
     catalogs/<system>/<catalog-release>/
     workspaces/<system>/<stack>/<release>/
+    cache/source/
+    cache/misc/$USER/
     releases/<system>/<release>/
     buildcache/<system>/<release>/
     evidence/<system>/<release>/
@@ -88,6 +90,27 @@ Restricted roots use the lowercase Unix group `cse`. Both assigned CSE
 builders require read, write, and traverse access while a release is assembled.
 Use setgid directories and the approved default ACL or `umask 0007` so new
 content remains group-owned and group-writable.
+
+The restricted-build storage contract is:
+
+| State | Access and ownership |
+|---|---|
+| Workspace, generated YAML and lockfiles, shared source cache, views, modules, file-backed build cache, and evidence | Shared by the CSE group. Directories are `2770`, ordinary files are `0660`, executable files are `0770`, and access for others is disabled while the release is assembled. |
+| Spack package install tree, database, and prefix locks | Shared by the CSE group through Spack `packages:all:permissions`; keep locking enabled and validate the real filesystem's cross-node lock and access behavior. |
+| Misc/provider/concretization cache | Persistent builder-named partition at `cache/misc/$USER`. The partition is group-accessible for recovery and inspection, but another builder uses a different partition rather than concurrently replacing its mutable indexes. |
+| Build stage, `SPACK_USER_CACHE_PATH`, bootstrap store, and GPG home | Private per-builder mutable state. These paths are recreated for the receiving builder and are not part of the handoff. |
+| Shared Spack tool root | Read-only to builders. A builder-local identity-equivalent checkout is private to its owner and remains unchanged during the release. |
+
+Setgid inheritance, a default ACL, and `umask 0007` establish defaults; they do
+not override a program that explicitly creates a `0600` file or `0700`
+directory. The CSE build entry point therefore normalizes entries owned by the
+active builder across the handoff-critical shared surfaces before and after
+work. `status`, `concretize`, and `verify` also perform a permission gate across
+the common shared surfaces and the active builder's misc-cache partition after
+parallel work has stopped. Each builder normalizes its own misc-cache partition
+before handoff; one builder does not rewrite another builder's mutable
+partition. Every system uses this common generated control; it is not a
+Blueback-specific exception.
 
 Publication uses package permissions equivalent to `read: world`,
 `write: user`, and group `cse` while the release is assembled. Consumers receive
@@ -138,12 +161,15 @@ operational. A Spack version or commit change is release- and DAG-significant.
 
 ## 5. Preflight
 
-Complete these checks before workspace generation or concretization:
+Complete path, catalog, and Spack checks before workspace generation. Complete
+the generated-workspace checks before concretization:
 
 - all required repositories and content are on the approved branch and commit;
 - the catalog manifest and reports match the target system;
 - the selected compiler and compiler–MPI pairings are present;
 - the restricted and published roots have the intended group and permissions;
+- `./cse-build login status` passes from the build owner and from another
+  member of the recorded CSE group before responsibility is transferred;
 - the selected Spack checkout matches the approved version, tag, commit, and
   clean state;
 - per-user cache and keyring paths are absolute, private where required, and
@@ -304,6 +330,23 @@ Two builders may install identical hashes into the shared restricted tree.
 Keep Spack locking enabled. The shared filesystem must support the lock
 semantics. Separate Spack processes also have separate build-job budgets; the
 operators must coordinate total CPU and memory use.
+
+Parallel installation begins only after all lockfiles pass the workspace
+verifier and the real install tree passes the cross-node prefix-lock test. Use
+distinct environments or the two disjoint surface commands:
+
+```bash
+./cse-build compute install --surface shared
+./cse-build compute install --surface platform
+```
+
+Do not run the same environment twice. Each process has a distinct private
+`SPACK_USER_CACHE_PATH`; each builder has a distinct persistent misc-cache
+partition. The owning process alone regenerates that environment's views and
+modules. After parallel processes stop, each builder exits its prepared shell
+so its own misc-cache partition is normalized. The designated handoff owner
+then runs `./cse-build login status` to perform the shared-output permission
+gate before another builder resumes.
 
 Run the checks that apply:
 

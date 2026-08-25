@@ -33,12 +33,12 @@ mode.
 | `end_to_end_map_v1.md` | Point-A-to-point-B map: inputs, producers, outputs, consumers, tools, cadence, worked example. |
 | `runbook.md` | Canonical Initial Conversion Trials procedure: probe → static catalog → restricted build/validation → private build cache → cache-only shared publication. |
 | `initial_conversion_trials_build_execution_model_v1.md` | Why the trial uses eight independent environments, how exact hashes enable reuse during parallel installation, what the generated lock verifier and shared-builder permission contract prove, and which execution invariants should move into the full renderer. |
-| `cse_builder_handoff_v1.md` | Resume guide for a second CSE builder: run the generated workspace entry point, reattach its tmux session, and continue from the recorded checkpoint. |
+| `cse_builder_handoff_v1.md` | Resume guide for a second CSE builder: shared/private state, permission gate, parallel-builder boundary, generated workspace entry point, tmux reattachment, and checkpoint recovery. |
 | `cse_spack_catalog_to_build_handoff_v1.md` | Self-contained bare-Spack guide with a per-system path/variable handoff sheet, shared-Spack startup, environment selection, scope inspection, concretization, fetching, installation, and build-state inspection. |
 | `initial_conversion_trials_build_findings_v1.md` | Running technical record of trial build failures, causes, recoveries, permanent mitigations, and validation gates. |
 | `cse_spack_customization_and_upstream_inventory_v1.md` | Consolidated inventory of CSE Spack policy, integration controls, provider adapters, active package overlays, and the upstream retirement queue. |
-| `software_stack_sop_v1.md` | Working SOP for an application package manager using the static platform catalog to build and publish an independently managed Spack environment. |
-| `cse_software_stack_sop_v1.md` | Working CSE SOP for restricted builds, signed build-cache promotion, cache-only publication, CSE modules, and release controls. |
+| `software_stack_sop_v1.md` | Working SOP for an application package manager using the static platform catalog, including shared/private build state and cross-builder permission controls. |
+| `cse_software_stack_sop_v1.md` | Working CSE SOP for restricted shared builds, builder-private state, parallel handoff, signed build-cache promotion, cache-only publication, modules, and release controls. |
 | `stack_build_handoff_note_v1.md` | Where render stops; build is a co-equal choice (spacktools / spack-build / Ansible / bare Spack); stack-content + config delivery modes. |
 | `stack_generation_orchestration_note_v1.md` | Render across systems: the intersection model, input cadence, re-render/rebuild triggers, tool-agnostic driver contract. |
 | `deployment_inputs_and_ownership_v1.md` | Auto-vs-explicit ownership and the `deployment.yaml` overlay; the install tree is never auto-derived. |
