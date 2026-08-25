@@ -1589,9 +1589,9 @@ partition, so its repair does not race another builder's live mutable index.
 
 If an accidental recursive `chmod 660` prevents `cse-build` from reaching the
 misc tree, stop all processes using that tree and have the owning builder repair
-only the exact affected root. On Wheat, set `BROKEN_ROOT` to the reported misc
-root; do not point it at the release root, install tree, or a broad shared
-parent:
+only the exact affected root. On the affected system, set `BROKEN_ROOT` to the
+reported misc root; do not point it at the release root, install tree, or a
+broad shared parent:
 
 ```bash
 export BROKEN_ROOT="$CSE_RESTRICTED_ROOT/cache/misc"
