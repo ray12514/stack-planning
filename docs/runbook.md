@@ -1556,6 +1556,7 @@ grep -F 'misc_cache: ${SPACK_MISC_CACHE_PATH}' \
 
 cd "$BUILD_WORKSPACE"
 ./cse-build login status
+./cse-build login concretize   # creates only missing locks
 ./cse-build login verify
 ```
 
