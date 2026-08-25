@@ -65,7 +65,7 @@ schema_version: 1
 system: example-cray                  # must match profile.system.name
 
 access:
-  group: cse                          # REQUIRED — Unix group owning shared stack artifacts
+  group: software-builders            # REQUIRED — Unix group selected for this stack
   read: group                         # REQUIRED — group or world
   write: group                        # REQUIRED — user or group
 

@@ -31,7 +31,7 @@ already rendered into the workspace.
 
 With no action, the command:
 
-1. verifies CSE group access and the workspace;
+1. verifies recorded CSE group access and the workspace;
 2. selects or provisions the exact recorded Spack runtime;
 3. creates private Spack cache and keyring state for the current builder;
 4. activates Spack and the generated workspace configuration;

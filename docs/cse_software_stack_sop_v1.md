@@ -86,17 +86,19 @@ absolute `${WORKDIR}/$USER/...` path last. Every entry must be set, absolute,
 writable, and executable where the build requires it. Spack skips an unusable
 candidate and tries the next valid entry.
 
-Restricted roots use the lowercase Unix group `cse`. Both assigned CSE
-builders require read, write, and traverse access while a release is assembled.
-Use setgid directories and the approved default ACL or `umask 0007` so new
-content remains group-owned and group-writable.
+Restricted roots use the installer-confirmed CSE Unix group, `cse`, for the
+current shared-build environment. Multiple CSE builders require read, write,
+and traverse access while a release is assembled. The group name is an explicit
+deployment input, not a default inferred by the tooling. Use setgid directories
+and the approved default ACL or `umask 0007` so new content remains group-owned
+and group-writable.
 
 The restricted-build storage contract is:
 
 | State | Access and ownership |
 |---|---|
-| Workspace, generated YAML and lockfiles, shared source cache, views, modules, file-backed build cache, and evidence | Shared by the CSE group. Directories are `2770`, ordinary files are `0660`, executable files are `0770`, and access for others is disabled while the release is assembled. |
-| Spack package install tree, database, and prefix locks | Shared by the CSE group through Spack `packages:all:permissions`; keep locking enabled and validate the real filesystem's cross-node lock and access behavior. |
+| Workspace, generated YAML and lockfiles, shared source cache, views, modules, file-backed build cache, and evidence | Shared by the recorded CSE group. Directories are `2770`, ordinary files are `0660`, executable files are `0770`, and access for others is disabled while the release is assembled. |
+| Spack package install tree, database, and prefix locks | Shared by the recorded CSE group through Spack `packages:all:permissions`; keep locking enabled and validate the real filesystem's cross-node lock and access behavior. |
 | Misc/provider/concretization cache | Persistent builder-named partition at `cache/misc/$USER`. The partition is group-accessible for recovery and inspection, but another builder uses a different partition rather than concurrently replacing its mutable indexes. |
 | Build stage, `SPACK_USER_CACHE_PATH`, bootstrap store, and GPG home | Private per-builder mutable state. These paths are recreated for the receiving builder and are not part of the handoff. |
 | Shared Spack tool root | Read-only to builders. A builder-local identity-equivalent checkout is private to its owner and remains unchanged during the release. |
@@ -113,9 +115,10 @@ partition. Every system uses this common generated control; it is not a
 Blueback-specific exception.
 
 Publication uses package permissions equivalent to `read: world`,
-`write: user`, and group `cse` while the release is assembled. Consumers receive
-read and execute access only. After acceptance, remove group and other write
-access from the release, views, modules, and release pointer.
+`write: user`, and the recorded collaboration group while the release is
+assembled. Consumers receive read and execute access only. After acceptance,
+remove group and other write access from the release, views, modules, and
+release pointer.
 
 Do not apply recursive ownership or mode changes to a shared tree until the
 filesystem owner confirms that the target is dedicated to this release.

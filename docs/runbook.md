@@ -87,7 +87,7 @@ $HOME/STACK_TESTING/                         # operator-controlled
 <shared-cse-tools-root>/                     # installer/site controlled
   spack/<version>/                           # optional pinned, read-only shared Spack tool root
 
-<cse-trial-root>/                            # shared filesystem; CSE group
+<cse-trial-root>/                            # shared filesystem; recorded CSE group
   restricted/                                # builders only during trials
     catalogs/<system>/static/<catalog-release>/
     workspaces/<system>/initial-conversion-trials/<trial-release>/
@@ -110,12 +110,13 @@ $HOME/STACK_TESTING/                         # operator-controlled
   <user>/<system>/<trial-release>/{build,publish}-stage/
 ```
 
-The Unix group is lowercase `cse` on every trial system. During the restricted
-trials, both assigned builders need read/write access. Use
-`permissions.group: cse`, `permissions.read: group`, and
-`permissions.write: group`. Publication values instead use `read: world` and
-`write: user`; after promotion and acceptance, consumers have read/execute but
-no write access. Change the write or read audience only through an approved
+The installer explicitly records the CSE Unix group for each trial system;
+the current value is `cse`, and the tooling does not supply a default. During
+the restricted trials, all assigned builders need read/write access. Use that
+recorded group with `permissions.read: group` and `permissions.write: group`.
+Publication values instead use `read: world` and `write: user`; after
+promotion and acceptance, consumers have read/execute but no write access.
+Change the group or the read/write audience only through an approved
 release-policy decision.
 
 The private build cache is private because of filesystem or service access
@@ -511,7 +512,8 @@ git -C "$CONTENT" pull --ff-only
   --trial-root "<approved-shared-cse-path>/initial-conversion-trials" \
   --tools-root "<installer-selected-shared-cse-tools-root>" \
   --bootstrap-python "$CSE_BOOTSTRAP_PYTHON" \
-  --spack-mode "<shared-or-local>"
+  --spack-mode "<shared-or-local>" \
+  --group "cse"
 
 source "$WORK_ROOT/operator-sessions/<system>/<system>-trial-001/activate.sh"
 ```
@@ -922,11 +924,12 @@ release snapshots, evidence, and backups instead.
 
 If a dedicated trial tree was previously created with group read-only modes,
 stop all Spack processes and have its owner or filesystem administrator repair
-only that confirmed tree. Set group `cse`, add group read/write/search, remove
-access for others, and restore setgid on every directory. Use a default ACL for
-group `cse` when the filesystem supports it; otherwise every builder must keep
-`umask 0007`. Do not apply a recursive command to `/p/app/CSE` or another
-shared parent containing unrelated releases.
+only that confirmed tree. Set the recorded `$CSE_GROUP`, add group
+read/write/search, remove access for others, and restore setgid on every
+directory. Use a default ACL for the recorded group when the filesystem
+supports it; otherwise every builder must keep `umask 0007`. Do not apply a
+recursive command to `/p/app/CSE` or another shared parent containing unrelated
+releases.
 
 ## 6. Generate and inspect the static catalog
 
@@ -1219,7 +1222,7 @@ workspace blueprint also
 normalizes only the newly generated workspace to the declared access policy.
 For restricted build values, directories are `2770`, ordinary files are
 `0660`, and executable entry points are `0770`. The dedicated setgid parent
-supplies group `cse`; no sticky bit is used.
+supplies the recorded `$CSE_GROUP`; no sticky bit is used.
 
 Use `--overwrite` only after reviewing and deliberately replacing the existing
 workspace.

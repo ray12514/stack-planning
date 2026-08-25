@@ -79,9 +79,11 @@ If signing is used, keep the keyring in a private per-user or site-approved
 location outside the Spack tool root and package install tree.
 
 The application team's shared workspace must be group-writable while a release
-is assembled. Use the site's approved group, setgid directories, and default
-ACL or umask policy. Published users receive read and execute access, not write
-access.
+is assembled. Record the owning Unix group for that independently managed
+software stack in its deployment inputs; different teams or stacks may use
+different approved groups. Keep that group stable for the life of the release.
+Use setgid directories and the site's default ACL or umask policy. Published
+users receive read and execute access, not write access.
 
 Record which paths are shared and which are builder-private before work starts:
 
