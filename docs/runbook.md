@@ -881,6 +881,37 @@ Gate: the profile verifies and the system notes identify the reviewed tuple.
 
 ## 5. Create the restricted and published CSE roots
 
+### Required two-builder setup for every system
+
+Run this setup on every new trial system before generating the static catalog
+or workspace. It is the common collaboration contract for Blueback, Wheat,
+Fran, Raider, and every later system; system notes must not replace it with a
+different permission procedure.
+
+Record both assigned builders and prove both are members of the deployment's
+explicit collaboration group. The current CSE group is `cse`; the tools do not
+silently supply that name:
+
+```bash
+source "$CSE_OPERATOR_SESSION_FILE"
+
+test "$CSE_GROUP" = "cse"
+CSE_BUILDERS=("<first-builder>" "<second-builder>")
+test "${#CSE_BUILDERS[@]}" -eq 2
+CSE_MEMBER_FAILURES=0
+
+for builder in "${CSE_BUILDERS[@]}"; do
+  if ! id "$builder"; then
+    CSE_MEMBER_FAILURES=1
+  elif ! id -nG "$builder" | tr ' ' '\n' | grep -Fx "$CSE_GROUP"; then
+    printf '%s is not in %s\n' "$builder" "$CSE_GROUP" >&2
+    CSE_MEMBER_FAILURES=1
+  fi
+done
+test "$CSE_MEMBER_FAILURES" -eq 0
+unset builder CSE_BUILDERS CSE_MEMBER_FAILURES
+```
+
 Confirm the exact CSE group and shared path with the filesystem owner. Use a
 group-collaborative umask and setgid directories so new artifacts inherit the
 CSE group and both assigned builders can update them:
@@ -919,6 +950,68 @@ install -d -m 2770 -g "$CSE_GROUP" \
   "$PUBLISH_RELEASE_ROOT/modules" \
   "$PUBLISH_EVIDENCE"
 ```
+
+Where the filesystem supports POSIX default ACLs, apply the equivalent default
+to the dedicated restricted working roots. This strengthens ordinary file
+creation but does not replace the generated permission helper because Spack may
+explicitly create `0600` files and `0700` directories:
+
+```bash
+if command -v setfacl >/dev/null 2>&1; then
+  setfacl -m "g:${CSE_GROUP}:rwx,m::rwx,o::---" \
+    "$CSE_RESTRICTED_ROOT" \
+    "$STATIC_ROOT" \
+    "$CSE_RESTRICTED_ROOT/workspaces" \
+    "$BUILD_RELEASE_ROOT" \
+    "$CSE_RESTRICTED_ROOT/cache/source" \
+    "$CSE_RESTRICTED_ROOT/cache/misc" \
+    "$BUILDCACHE_ROOT" \
+    "$BUILD_EVIDENCE"
+  setfacl -d -m "u::rwx,g::rwx,g:${CSE_GROUP}:rwx,m::rwx,o::---" \
+    "$CSE_RESTRICTED_ROOT" \
+    "$STATIC_ROOT" \
+    "$CSE_RESTRICTED_ROOT/workspaces" \
+    "$BUILD_RELEASE_ROOT" \
+    "$CSE_RESTRICTED_ROOT/cache/source" \
+    "$CSE_RESTRICTED_ROOT/cache/misc" \
+    "$BUILDCACHE_ROOT" \
+    "$BUILD_EVIDENCE"
+fi
+```
+
+Verify the newly prepared restricted roots before continuing:
+
+```bash
+for shared_root in \
+  "$CSE_RESTRICTED_ROOT" \
+  "$STATIC_ROOT" \
+  "$CSE_RESTRICTED_ROOT/workspaces" \
+  "$BUILD_RELEASE_ROOT" \
+  "$CSE_RESTRICTED_ROOT/cache/source" \
+  "$CSE_RESTRICTED_ROOT/cache/misc" \
+  "$BUILDCACHE_ROOT" \
+  "$BUILD_EVIDENCE"; do
+  test -d "$shared_root"
+  test -g "$shared_root"
+  test "$(stat -c %G "$shared_root")" = "$CSE_GROUP"
+  test -z "$(find "$shared_root" -maxdepth 0 \
+    \( ! -perm -0770 -o -perm -0007 \) -print)"
+done
+```
+
+This root setup is only the first half of the guarantee. After Step 8 creates
+the workspace, every builder must use its refreshed generated `cse-build`. On
+entry and exit it restores owner/`cse` parity for workspace/lock content,
+source cache, that builder's misc-cache partition, views, modules, and a
+file-backed build cache. Rendered `packages:all:permissions` applies the same
+group policy to every Spack-created install prefix. `./cse-build login status`
+verifies every declared shared surface before handoff.
+
+The build stage, `SPACK_USER_CACHE_PATH`, bootstrap state, and GPG home remain
+private per builder and are recreated for the receiving builder. They are not
+inside the shared collaboration contract. With those intentional exceptions,
+no generated restricted-build content may be placed in a shared CSE path
+without the recorded group and its required access.
 
 Do not recursively change ownership or permissions on an existing shared tree.
 If the top-level path is site-owned, ask its owner to create the dedicated roots.
