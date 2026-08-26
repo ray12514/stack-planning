@@ -10,6 +10,10 @@ This note records two pre-v1 project policies:
 No v1 stack release has been deployed yet. If the current model is wrong,
 change it directly before v1 rather than preserving unused alpha behavior.
 
+The [portable tools and GitLab transition plan](portable_tools_and_gitlab_transition_plan_v1.md)
+turns the hosting direction in this note into phased executable-distribution,
+offline-build, reference-cleanup, authority-cutover, and target-acceptance work.
+
 ## Hosting and import paths
 
 The implementation repositories may temporarily live on GitHub during alpha

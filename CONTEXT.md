@@ -6,13 +6,17 @@ center, so the glossary lives here. Terms only — no implementation detail.
 
 ## Tiers
 
-A package's **tier** says both how it is built and how it is exposed. There are
-two *base* tiers (foundation, core) beneath three *payload* tiers (serial, mpi,
-gpu).
+A package's **tier** says where it belongs in the CSE consumption model and its
+default exposure shape. Tier does not by itself prove compiler binding or the
+scope in which one artifact may be reused. There are two *base* tiers
+(foundation, core) beneath three *payload* tiers (serial, mpi, gpu).
 
-- **Foundation** — base libraries and build substrate, off the MPI/GPU axis,
-  built once per compiler and shared across lanes. The substrate every lane sits
-  on. (e.g. zlib, xz, zstd.)
+- **Foundation** — ambient base libraries and build substrate, off the MPI/GPU
+  axis. The substrate every lane sits on. A Foundation member may be
+  compiler-neutral or compiler-bound; the active Initial Conversion Trials
+  conservatively build their Foundation library roots once per compiler
+  surface. (e.g. zlib, xz, zstd; future build-substrate candidates include m4
+  and autoconf.)
 - **Core** — lane-independent tools and packages safe to expose at the compiler
   layer. (e.g. cmake.)
 - **Serial** — an MPI-*capable* package built **without** MPI by deliberate
@@ -36,6 +40,24 @@ Exposure rule: **lane-independent foundation/core → compiler view (+ compiler)
 lane-sensitive payload → lane modules.**
 
 ## Other terms
+
+- **Managed consumption environment** — the deployed user-facing CSE
+  development surface. A user enters a selected release/compiler/lane and
+  receives approved commands, headers, libraries, metadata, and platform
+  integrations without needing to know that Spack constructed them. It is
+  managed discovery isolation, not a kernel or filesystem container.
+- **Compiler binding** — the ownership scope imposed by an artifact's compiler
+  or language interface, independent of its tier. A compiler-neutral artifact
+  may be reused across compiler surfaces within an accepted compatibility
+  domain; a compiler-bound artifact belongs to one compiler surface; a
+  provider-bound artifact additionally belongs to an MPI/GPU/vendor toolchain.
+- **Compatibility domain** — the reviewed set of operating-system ABI, CPU
+  architecture/target, recipe, variant, external-runtime, and, where required,
+  compiler/provider facts within which one exact built artifact may be reused.
+- **System-integration external** — a declared host-owned package or runtime
+  used because the host owns a meaningful security, scheduler, driver, fabric,
+  hardware, or vendor compatibility contract. Ambient discovery alone never
+  makes a package a system-integration external.
 
 - **Lane** — one rendered build target: a single (compiler × optional MPI
   provider × optional GPU arch) combination at a chosen CPU target. The unit a

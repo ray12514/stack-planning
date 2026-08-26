@@ -44,6 +44,8 @@ design calls for it:
 - `docs/cluster_inspector_stack_profile_design_v1.md` — Go inspector: product boundary, CLI, repo shape.
 - `docs/cluster_inspector_profile_extraction_map_v1.md` — per-field probe map for `profile.yaml`.
 - `docs/foundation_core_view_semantics_note_v1.md` — hardening note for foundation/Core visibility, build-only views, version-collision policy, and whether foundation packages are public modules.
+- `docs/post_trial_cse_consumption_environment_plan_v1.md` — post-trial direction for the managed user build surface, orthogonal tier/compiler-binding/reuse policy, and the evidence to extract from the trials.
+- `docs/portable_tools_and_gitlab_transition_plan_v1.md` — portable release artifacts, a smaller Stack Composer interface, GitLab authority, and removal of GitHub as a build/runtime dependency.
 - `docs/spack_1_2_rendered_environment_reference_v1.md` — target full-render file seam for Spack 1.2, including native `modules.yaml`, groups/`needs`, toolchains, views, and Cray/Linux examples.
 - `docs/pre_v1_hosting_and_external_inventory_note_v1.md` — pre-v1 GitLab/import-path policy and the external-candidate boundary between observed profile facts and Stack Composer policy.
 - `schemas/*-v1.json` — canonical JSON Schemas (Draft 2020-12, strict).
@@ -62,7 +64,7 @@ design calls for it:
 - **Install tree, caches, view/module roots, and module exposure are installer-chosen, never auto-derived.** The profile offers candidates only; the installer records the choice in `systems/<system>/deployment.yaml` (or build-time flags). Read `docs/deployment_inputs_and_ownership_v1.md` before changing install-tree, `config.yaml`, module-exposure, or deployment-path handling.
 - Preserve full provider module chains. A compatibility lane such as Intel compiler/runtime plus Intel MPI may need modules like `PrgEnv-intel`, the Intel compiler module, and the Intel MPI module recorded together.
 - MPI provider selection should be provider/defaults-driven. Do not choose MPI solely from `system.family == cray` or by assuming every Cray-hosted MPI lane means `cray-mpich`.
-- **Foundation and Core have opposite exposure shapes — do not blur them.** Foundation libraries (zlib-class, ABI-stable, single-version pinned) are ambient in the user-facing lane view and never get per-package modules. Core tools (cmake, git, python/miniforge) are the user-loadable layer. See `docs/foundation_core_view_semantics_note_v1.md` for the current per-compiler build and exposure semantics.
+- **Foundation and Core have opposite exposure shapes — do not blur them.** Foundation libraries (zlib-class, ABI-stable, single-version pinned) are ambient in the user-facing lane view and never get per-package modules. Core tools (cmake, git, python/miniforge) are the user-loadable layer. Tier does not by itself prove compiler binding: the active trials conservatively build Foundation per compiler surface, while post-trial classification may approve compiler-neutral Foundation build tools. See `docs/foundation_core_view_semantics_note_v1.md` for the active trial semantics and `docs/post_trial_cse_consumption_environment_plan_v1.md` for the post-trial direction.
 - Do not project every transitive dependency into one flat public view. Foundation/Core view semantics must handle version collisions and shared library name conflicts explicitly.
 - Read `docs/foundation_core_view_semantics_note_v1.md` before changing foundation lanes, Core lanes, views, module visibility, lockfile composition, buildcache reuse, or foundation package pins.
 
@@ -160,7 +162,9 @@ strict when the venv exists (blocks the commit on a non-zero exit).
 | Where do specific probe rules for `profile.yaml` fields live? | `docs/cluster_inspector_profile_extraction_map_v1.md` |
 | How should MPI provider policy work? | `docs/stack_generation_structure_v1.md` § Resolution |
 | How should foundation/Core views and module visibility work? | `docs/foundation_core_view_semantics_note_v1.md` |
+| How should the post-trial user build environment classify and isolate packages? | `docs/post_trial_cse_consumption_environment_plan_v1.md` |
 | How should pre-v1 GitLab hosting and external candidates be handled? | `docs/pre_v1_hosting_and_external_inventory_note_v1.md` |
+| How should the tools be packaged and moved to GitLab authority? | `docs/portable_tools_and_gitlab_transition_plan_v1.md` |
 | How is the rendered workspace handed off to a build tool? | `docs/stack_build_handoff_note_v1.md` |
 | Where does the `stack-content` source directory live and how is it hosted? | `docs/stack_build_handoff_note_v1.md` + `docs/pre_v1_hosting_and_external_inventory_note_v1.md` |
 | How is render orchestrated across systems, and what re-renders when an input changes? | `docs/stack_generation_orchestration_note_v1.md` |

@@ -2,9 +2,12 @@
 
 ## Status
 
-Current design note. Foundation is ambient in the user-facing view; Core tools
-are the loadable layer. The Initial Conversion Trials build both layers per
-compiler surface and verify reuse only within that surface.
+Current Initial Conversion Trials design note. Foundation is ambient in the
+user-facing view; Core tools are the loadable layer. The trials build both
+layers per compiler surface and verify reuse only within that surface. The
+[post-trial consumption-environment plan](post_trial_cse_consumption_environment_plan_v1.md)
+uses the completed trial evidence to classify compiler-neutral and
+compiler-bound members independently; it does not change the active trial.
 
 ## Context
 
