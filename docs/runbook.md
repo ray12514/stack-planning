@@ -1544,6 +1544,26 @@ modules, and a file-backed build cache. Installed package prefixes use the same
 policy through Spack `packages:all:permissions`; do not recursively chmod the
 install tree around Spack's database and prefix locks.
 
+This is the complete all-system contract, not a misc-cache-only policy:
+
+| Path class | How owner/`cse` group parity is maintained |
+|---|---|
+| Restricted workspace, included catalog snapshot, environment YAML, lockfiles, reports, and generated controls | Workspace initialization applies `2770`/`0660`/`0770`; the generated launcher normalizes owner-created entries on entry and exit and verifies the entire workspace for handoff. |
+| Shared source cache | The generated launcher recursively normalizes owner-created entries and verifies the complete cache tree. |
+| Misc/provider/concretization cache | Each builder uses `cache/misc/$USER`; the generated launcher recursively normalizes that partition and verifies it. Other builders use their own partitions. |
+| Views and generated module trees | The generated launcher recursively normalizes owner-created entries after Spack and verifies the complete trees. |
+| File-backed build cache | The generated launcher recursively normalizes owner-created entries after Spack and verifies the complete tree. |
+| Spack package install prefixes | Rendered `packages:all:permissions` assigns the recorded group and group read/write policy as Spack creates each prefix. The launcher verifies/prepares only the install-tree root and never recursively chmods Spack's database, locks, or prefixes. |
+| Static-catalog and evidence roots outside the workspace | Step 5 creates dedicated setgid roots for the recorded group and the operator session uses `umask 0007`; the reviewed catalog is frozen. The workspace carries its own catalog snapshot for builder handoff. |
+| Build stage, `SPACK_USER_CACHE_PATH`, bootstrap state, and GPG home | Intentionally private per builder. A receiving builder gets new private paths; these are not shared or repaired for handoff. |
+
+Every assigned builder must be a member of the recorded `cse` group and enter
+through the refreshed `cse-build` or its prepared shell. Each builder can
+normalize entries that builder owns. Group modes then allow another `cse`
+member to traverse, read, update, rename, and continue the shared work. If
+verification finds an entry owned by someone else that was never normalized,
+that owner or the filesystem administrator must correct it once.
+
 Use this procedure when another builder receives `PermissionError`, cannot
 search a directory, or cannot read/replace generated content on any of those
 surfaces. Spack and other tools may explicitly create `0600` files or `0700`
@@ -1599,8 +1619,15 @@ parallel actions stop. A prepared interactive shell normalizes its builder's
 entries when it exits. Each builder receives a separate `$USER` misc-cache
 partition, so its repair does not race another builder's live mutable index.
 
-If an accidental recursive `chmod 660` prevents `cse-build` from reaching the
-misc tree, stop all processes using that tree and have the owning builder repair
+#### One-time misc-cache traversal repair after accidental `chmod 660`
+
+The permanent controls above apply to all shared handoff surfaces. The manual
+commands below are narrower only because they repair the specific misc-cache
+tree that was accidentally changed to `660`; they are not the general
+permission implementation.
+
+If the missing directory search bit prevents `cse-build` from reaching that
+misc tree, stop all processes using the tree and have the owning builder repair
 only the exact affected root. On the affected system, set `BROKEN_ROOT` to the
 reported misc root; do not point it at the release root, install tree, or a
 broad shared parent:
