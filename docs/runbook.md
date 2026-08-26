@@ -178,6 +178,14 @@ Do not advance past a failed gate.
 Every run is a sequence of durable checkpoints. Record the last successful
 checkpoint in the system notes before starting the next one.
 
+For a cross-builder `PermissionError`, inaccessible generated file, or a tree
+damaged by recursive `chmod 660`, go directly to
+[Shared generated-content permission recovery](#shared-generated-content-permission-recovery).
+That procedure is system-neutral and applies to every Initial Conversion Trials
+system. The selected system note records only its exact workspace state and any
+system-specific root/group check; it must not carry a different permission
+contract.
+
 | Checkpoint | State | Durable evidence |
 |---:|---|---|
 | 1 | Profile verified | reviewed `profile.yaml` and probe evidence |
@@ -245,6 +253,7 @@ of deleting or rewriting the old record.
 | A later lane fails while earlier lane locks and inputs remain unchanged | Keep the earlier evidence and retry only the failed lane. If a shared upstream hash changes, reconcretize and revalidate every dependent lane in a new release. |
 | Build-cache push, index, or signing operation is interrupted | Retry the cache operation from the installed restricted specs; do not rebuild. |
 | Publication reports a cache miss for an exact approved hash | Return to the restricted workspace, build and validate that exact locked hash, push it, and retry only the failed publication environment. If producing it requires a changed hash, create a new release. |
+| Another builder cannot traverse, read, or replace generated workspace/cache/view/module/build-cache content | Stop processes using the affected tree, refresh the common generated controls, and follow [Shared generated-content permission recovery](#shared-generated-content-permission-recovery). Each owner repairs that owner's entries; do not recursively chmod the install tree or a broad shared parent. |
 | View or module refresh fails before release acceptance and the DAG is unchanged | Correct and rerun only view/module generation, then repeat clean-shell checks. |
 | Published module/view content needs correction after acceptance | Create a new trial release; do not edit the accepted release in place. |
 | Platform upgrade changes CPE, compiler, MPI, fabric, OS, or runtime ABI facts | Hold publication and restart with a fresh profile, catalog, locks, and runtime validation. |
