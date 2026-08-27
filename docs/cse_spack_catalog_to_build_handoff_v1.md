@@ -276,7 +276,7 @@ The path you receive should be the complete workspace, not one copied
 ```
 
 After concretization, each environment directory also contains `spack.lock`.
-Spack calls `spack.yaml` the manifest—the requested roots and configuration—and
+Spack calls `spack.yaml` the manifest - the requested roots and configuration - and
 `spack.lock` the fully concrete dependency graph. The lock is created by
 concretization and is what preserves exact versions, variants, providers,
 targets, and hashes. See Spack's
@@ -600,14 +600,15 @@ source file. Both are documented in
 
 The populated environments already contain complete manifests, so the normal
 builder only reads them. If you need to make an independent environment by
-hand, the minimum is ordinary native Spack YAML:
+hand, the minimum is ordinary native Spack YAML. Replace `<workspace-root>`
+with the absolute root of the complete generated workspace:
 
 ```yaml
 spack:
   include::
-    - /absolute/path/to/catalog/scopes/common
-    - /absolute/path/to/catalog/scopes/compilers/<compiler>/<version>
-    - /absolute/path/to/configs/common
+    - <workspace-root>/catalog/scopes/common
+    - <workspace-root>/catalog/scopes/compilers/<compiler>/<version>
+    - <workspace-root>/configs/common
 
   specs:
     - hdf5@<version>~mpi+fortran %<compiler>@<version>
@@ -619,10 +620,10 @@ compiler/MPI binding named by that scope:
 ```yaml
 spack:
   include::
-    - /absolute/path/to/catalog/scopes/common
-    - /absolute/path/to/catalog/scopes/compilers/<compiler>/<version>
-    - /absolute/path/to/catalog/scopes/mpi/<provider>/<version>/<compiler-axis>
-    - /absolute/path/to/configs/common
+    - <workspace-root>/catalog/scopes/common
+    - <workspace-root>/catalog/scopes/compilers/<compiler>/<version>
+    - <workspace-root>/catalog/scopes/mpi/<provider>/<version>/<compiler-axis>
+    - <workspace-root>/configs/common
 
   specs:
     - hdf5@<version>+mpi+fortran %<toolchain-name>
@@ -646,7 +647,7 @@ The usual sections are:
 
 An independent environment is simply a directory containing `spack.yaml`; use
 its absolute directory with `spack -e`. Do not copy a populated workspace
-manifest alone if it has relative includes—the referenced tree must remain
+manifest alone if it has relative includes - the referenced tree must remain
 available.
 
 ## 8. Concretize

@@ -136,14 +136,16 @@ and a concise installation/readme file.
 The public seam should accept product concepts rather than every internal file
 path separately. A candidate operator interface is:
 
-```text
+```bash
+export STACK_CONTENT_ROOT="<site-selected Stack Content checkout>"
+
 stack-composer show \
-  --content /shared/cse/stack-content \
+  --content "$STACK_CONTENT_ROOT" \
   --system wheat \
   --stack cse
 
 stack-composer render \
-  --content /shared/cse/stack-content \
+  --content "$STACK_CONTENT_ROOT" \
   --system wheat \
   --stack cse \
   --release 2026.09
@@ -269,13 +271,13 @@ must not depend on it.
 
 ## 9. Transition phases
 
-### Phase 0 — Record the support and authority decisions
+### Phase 0 - Record the support and authority decisions
 
 Before changing paths, record the final GitLab group, supported Linux
 OS/glibc/kernel floors, architectures, GitHub mirror policy, release signing
 method, and whether third-party provenance URLs are allowed.
 
-### Phase 1 — Inventory references and dependencies
+### Phase 1 - Inventory references and dependencies
 
 Produce a machine-readable inventory across all four repositories:
 
@@ -291,32 +293,32 @@ Produce a machine-readable inventory across all four repositories:
 Classify each entry as rename, mirror/vendor, preserve for provenance, or
 remove.
 
-### Phase 2 — Release Cluster Inspector
+### Phase 2 - Release Cluster Inspector
 
 Add the GitLab release pipeline, cross-build matrix, offline dependency input,
 checksums/SBOM/signing, and target smoke tests. Change the project-owned Go
 module path only after the final GitLab namespace exists.
 
-### Phase 3 — Simplify and package Stack Composer
+### Phase 3 - Simplify and package Stack Composer
 
 First record the desired operator workflow from the completed trials. Then
 implement the smaller content-root-based public interface and the standalone
 packaging spike. Select the bundle only after it passes the supported target
 matrix without system Python, pip, Git, or network access.
 
-### Phase 4 — Cut GitLab over as authority
+### Phase 4 - Cut GitLab over as authority
 
 Import complete repository history, protect branches/tags, establish CI and
 release permissions, publish the schema/content artifacts, change project-owned
 links and module paths, and verify release provenance end to end.
 
-### Phase 5 — Establish the optional private GitHub mirror
+### Phase 5 - Establish the optional private GitHub mirror
 
 If retained, configure or document a one-way GitLab-to-GitHub flow. Prove that
 turning GitHub access off does not affect development release builds from the
 internal dependency inputs or any target-host operation.
 
-### Phase 6 — Target-host acceptance
+### Phase 6 - Target-host acceptance
 
 Install only the released artifacts and Stack Content on representative clean
 systems. Verify profile generation, rendering, schema validation, deterministic
@@ -351,4 +353,3 @@ The transition is complete when:
 - [Stack build handoff](stack_build_handoff_note_v1.md)
 - [Cluster Inspector design](cluster_inspector_stack_profile_design_v1.md)
 - [Deployment inputs and ownership](deployment_inputs_and_ownership_v1.md)
-

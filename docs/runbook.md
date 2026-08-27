@@ -1030,8 +1030,8 @@ only that confirmed tree. Set the recorded `$CSE_GROUP`, add group
 read/write/search, remove access for others, and restore setgid on every
 directory. Use a default ACL for the recorded group when the filesystem
 supports it; otherwise every builder must keep `umask 0007`. Do not apply a
-recursive command to `/p/app/CSE` or another shared parent containing unrelated
-releases.
+recursive command to the parent of `$CSE_TRIAL_ROOT` or another shared parent
+containing unrelated releases.
 
 ## 6. Generate and inspect the static catalog
 
@@ -1111,9 +1111,9 @@ normal Spack specs. For example:
 ```yaml
 spack:
   include::
-    - /absolute/catalog/path/scopes/common
-    - /absolute/catalog/path/scopes/compilers/<provider>/<version>
-    - /absolute/catalog/path/scopes/mpi/<provider>/<version>/<compiler-axis>
+    - <catalog-root>/scopes/common
+    - <catalog-root>/scopes/compilers/<provider>/<version>
+    - <catalog-root>/scopes/mpi/<provider>/<version>/<compiler-axis>
 
   concretizer:
     unify: false
@@ -2517,7 +2517,8 @@ git -C "$SPACK_ROOT" rev-parse HEAD \
 
 After every validation passes, freeze the exact publication workspace and
 release. These commands apply only to the resolved publication targets; never
-run them against `$CSE_PUBLISHED_ROOT`, `/p/app/CSE`, or another shared parent:
+run them against `$CSE_PUBLISHED_ROOT`, the parent of `$CSE_TRIAL_ROOT`, or
+another shared parent:
 
 ```bash
 for root in "$PUBLISH_WORKSPACE" "$PUBLISH_RELEASE_ROOT"; do

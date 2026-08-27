@@ -141,14 +141,17 @@ Example manual environment:
 ```yaml
 spack:
   include::
-  - /apps/cse/spack-config-catalog/blueback/current/scopes/common
-  - /apps/cse/spack-config-catalog/blueback/current/scopes/compilers/gcc/14.3.0
-  - /apps/cse/spack-config-catalog/blueback/current/scopes/mpi/cray-mpich/9.1.0/gcc-14.3.0
-  - /apps/cse/spack-config-catalog/blueback/current/scopes/gpu/rocm/7.0.0
+  - <catalog-root>/blueback/current/scopes/common
+  - <catalog-root>/blueback/current/scopes/compilers/gcc/14.3.0
+  - <catalog-root>/blueback/current/scopes/mpi/cray-mpich/9.1.0/gcc-14.3.0
+  - <catalog-root>/blueback/current/scopes/gpu/rocm/7.0.0
   specs:
   - hdf5+mpi
   - netcdf-c+mpi
 ```
+
+`<catalog-root>` represents the deployment-selected absolute catalog root and
+must be replaced before this illustrative environment is used.
 
 Spack, not Stack Composer, decides whether each included package config is used
 during concretization.

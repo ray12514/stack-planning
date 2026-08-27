@@ -47,7 +47,7 @@ Minimum policy fields:
 | `compiler.compatibility` | How selected compiler relates to MPI flavor baseline | for Cray MPICH: same family and selected version >= baseline |
 | `gpu.provider/version` | GPU runtime selected for GPU lanes | ROCm 7 with `cray-mpich@9.1.0`; ROCm 6.x with older CPE-era MPICH |
 | `gtl.source` | How GTL is tied to MPI | GTL path must come from the selected `cray-mpich` prefix |
-| `libfabric.source` | Preferred fabric runtime source | prefer Cray platform libfabric over site/admin `/p/app/unsupported` copies unless policy explicitly opts in |
+| `libfabric.source` | Preferred fabric runtime source | prefer Cray platform libfabric over site/admin unsupported-software roots unless policy explicitly opts in |
 | `libsci.source` | Math runtime source | select LibSci from the same platform runtime set/CPE policy |
 | `pmi_pals.source` | Launcher/runtime integration source | select PMI/PALS from platform runtime set or explicit package repo policy |
 

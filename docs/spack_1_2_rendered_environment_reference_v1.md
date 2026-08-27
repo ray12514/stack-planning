@@ -12,6 +12,10 @@ publishes reusable configuration scopes. The full render additionally owns
 environment manifests, views, module-generation policy, front-door modulefiles,
 lane selectors, and the build workspace.
 
+Angle-bracket path components in the examples are explanatory roots supplied
+by deployment or workspace context. Rendered YAML contains reviewed absolute
+paths instead of those placeholders.
+
 ## Spack 1.2 ownership seam
 
 Use Spack-native configuration files wherever Spack provides one.
@@ -130,7 +134,7 @@ modules:
     use_view: cse_modules
     arch_folder: false
     roots:
-      tcl: /shared/cse/modules/<release>/<system>/<stack>/<compiler>/core
+      tcl: <modules-root>/<release>/<system>/<stack>/<compiler>/core
     tcl:
       hash_length: 0
       exclude_implicits: true
@@ -208,12 +212,12 @@ spack:
 
   view:
     foundation:
-      root: /shared/cse/views/<release>/<system>/<stack>/gcc/foundation
+      root: <views-root>/<release>/<system>/<stack>/gcc/foundation
       group: foundation
       link: roots
       link_type: symlink
     cse_modules:
-      root: /shared/cse/views/<release>/<system>/<stack>/gcc/core-modules
+      root: <views-root>/<release>/<system>/<stack>/gcc/core-modules
       group: core
       link: roots
       link_type: symlink
@@ -249,8 +253,8 @@ toolchains:
 ```yaml
 spack:
   include::
-  - /catalog/scopes/compilers/gcc/11.5.0
-  - /configs/surfaces/shared/toolchains.yaml
+  - <workspace-root>/catalog/scopes/compilers/gcc/11.5.0
+  - <workspace-root>/configs/surfaces/shared/toolchains.yaml
   concretizer:
     unify: false
     reuse: false
@@ -272,7 +276,7 @@ spack:
       - ['target=x86_64_v3 %cse_shared']
   view:
     compiler:
-      root: /shared/cse/views/gcc/compiler
+      root: <views-root>/gcc/compiler
       link: roots
       group: compiler
 ```
@@ -428,7 +432,7 @@ spack:
 
   view:
     cse_modules:
-      root: /shared/cse/views/<release>/<system>/<stack>/gcc/gpu-craympich-gfx942-modules
+      root: <views-root>/<release>/<system>/<stack>/gcc/gpu-craympich-gfx942-modules
       link: roots
       link_type: symlink
       projections:
@@ -514,7 +518,7 @@ spack:
 
   view:
     cse_modules:
-      root: /shared/cse/views/<release>/<system>/<stack>/gcc/gpu-openmpi-sm_80-modules
+      root: <views-root>/<release>/<system>/<stack>/gcc/gpu-openmpi-sm_80-modules
       group: payload
       link: roots
       link_type: symlink

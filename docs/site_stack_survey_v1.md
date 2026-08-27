@@ -153,7 +153,8 @@ A survey of how eleven major HPC centers build and expose user-facing scientific
 - **Module system**: Lmod (hierarchical)
 - **Exposure model**:
   - Hierarchical module organization by compiler and version
-  - Pre-upgrade modules accessed via: `module use /software/projects/$PAWSEY_PROJECT/setonix/modules/zen3/gcc/11.2.0`
+  - Pre-upgrade modules accessed by adding the reviewed Setonix module root and
+    its `zen3/gcc/11.2.0` subtree to `MODULEPATH`
   - Version pinning via subdirectory structure (zen3/gcc/11.2.0, etc.)
   - Migrating from in-house Maali package manager to Spack for "more efficient scientific software management"
 - **Environments for users?**: Not explicitly documented; compiler/version-specific paths serve as implicit environments.

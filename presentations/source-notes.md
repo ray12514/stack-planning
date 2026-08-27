@@ -19,7 +19,7 @@ rebuilt repeatedly across many separate stacks).
 
 **What it describes:** Evolution of Spack's own environment/build-cache
 machinery to support shared, layered "stacks" as build-farm infrastructure
-feeding CI/release caches — the underlying Spack capability other sites
+feeding CI/release caches - the underlying Spack capability other sites
 (NASA, ALCF, etc.) build their production stacks on top of.
 
 **Architecture / layers:**
@@ -34,22 +34,22 @@ feeding CI/release caches — the underlying Spack capability other sites
   CSE lanes): **Foundation** (Base/GCC, Build Systems, Tutorial) -> column
   of **GPU, MPI, Python Base, Toolchains** -> **Software Integrations**
   (Vis/Compute/ML) -> **Distribution** (E4S, Radiuss). Each column
-  concretizes incrementally on the one before — a base-then-fan-out design.
+  concretizes incrementally on the one before - a base-then-fan-out design.
 - Talk is Spack-internal build/cache graph focused; user-facing
   modules/views are out of scope here.
 
 **Concrete details:**
 - `unify: when_possible` used minimizing E4S for HDF5; "version pinning is
-  not enough" — many packaging bugs surfaced anyway.
+  not enough" - many packaging bugs surfaced anyway.
 - Large-environment "dark art": version pinning, incremental
   concretization, **environment chaining** (Build Cache reuse, Include
-  Concrete/Environment, `reuse: from: type: environment, path: EnvA`) —
-  mostly landed in Spack v1.0.
+  Concrete/Environment, `reuse: from: type: environment, path: EnvA`) mostly
+  landed in Spack v1.0.
 - A "stack" generates one child CI pipeline, is a list of specs, may only
   push to one cache ("buildcache-destination"); the cache holds only what
   its stack built.
 - Dependency Holes: layered caches (ML/GPU/Build Systems/Foundation) need
-  lower-layer packages resolvable without rebuild — solved via
+  lower-layer packages resolvable without rebuild - solved via
   location-independent metadata, cache redirection (`deps.json` -> base
   cache URL), and new **Index Views** (multiple indices per cache, built
   from environment specs, appended to existing index).
@@ -63,7 +63,7 @@ feeding CI/release caches — the underlying Spack capability other sites
   dimensions of Base," "Create Distribution Views."
 
 **Key quotes:**
-1. "Reindex timing out… Stacks -> copy -> >32TB" (p. 8) — the original
+1. "Reindex timing out… Stacks -> copy -> >32TB" (p. 8) - the original
    pain point driving the redesign.
 2. "unify: when_possible / Version Pinning is not enough! / Many packaging
    bugs" (p. 19).
@@ -78,11 +78,11 @@ feeding CI/release caches — the underlying Spack capability other sites
 
 ## Document 2: "Mixing and Matching and Multiple Versions, Oh My!" (NASA JSC)
 
-**Who/where:** Brad Richardson (presenter), Darby Vicker, Shahzeb Siddiqui
-— **Flight Sciences Laboratory, NASA Johnson Space Center**. HPSF
+**Who/where:** Brad Richardson (presenter), Darby Vicker, and Shahzeb Siddiqui,
+**Flight Sciences Laboratory, NASA Johnson Space Center**. HPSF
 Conference / Spack Project Meeting, 19 March 2026. Siddiqui is credited as
 a former primary maintainer of **E4S**, bringing that expertise into FSL's
-design — an explicit E4S -> NASA lineage link.
+design - an explicit E4S -> NASA lineage link.
 
 **What it describes:** NASA JSC FSL's production Spack deployment
 replacing "RPM installations + manual builds" (gcc 4.8, HDF5 1.10, custom
@@ -95,9 +95,9 @@ multi-compiler/multi-MPI HPC stack.
   `module load gcc/12.3.0` -> `module load openmpi/4.1.6` -> `module load
   hdf5/1.14.3`; loading a compiler updates available MPIs, loading an MPI
   updates available libs/apps. **Users never run a spack command**
-  ("clean separation of concerns" — Spack + Lmod). Clearest "modules as
+  ("clean separation of concerns" - Spack + Lmod). Clearest "modules as
   user contract, Spack hidden" statement across all documents.
-- Multi-Environment Strategy — six ordered environments, each reusing the
+- Multi-Environment Strategy - six ordered environments, each reusing the
   prior: **(1) compilers** (gcc/oneAPI/NVHPC/LLVM, 9–12 versions each) ->
   **(2) base** (~60 single-build pkgs: cmake, git, pandoc) -> **(3) mpis**
   (OpenMPI/MPICH/MPT, built per compiler) -> **(4) hpc-libs** (HDF5,
@@ -114,13 +114,13 @@ multi-compiler/multi-MPI HPC stack.
   `upstreams:` needed), `compiler_mixing: false` (blocks building a
   dependency with a different compiler than its parent), `%%`
   (double-percent) toolchain propagation (whole dependency tree prefers
-  same compiler toolchain) — the direct mechanism enforcing one
+  same compiler toolchain) - the direct mechanism enforcing one
   lane/compiler+MPI with no cross-contamination.
 - Failure modes: concretizer refused `openmpi` due to a stale
   `legacylaunchers` variant no longer valid for OpenMPI 5+ (one-line fix);
   Boost wouldn't compile with Intel/oneAPI, patched and **upstreamed into
   the Spack packages repo**; 270+ root specs in one environment was
-  "impractical," concretizer hung (GH issue #51180) — fixed by splitting
+  "impractical," concretizer hung (GH issue #51180) - fixed by splitting
   into the six environments above.
 - Build economics: full from-scratch build 12+ hours; failure at hour 11
   meant "try again tomorrow" pre-buildcache; buildcache cut rebuilds to
@@ -133,7 +133,7 @@ multi-compiler/multi-MPI HPC stack.
 - Config layout: `setup-env.sh`, `build.sh`, `spack-configs/fsl-25.08/`
   with per-layer `*.tmpl.yaml` (32bit/base/compilers/hpc-apps/hpc-libs/
   mpis/shared/source) plus concretizer.yaml, definitions.yaml,
-  externals/system.yaml, repos.yaml, toolchains.yaml — sed-templated for
+  externals/system.yaml, repos.yaml, toolchains.yaml - sed-templated for
   `$SYSTEM`, `$DEPLOY_DATE`, etc. Close kin to CSE's per-lane YAML files.
 
 **Key quotes:**
@@ -154,12 +154,12 @@ multi-compiler/multi-MPI HPC stack.
 ## Document 3: "CSE Spack Editable Build Flows" (project's own diagram deck)
 
 **Who/where:** Two-slide diagram deck; `docProps` metadata lists creator
-"OpenAI," created 2026-05-30 — this is the CSE project's own working
+"OpenAI," created 2026-05-30 - this is the CSE project's own working
 diagram (AI-assisted), not third-party prior art. Included as the "target
 shape" the convergence narrative explains, quotable in the CSE project's
 own vocabulary.
 
-**What it describes:** Two parallel build-flow diagrams — **Slide 1:
+**What it describes:** Two parallel build-flow diagrams - **Slide 1:
 "Linux System Example"** (external AOCC + common GCC + shared Core +
 fan-out compiler/MPI lanes) and **Slide 2: "Cray System Example"** (Cray PE
 compilers + shared Core + fan-out Cray MPICH lanes, optional Open MPI).
@@ -188,7 +188,7 @@ release).
   systems."
 - Each lane builds HDF5/NetCDF (serial or +MPI); MPI lanes add
   PnetCDF/TAU.
-- User modules named explicitly — Linux: `CSE/Core`, `CSE/GCC/serial`,
+- User modules named explicitly - Linux: `CSE/Core`, `CSE/GCC/serial`,
   `CSE/GCC/mpi-openmpi`, `CSE/AOCC/serial`, `CSE/AOCC/mpi-openmpi`; Cray:
   `CSE/Core`, `CSE/CCE/serial`, `CSE/CCE/mpi-craympich`, `CSE/GCC/serial`,
   `CSE/GCC/mpi-craympich`, `CSE/optional/OpenMPI`.
@@ -245,7 +245,7 @@ the shared policy and renderer must not hard-code any of these machine names.
   integrations), NASA's `compiler_mixing: false` + `%%` toolchain
   propagation, and CSE's "Compiler + MPI combinations stay isolated" all
   enforce the same rule: no silent cross-toolchain linking.
-- **Large flat environments don't scale — break into a hierarchy.** NASA
+- **Large flat environments don't scale - break into a hierarchy.** NASA
   hit concretizer hangs at 270+ root specs in one environment (GH #51180)
   and split into six ordered environments; Kitware arrived independently at
   `unify: when_possible` + incremental concretization + environment
@@ -272,5 +272,5 @@ the shared policy and renderer must not hard-code any of these machine names.
 - **Community lineage is explicit, not incidental.** NASA's deck credits
   Shahzeb Siddiqui (former E4S maintainer) for bringing E4S ideas into
   FSL's design; Kitware's talk positions E4S/EESSI/PESO/HPSF Binaries WG as
-  the recognized precedent set any new "common stack" effort — including
-  CSE — is implicitly answering to.
+  the recognized precedent set any new "common stack" effort - including
+  CSE - is implicitly answering to.

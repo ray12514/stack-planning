@@ -16,7 +16,7 @@ the production renderer.
 
 ## Current findings
 
-### ICT-001 — Trial CMake versions were absent from the pinned recipes
+### ICT-001 - Trial CMake versions were absent from the pinned recipes
 
 - Stage: preflight package policy
 - Scope: all systems and compiler surfaces
@@ -31,7 +31,7 @@ the production renderer.
 - Disposition: retain the overlay until the pinned recipe generation supplies
   the exact approved versions; then remove the redundant extension directly.
 
-### ICT-002 — The builtin CCE compiler recipe did not cover the trial releases
+### ICT-002 - The builtin CCE compiler recipe did not cover the trial releases
 
 - Stage: provider-policy preparation
 - Scope: Cray CCE surfaces
@@ -47,7 +47,7 @@ the production renderer.
 - Disposition: keep this isolated in the package overlay. Do not add CCE
   assumptions to generic Stack Composer code.
 
-### ICT-003 — Architecture-specific Miniforge roots rejected microarchitecture targets
+### ICT-003 - Architecture-specific Miniforge roots rejected microarchitecture targets
 
 - Stage: concretization
 - Scope: Core environments
@@ -62,7 +62,7 @@ the production renderer.
   lockfile verifier enforces this exception.
 - Disposition: generic package-class exception in trial package policy.
 
-### ICT-004 — Cray MPICH ABI helper modules were mistaken for activation modules
+### ICT-004 - Cray MPICH ABI helper modules were mistaken for activation modules
 
 - Stage: system discovery and static rendering
 - Scope: Cray systems
@@ -79,7 +79,7 @@ the production renderer.
 - Disposition: generic Cray provider adapter plus system hint data; no manual
   edits to rendered catalogs.
 
-### ICT-005 — A compiler prefix named the executable directory incorrectly
+### ICT-005 - A compiler prefix named the executable directory incorrectly
 
 - Stage: GCC Core installation on Blueback
 - Scope: inspected Cray-native GCC externals
@@ -97,7 +97,7 @@ the production renderer.
   failure from a `noexec` filesystem.
 - Disposition: generic provider-path normalization in Cluster Inspector.
 
-### ICT-006 — GCC LAPACK inherited the Cray compiler-family marker
+### ICT-006 - GCC LAPACK inherited the Cray compiler-family marker
 
 - Stage: GCC Common installation on Blueback
 - Scope: a source-built GCC process launched from an ambient Cray programming
@@ -119,7 +119,7 @@ the production renderer.
 - Disposition: generic build-process hygiene in the workspace template, with
   Blueback recovery documented in its system runbook.
 
-### ICT-007 — Repeated producer roots initially resolved to parallel dependency hashes
+### ICT-007 - Repeated producer roots initially resolved to parallel dependency hashes
 
 - Stage: lockfile verification and preflight builds
 - Scope: repeated compiler environments
@@ -136,7 +136,7 @@ the production renderer.
 - Disposition: package policy plus lockfile assertions. Do not replace
   `unify:false` with global unification.
 
-### ICT-008 — GCC producer identity changed when Binutils was implicit
+### ICT-008 - GCC producer identity changed when Binutils was implicit
 
 - Stage: preflight installation and lock verification
 - Scope: shared GCC producer
@@ -169,7 +169,7 @@ the production renderer.
   release.
 - Disposition: shared-compiler producer policy and lockfile verification.
 
-### ICT-009 — Cray MPICH clean build environment omitted its libfabric runtime
+### ICT-009 - Cray MPICH clean build environment omitted its libfabric runtime
 
 - Stage: GCC MPI installation on Blueback
 - Scope: `fftw@3.3.11+mpi` in the shared GCC 12.5.0 / external
@@ -205,7 +205,7 @@ the production renderer.
 - Disposition: generic Cray MPI provider policy. Do not add an FFTW recipe
   exception, global `LD_LIBRARY_PATH`, `--dirty`, or a Blueback-only version.
 
-### ICT-010 — Dakota requested the removed compiled Boost.System component
+### ICT-010 - Dakota requested the removed compiled Boost.System component
 
 - Stage: GCC MPI installation on Blueback
 - Scope: Dakota 6.23.0 and 6.24.0 with Boost 1.90.0
@@ -252,7 +252,7 @@ the production renderer.
   full-install results. Do not fabricate a `boost_system` CMake package, alter
   global CMake lookup behavior, or replace the approved Boost build.
 
-### ICT-011 — CMake selected an unrelated ambient MPI launcher
+### ICT-011 - CMake selected an unrelated ambient MPI launcher
 
 - Stage: GCC MPI installation on Blueback
 - Scope: Dakota CMake configuration with external Cray MPICH 9.1.0
@@ -284,6 +284,48 @@ the production renderer.
 - Disposition: generic provider/scheduler policy slice. It does not block the
   narrow Dakota Boost.System patch or require rebuilding already completed
   non-MPI lanes.
+
+### ICT-012 - HDF5 2.1.0 omitted the MPI Fortran module directory
+
+- Stage: AOCC MPI installation on Raider
+- Scope: `hdf5@2.1.0+mpi+fortran+hl` with AOCC 4.1.0 and CSE-built Open MPI
+  4.1.8
+- Status: resolved and validated on Raider; AOCC environment build resumed
+- Symptom: AOCC Flang failed while compiling `H5DOFF.F90` because it could not
+  open `mpi_f08_types.mod`.
+- Confirmed boundaries: Open MPI was built with the AOCC compiler surface;
+  `mpifort --showme:command` selected AOCC Flang; both `mpi_f08.mod` and
+  `mpi_f08_types.mod` existed; and a direct `use mpi_f08` compile passed.
+  CMake recorded `MPI_Fortran_MODULE_DIR`, but the failing HDF5 compile command
+  did not include it.
+- Root cause: HDF5 2.1.0's CMake logic supplies `MPI_Fortran_INCLUDE_DIRS` to
+  the static and shared high-level Fortran targets but omits the separately
+  discovered `MPI_Fortran_MODULE_DIR`. Open MPI may place supporting Fortran
+  module files only in that directory.
+- Immediate recovery: enter a shell prepared by `cse-build`, copy the tracked
+  HDF5 overlay into the generated workspace repository with CSE-group modes,
+  and force replacement of the affected AOCC MPI roots with
+  `concretize -f --reuse-deps`. Verify that the HDF5 hash changes while the
+  Open MPI hash remains unchanged, then retry the concrete HDF5 2.1.0 root.
+- Permanent mitigation: the `cse_trials` HDF5 overlay applies
+  `parallel-fortran-module-dir.patch` only to
+  `@2.1.0+mpi+fortran+hl`. The patch adds `MPI_Fortran_MODULE_DIR` to both
+  high-level Fortran library targets. Workspace verification rejects a
+  missing, incomplete, or broadened overlay before build actions.
+- Validation: the patch applies cleanly to the official HDF5 2.1.0 source;
+  focused overlay tests cover both targets and the exact version/variant gate;
+  the Raider control compile passed; and the patched AOCC build passed the
+  previously failing HDF5 target and resumed the environment build.
+- Operational guard: recovery commands must fail immediately unless
+  `CSE_BUILD_WORKSPACE`, the CSE group, platform compiler, and MPI names are
+  initialized by `cse-build`. An empty workspace variable previously caused
+  the destination to lose its workspace prefix; no permission escalation or
+  root-level directory change is valid recovery.
+- Disposition: isolated upstream-compatibility patch in the CSE package
+  overlay, tracked against
+  [HDFGroup/hdf5#6581](https://github.com/HDFGroup/hdf5/issues/6581). Retain it
+  until the pinned package repository contains the fix and the affected
+  parallel Fortran surfaces validate without the overlay.
 
 ## Recording the next finding
 

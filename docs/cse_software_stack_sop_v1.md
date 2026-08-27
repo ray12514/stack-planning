@@ -1,4 +1,4 @@
-# CSE Spack Build and Publication SOP — Working Draft
+# CSE Spack Build and Publication SOP - Working Draft
 
 ## 1. Purpose
 

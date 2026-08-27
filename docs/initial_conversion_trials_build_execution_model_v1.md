@@ -22,8 +22,8 @@ The design has four goals:
    filesystem and Spack locks support it;
 3. reuse identical concrete DAGs rather than maintaining unnecessary copies of
    GCC, Foundation, build tools, and selected dependencies; and
-4. make the resolved lockfiles—not the installed prefixes or the apparent YAML
-   intent—the authority for what will be built and published.
+4. make the resolved lockfiles - not the installed prefixes or the apparent YAML
+   intent - the authority for what will be built and published.
 
 The generated verifier is the executable statement of the fourth goal. It
 checks both the rendered inputs and the concrete DAGs because a valid-looking
@@ -355,7 +355,8 @@ The verifier therefore has two modes.
 `verify-lockfiles.py --workspace-only` runs before concretization or
 installation. It rejects stale or incomplete generated inputs, including:
 
-- an incomplete Dakota overlay;
+- a missing, incomplete, or broadened active package overlay, currently Dakota
+  and HDF5 2.1.0;
 - a GCC producer without `+binutils`;
 - a shared environment missing the toolchain include or `%cse_shared` on a
   downstream group;
@@ -435,9 +436,9 @@ renderer takes over:
    another build driver remains responsible for process placement and install
    execution.
 7. **Separate general DAG invariants from trial package policy.** Compiler,
-   target, MPI, environment-set, and hash-sharing checks are general. Dakota or
-   particular NetCDF/HDF5 chain checks should be emitted from package policy or
-   release acceptance data.
+   target, MPI, environment-set, and hash-sharing checks are general. Dakota,
+   HDF5 overlay, or particular NetCDF/HDF5 chain checks should be emitted from
+   package policy or release acceptance data.
 8. **Classify shared and builder-partitioned mutable paths explicitly.** Source
    archives remain shared. Provider, patch, index, and concretization metadata
    uses a builder-named partition below the deployment-owned cache root. The

@@ -2,7 +2,7 @@
 
 **Status:** Current implementation inventory
 
-**Date:** 2026-08-24
+**Date:** 2026-08-27
 
 **Applies to:** Initial Conversion Trials on Spack 1.2.2 with the `spack-packages` `v2026.06.0` repository pin
 
@@ -34,13 +34,14 @@ Primary repository rules are in [Cluster Inspector AGENTS.md](../../cluster-insp
 
 The current CSE implementation does not modify Spack core. It uses Spack-native configuration, an isolated package repository, rendered environments, and operational validation around Spack.
 
-There are three active package overlays:
+There are four active package overlays:
 
 - `cmake`: adds the two trial versions missing from the pinned package repository.
 - `cce`: records the CCE versions available on the trial systems while retaining an external-only compiler package.
 - `dakota`: applies a narrow source patch that removes Dakota's obsolete compiled Boost.System linkage.
+- `hdf5`: supplies CMake's separately discovered MPI Fortran module directory to HDF5 2.1.0's high-level parallel Fortran targets.
 
-Only the Dakota change is presently a strong upstream defect candidate. The CMake versions are already present on the current `spack-packages` development branch, so that overlay is a pin-compatibility bridge. The CCE overlay is partly upstreamable version metadata and partly local platform policy. No Cray MPICH, libfabric, Open MPI, HDF5, NetCDF, Boost, Python, or Miniforge `package.py` is overlaid in the active trial repository.
+The Dakota and HDF5 changes are upstream defect candidates. The CMake versions are already present on the current `spack-packages` development branch, so that overlay is a pin-compatibility bridge. The CCE overlay is partly upstreamable version metadata and partly local platform policy. No Cray MPICH, libfabric, Open MPI, NetCDF, Boost, Python, or Miniforge `package.py` is overlaid in the active trial repository.
 
 The largest body of CSE-specific work is configuration and provider adaptation, not package patching. It includes exact external boundaries, compiler/MPI pairing, conservative CPU targets, grouped concretization, module projections, isolated Spack state, build-stage selection, and lockfile verification.
 
@@ -54,7 +55,7 @@ These settings intentionally differ from an unconstrained Spack installation. Th
 | --- | --- | --- |
 | Spack version is pinned to 1.2.2 | [trial workspace blueprint](../../stack-content/pilots/cse-pilot/blueprint.yaml), [site-values example](../../stack-content/pilots/cse-pilot/site-values.example.yaml) | Release input, not a Spack default change. The official release is [Spack v1.2.2](https://github.com/spack/spack/releases/tag/v1.2.2). |
 | Package repository is pinned to `spack-packages` `v2026.06.0` | [repository template](../../stack-content/pilots/cse-pilot/templates/configs/common/repos.yaml.j2), [package repository manifest](../../stack-content/pilots/cse-pilot/templates/package-repos/spack_repo/cse_trials/repo.yaml) | Prevents package recipe drift during the trial. The official pin is [spack-packages v2026.06.0](https://github.com/spack/spack-packages/releases/tag/v2026.06.0). |
-| Local CSE trial repository precedes the builtin repository | [repository template](../../stack-content/pilots/cse-pilot/templates/configs/common/repos.yaml.j2) | Makes the three reviewed overlays deterministic and visible. |
+| Local CSE trial repository precedes the builtin repository | [repository template](../../stack-content/pilots/cse-pilot/templates/configs/common/repos.yaml.j2) | Makes the four reviewed overlays deterministic and visible. |
 | User, site, and system Spack configuration is disabled | [workspace launcher template](../../stack-content/pilots/cse-pilot/templates/cse-build.j2), [workspace setup template](../../stack-content/pilots/cse-pilot/templates/env/setup-build-env.sh.j2) | Prevents ambient Spack configuration from silently changing a reviewed lockfile. The launcher also verifies active scopes. |
 | Install tree and source cache are shared release paths; miscellaneous cache is partitioned by builder; bootstrap state is builder-private | [config template](../../stack-content/pilots/cse-pilot/templates/configs/common/config.yaml.j2), [bootstrap template](../../stack-content/pilots/cse-pilot/templates/configs/common/bootstrap.yaml.j2), [site-values example](../../stack-content/pilots/cse-pilot/site-values.example.yaml) | Separates durable shared state from mutable per-builder state while preserving handoff between CSE builders. |
 | `locks: true` | [config template](../../stack-content/pilots/cse-pilot/templates/configs/common/config.yaml.j2) | Explicit concurrency safety for the shared install tree. |
@@ -248,11 +249,12 @@ Human and module names do not always equal Spack package names. The renderer use
 - `oneapi` to `intel-oneapi-compilers`;
 - Intel MPI to `intel-oneapi-mpi`.
 
-The adapter also owns the oneAPI prefix-layout translation. Cluster Inspector
-retains the verified component directory, such as
-`/p/app/intel/2024.2.1/compiler/2024.2`, because that is where the language
-drivers live. Spack's `intel-oneapi-compilers` external prefix is instead the
-suite root, `/p/app/intel/2024.2.1`; its package implementation appends
+The adapter also owns the oneAPI prefix-layout translation. Let
+`$ONEAPI_SUITE_ROOT` name the profile-selected suite root and
+`$ONEAPI_DRIVER_ROOT` name its `compiler/<major.minor>` component. Cluster
+Inspector retains `$ONEAPI_DRIVER_ROOT` because that is where the language
+drivers live. Spack's `intel-oneapi-compilers` external prefix is instead
+`$ONEAPI_SUITE_ROOT`; its package implementation appends
 `compiler/<major.minor>` itself. Stack Composer therefore renders the suite
 root as the external `prefix` while retaining the exact component paths for
 `icx`, `icpx`, and `ifx`. Passing the component directory as the package prefix
@@ -269,7 +271,7 @@ The relevant discovery and model paths are [compiler probe](../../cluster-inspec
 
 ## 7. Active package overlays
 
-The active repository contains exactly three package overlays. The overlay set is verified by [test_package_repo_overlays.py](../../stack-content/pilots/cse-pilot/tests/test_package_repo_overlays.py) and by each generated workspace before build actions.
+The active repository contains exactly four package overlays. The overlay set is verified by [test_package_repo_overlays.py](../../stack-content/pilots/cse-pilot/tests/test_package_repo_overlays.py) and by each generated workspace before build actions.
 
 ### 7.1 CMake
 
@@ -330,6 +332,44 @@ The overlay extends the builtin Dakota package and applies the patch to Dakota 6
 3. Attach the CSE patch-application test and target-system build evidence.
 4. Retire the local overlay only after the pinned repository contains the fix and both Serial and MPI Dakota roots pass the CSE lock and install validation.
 
+### 7.4 HDF5 2.1.0 parallel Fortran module discovery
+
+**Local implementation:**
+
+- [HDF5 overlay](../../stack-content/pilots/cse-pilot/templates/package-repos/spack_repo/cse_trials/packages/hdf5/package.py)
+- [MPI Fortran module-directory patch](../../stack-content/pilots/cse-pilot/templates/package-repos/spack_repo/cse_trials/packages/hdf5/parallel-fortran-module-dir.patch)
+- [overlay tests](../../stack-content/pilots/cse-pilot/tests/test_package_repo_overlays.py)
+
+The overlay extends the builtin HDF5 package and applies the patch only to
+`hdf5@2.1.0+mpi+fortran+hl`. The patch adds CMake's
+`MPI_Fortran_MODULE_DIR` to both static and shared high-level Fortran targets.
+It does not patch HDF5 1.10.6, change Open MPI, or add an ambient include path.
+
+**Evidence:** Raider's AOCC 4.1.0 MPI environment selected the AOCC-built Open
+MPI 4.1.8 prefix. A direct `use mpi_f08` compile passed, both required module
+files existed, and CMake recorded their separate module directory. The
+unpatched HDF5 2.1.0 `H5DOFF.F90` compile command omitted that directory and
+failed on `mpi_f08_types.mod`. After the overlay was copied into the generated
+workspace repository and the affected root was replaced with
+`concretize -f --reuse-deps`, HDF5 passed the previously failing high-level
+Fortran targets and the AOCC environment resumed building. This matches the
+upstream defect in [HDFGroup/hdf5#6581](https://github.com/HDFGroup/hdf5/issues/6581).
+
+**Operational rule:** Run overlay recovery from a shell prepared by
+`cse-build`. Assert that `CSE_BUILD_WORKSPACE`, the CSE group, compiler name,
+and MPI name are nonempty before constructing a destination path. A missing
+workspace variable must fail immediately instead of collapsing the destination
+to a root-level package-repository path. Force root replacement only in the
+affected environment, verify that the HDF5 hash changes and the Open MPI hash
+does not, then install the concrete HDF5 2.1.0 root before resuming the
+environment.
+
+**Upstream disposition:** Track the existing HDF5 issue and submit the narrow
+target-include correction with the Raider AOCC/Open MPI evidence. Retire the
+local overlay only after the pinned package-repository generation contains the
+fix and both relevant compiler surfaces pass parallel Fortran builds without
+the overlay.
+
 ## 8. Package constraints that are not overlays
 
 Several issues were resolved through Spack-native constraints rather than editing recipes.
@@ -380,6 +420,7 @@ Stack Composer's build process pins a usable Python and modern packaging tools b
 | Priority | Item | Destination | Required evidence | Local retirement gate |
 | --- | --- | --- | --- | --- |
 | P0 | Remove Dakota's compiled Boost.System requirement and links | Dakota upstream, followed by `spack-packages` | Patch applies to supported Dakota releases; configure/build and Serial/MPI install results with Boost 1.89 or later | Pinned repository carries the fix and both Dakota lanes pass CSE validation without the overlay |
+| P0 | Add `MPI_Fortran_MODULE_DIR` to HDF5 high-level parallel Fortran targets | HDF5 upstream, followed by `spack-packages` as needed | HDF5 2.1.0 AOCC/Open MPI reproducer, direct `mpi_f08` control compile, before/after target compile commands, successful static/shared build | Pinned repository carries the fix and affected compiler surfaces pass without the overlay |
 | P1 | Add current external CCE versions and preserve current compiler-standard metadata | `spack-packages` CCE recipe | CCE 19/20/21 compiler registration and compile probes; comparison against current `develop` | A pinned package repository release contains the versions and the CSE systems render/concretize without the overlay |
 | P2 | Determine whether Miniforge target modeling needs a recipe correction | `spack-packages`, only if reproducible | Minimal current-`develop` reproducer using the published binary and target metadata | No local target exception is required, or upstream confirms the exception is correct policy |
 | P2 | Report persistent Readline patch source failure if it reproduces outside the site | `spack-packages` package/source metadata | Primary and mirror failures from a clean current repository, checksum and replacement source | Pinned repository has a reliable verified source; runbook cache injection removed |

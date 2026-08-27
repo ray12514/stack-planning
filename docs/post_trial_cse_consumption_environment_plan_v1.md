@@ -258,43 +258,43 @@ content rather than inferred solely from a lockfile.
 
 ## 10. Phased recommendation
 
-### Phase 0 — Finish and preserve trial evidence
+### Phase 0 - Finish and preserve trial evidence
 
 Complete the remaining platform-compiler builds with the current model. Save
 locks, manifests, build logs, dependency reports, module/view output, and
 system-specific findings.
 
-### Phase 1 — Produce the package classification report
+### Phase 1 - Produce the package classification report
 
 Generate one package matrix from all trial locks and installed artifacts. Give
 each package a proposed placement, exposure, interface, binding, reuse scope,
 source policy, and confidence level. Mark uncertain packages for testing rather
 than forcing a classification.
 
-### Phase 2 — Adopt the orthogonal content model
+### Phase 2 - Adopt the orthogonal content model
 
 Represent the reviewed properties in Stack Content and the release manifest.
 Replace special buckets such as `core_independent` with an explicit
 compiler-binding attribute. Update Stack Planning contracts before changing
 Stack Composer or templates.
 
-### Phase 3 — Prototype one complete consumption environment
+### Phase 3 - Prototype one complete consumption environment
 
-Use one system with both shared GCC and a platform compiler—Wheat is a useful
-candidate—to prove:
+Use one system with both shared GCC and a platform compiler - Wheat is a useful
+candidate - to prove:
 
 - one compiler-neutral tool substrate is safely reused;
 - compiler-bound Foundation stays separated;
 - front-door activation produces the intended clean discovery order; and
 - user builds succeed without Spack or a source checkout.
 
-### Phase 4 — Expand compatibility domains and caches
+### Phase 4 - Expand compatibility domains and caches
 
 Only after the two-compiler prototype passes should selected artifacts be
 promoted to cross-system compatibility domains and shared build-cache lanes.
 Start with command-only build tools before ambient libraries.
 
-### Phase 5 — Release and system-update acceptance
+### Phase 5 - Release and system-update acceptance
 
 Test immutable release activation, rollback, external-runtime change detection,
 cache-only reconstruction, and clean consumer builds before treating the model

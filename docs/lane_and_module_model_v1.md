@@ -483,7 +483,7 @@ prepend-path MODULEPATH ".../modules/gcc/lanes"
 #%Module1.0
 module-whatis "Science stack lane: GCC + cray-mpich 8.1.29"
 
-# Conflicts — generated from the resolved lane plan; one per sibling lane
+# Conflicts - generated from the resolved lane plan; one per sibling lane
 conflict Serial
 conflict MPI
 conflict GPU

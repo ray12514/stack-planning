@@ -13,11 +13,11 @@ model changes; do not add compatibility paths for unused alpha shapes.
 This directory is the **single source of truth**. Consumers keep their own copies
 for self-contained runtime and sync **from here**:
 
-- **stack-composer** bundles all 6 at `src/stack_composer/schemas/` — refresh with
+- **stack-composer** bundles all 6 at `src/stack_composer/schemas/` - refresh with
   `scripts/sync-schema.sh` (auto-run by `scripts/build-pyz.sh` when stack-planning
   is adjacent). Guarded by `tests/test_schema_drift.py`.
 - **cluster-inspector** embeds `profile-v1.json` at
-  `internal/resources/profile_schema.json` — refresh with `make sync-schema`.
+  `internal/resources/profile_schema.json` - refresh with `make sync-schema`.
   Guarded by `internal/resources/schema_drift_test.go`.
 
 **Bump workflow:** edit the schema here → run each consumer's sync → run the drift

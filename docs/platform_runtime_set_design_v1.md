@@ -203,9 +203,12 @@ compiler_providers:
 gpu_toolkits:
 - name: rocm
   versions:
-    - {version: "7.0.0", prefix: /p/app/rocm/rocm-7.0.0, modules: [rocm/7.0.0]}
-    - {version: "6.0.0", prefix: /p/app/rocm/rocm-6.0.0, modules: [rocm/6.0.0]}
+    - {version: "7.0.0", prefix: <site-rocm-root>/rocm-7.0.0, modules: [rocm/7.0.0]}
+    - {version: "6.0.0", prefix: <site-rocm-root>/rocm-6.0.0, modules: [rocm/6.0.0]}
 ```
+
+`<site-rocm-root>` is an explanatory placeholder. Rendered profile YAML must
+contain the absolute prefix observed on the target system.
 
 Rules this encodes:
 

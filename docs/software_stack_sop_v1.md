@@ -1,4 +1,4 @@
-# Package Manager Spack Build and Publication SOP — Working Draft
+# Package Manager Spack Build and Publication SOP - Working Draft
 
 ## 1. Purpose
 

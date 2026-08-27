@@ -60,42 +60,46 @@ kept **out of** the portable `stack.yaml` so the same stack intent renders on an
 system. Current shape:
 
 ```yaml
-# systems/<system>/deployment.yaml — installer-owned; never auto-derived
+# systems/<system>/deployment.yaml - installer-owned; never auto-derived
 schema_version: 1
 system: example-cray                  # must match profile.system.name
 
 access:
-  group: software-builders            # REQUIRED — Unix group selected for this stack
-  read: group                         # REQUIRED — group or world
-  write: group                        # REQUIRED — user or group
+  group: software-builders            # REQUIRED - Unix group selected for this stack
+  read: group                         # REQUIRED - group or world
+  write: group                        # REQUIRED - user or group
 
 install_tree:
-  root: /shared/stack/opt             # REQUIRED — chosen from profile candidates, not derived
+  root: <install-root>                # REQUIRED - chosen from profile candidates, not derived
   padded_length: 128                  # optional
 
 build_stage:
-  default: /scratch/${USER}/spack-stage
+  default: <builder-stage-root>/spack-stage
   by_node_type:                       # optional per-node-type overrides
-    build: /scratch/${USER}/stage
+    build: <builder-stage-root>/stage
 
 caches:
-  source: /shared/stack/cache/source
-  misc: /shared/stack/cache/misc
+  source: <cache-root>/source
+  misc: <cache-root>/misc
 
 roots:
-  views: /shared/stack/views
-  modules: /shared/stack/modules
+  views: <views-root>
+  modules: <modules-root>
 
 modules:
-  publish_root: /apps/modulefiles     # MODULEPATH location for published modules; null if already on MODULEPATH
+  publish_root: <module-publish-root> # MODULEPATH location for published modules; null if already on MODULEPATH
 
 buildcache:
   destinations:
-    - { name: payload, url: "file:///shared/stack/buildcache/payload" }
+    - { name: payload, url: "file://<buildcache-root>/payload" }
 
 spack:
-  root: /shared/cse/tools/spack/1.2.2 # optional shared default; a builder may select an identity-equivalent local checkout
+  root: <shared-tools-root>/spack/1.2.2 # optional shared default; a builder may select an identity-equivalent local checkout
 ```
+
+Angle-bracket values are explanatory root placeholders. A real
+`deployment.yaml` replaces each one with an installer-reviewed absolute path
+or URL before validation and rendering.
 
 Where it lives and how it is consumed:
 

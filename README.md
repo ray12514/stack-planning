@@ -12,14 +12,14 @@ schemas directly.
 
 Start with:
 
-- `docs/README.md` — complete documentation map, authority order, and status.
-- `docs/stack_generation_structure_v1.md` — the current method.
-- `docs/end_to_end_map_v1.md` — point-A-to-point-B flow.
-- `docs/deployment_inputs_and_ownership_v1.md` — installer-chosen paths.
-- `docs/stack_build_handoff_note_v1.md` — where render stops and build begins.
-- `docs/stack_workspace_lifecycle_v1.md` — rendered workspaces and shared
+- `docs/README.md` - complete documentation map, authority order, and status.
+- `docs/stack_generation_structure_v1.md` - the current method.
+- `docs/end_to_end_map_v1.md` - point-A-to-point-B flow.
+- `docs/deployment_inputs_and_ownership_v1.md` - installer-chosen paths.
+- `docs/stack_build_handoff_note_v1.md` - where render stops and build begins.
+- `docs/stack_workspace_lifecycle_v1.md` - rendered workspaces and shared
   install tree.
-- `docs/runbook.md` — Initial Conversion Trials operator runbook.
+- `docs/runbook.md` - Initial Conversion Trials operator runbook.
 
 The model in one line:
 
