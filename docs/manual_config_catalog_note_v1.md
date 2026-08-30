@@ -101,27 +101,31 @@ renderer.
 ## Static catalog shape
 
 The exact layout can change, but the output should be a versioned system-local
-tree with one copy also committed or published through the source repository:
+tree. The CSE deployment keeps a restricted review copy and publishes the
+approved release for package-manager access:
 
 ```text
-rendered-static/
-  <system>/
-    static/
-      2026.09/
-        README.md
-        manifest.yaml
-        profile.yaml
-        reports/
-          static-plan.yaml
-        scopes/
-          common/
-          compilers/<compiler>/<version>/
-          mpi/<provider>/<version>/<compiler-version>/
-          gpu/cuda/<version>/
-          gpu/rocm/<version>/
-          platform/<provider-family>/
-        examples/
-          gnu-cray-mpich-spack.yaml
+<cse-shared-root>/
+  restricted/catalogs/<system>/static/<catalog-release>/
+  published/catalogs/<system>/static/
+    <catalog-release>/
+      README.md
+      manifest.yaml
+      profile.yaml
+      publication.yaml
+      SHA256SUMS
+      reports/
+        static-plan.yaml
+      scopes/
+        common/
+        compilers/<compiler>/<version>/
+        mpi/<provider>/<version>/<compiler-version>/
+        gpu/cuda/<version>/
+        gpu/rocm/<version>/
+        platform/<provider-family>/
+      examples/
+        gnu-cray-mpich-spack.yaml
+    current
 ```
 
 The important property is that each file is a complete valid Spack config YAML,
@@ -141,10 +145,10 @@ Example manual environment:
 ```yaml
 spack:
   include::
-  - <catalog-root>/blueback/current/scopes/common
-  - <catalog-root>/blueback/current/scopes/compilers/gcc/14.3.0
-  - <catalog-root>/blueback/current/scopes/mpi/cray-mpich/9.1.0/gcc-14.3.0
-  - <catalog-root>/blueback/current/scopes/gpu/rocm/7.0.0
+  - <catalog-root>/blueback/static/2026.09/scopes/common
+  - <catalog-root>/blueback/static/2026.09/scopes/compilers/gcc/14.3.0
+  - <catalog-root>/blueback/static/2026.09/scopes/mpi/cray-mpich/9.1.0/gcc-14.3.0
+  - <catalog-root>/blueback/static/2026.09/scopes/gpu/rocm/7.0.0
   specs:
   - hdf5+mpi
   - netcdf-c+mpi
@@ -152,6 +156,29 @@ spack:
 
 `<catalog-root>` represents the deployment-selected absolute catalog root and
 must be replaced before this illustrative environment is used.
+
+The optional `current` pointer supports discovery. Reproducible environments
+and release records use the resolved versioned directory. The published tree
+is readable and traversable by all authenticated system users and is not
+writable by consumers. Its manifest, README, examples, and scope references
+must resolve from the published location without access to the restricted
+review copy.
+
+Stack Composer promotes the reviewed tree with a separate command. It does not
+run `render-static` a second time:
+
+```bash
+stack-composer publish-static \
+  --catalog <restricted-catalog-release> \
+  --output-root <published-catalog-root> \
+  --published-at <utc-timestamp> \
+  --reviewed-by <reviewer-or-role> \
+  --approved-by <release-authority-or-role> \
+  --set-current
+```
+
+Publication adds `publication.yaml` and `SHA256SUMS` to the copied release.
+Existing versioned releases are not overwritten.
 
 Spack, not Stack Composer, decides whether each included package config is used
 during concretization.

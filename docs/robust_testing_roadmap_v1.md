@@ -4,6 +4,12 @@ Recorded 2026-07-07 (Ravon, during the Raider bring-up). Once the Raider
 smoke passes, testing moves from "does the pipeline run" to "does the model
 hold up for real users on unfamiliar systems."
 
+The detailed implementation direction now lives in
+[`cse_validation_flux_and_module_activation_plan_v1.md`](cse_validation_flux_and_module_activation_plan_v1.md):
+ReFrame is the downstream release-acceptance harness, native scheduler launch
+remains canonical, Flux is an optional in-allocation executor, and the current
+module/Cray activation gate is Phase 0.
+
 ## 1. Bare-specs stack (the minimal user)
 
 A user who knows roughly what is on the system writes a `stack.yaml` that is

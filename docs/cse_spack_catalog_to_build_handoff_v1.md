@@ -182,6 +182,8 @@ under it is:
     evidence/<system>/<trial-release>/
 
   published/
+    catalogs/<system>/static/<catalog-release>/
+    catalogs/<system>/static/current
     workspaces/<system>/initial-conversion-trials/<trial-release>/
     releases/<system>/<trial-release>/
       spack/opt/
@@ -199,6 +201,16 @@ The restricted side is where source builds occur. The published side is the
 user-facing release area and is not the place to experiment, concretize, or
 build from source. This guide operates only on the restricted workspace and
 restricted install tree.
+
+The versioned published catalog is readable by all authenticated system users
+and is not writable by consumers. Package-manager environments pin that
+versioned path. The optional `current` pointer is for discovery only.
+
+`stack-composer publish-static` creates the published copy from the reviewed
+restricted catalog. It does not run `render-static` again. The CSE restricted
+build workspace and the later cache-only publication workspace both use the
+retained restricted catalog. The public copy is for package managers outside
+CSE and is not an input to this build handoff.
 
 Build stages are separate from both trees. They normally live in node-local or
 site work storage because stages are temporary and can be much larger and more

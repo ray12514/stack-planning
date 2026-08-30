@@ -59,6 +59,13 @@ Cray PE-specific proof points; it does not replace the common runbook.
 - [ ] Version-sensitive package module chains are tested: compatible chains
       load cleanly, and incompatible dependency mixes fail or are prevented.
 
+For the CSE GCC plus external Cray MPICH trial, completed locked MPI payload
+builds may satisfy the compile, link, and runtime-closure item when their logs
+identify the selected CSE GCC and Cray MPICH prefix. The workspace candidate
+module must still prove the exact wrapper paths and `MPICH_*` compiler bindings.
+The selector remains unpublished until the scheduler-launched multi-node item
+passes on the target site.
+
 ## Operational evidence sources
 
 - HPE CPE release notes and product dependencies for the selected release:

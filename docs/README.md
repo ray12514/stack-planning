@@ -62,6 +62,7 @@ stated scope and must remain aligned with the current-model documents above.
 | `default_selection_policy_v1.md` | Explicit default-selection policy; profiles report candidates and never choose the deployment default. |
 | `environment_granularity_note_v1.md` | Decision to keep one independent Spack environment per lane/surface. |
 | `foundation_core_view_semantics_note_v1.md` | Foundation/Core build, reuse, view, and public-module semantics. |
+| `cse_validation_flux_and_module_activation_plan_v1.md` | Integrated plan for the current module/Cray entrance gate, ReFrame package and application regression, native scheduler acceptance, and optional Flux execution inside an allocation. |
 | `full_render_open_decisions_v1.md` | Accepted full-render direction and remaining implementation work. |
 | `platform_runtime_set_design_v1.md` | Coherent platform runtime-set selection across compiler, MPI, fabric, and CPE facts. |
 | `cray_runtime_package_repo_note_v1.md` | Cray runtime package-repository direction for GTL, PMI/PALS, libfabric/CXI, and runtime closure. |
@@ -92,7 +93,9 @@ operator procedures and do not override the current model.
 |---|---|
 | `cce_aocc_cpu_baseline_research_v1.md` | CPU-baseline research for CCE, AOCC, and GNU on AMD-based Cray EX systems. |
 | `cray_mpich_gcc_compatibility_v1.md` | Evidence for treating Cray MPICH GNU path versions as compiler-family baselines rather than exact lane pins. |
+| `cray_wrapper_consumption_primary_source_research_v1.md` | Primary-source HPE guidance and the trial recommendation for CCE drivers, direct CSE GCC, Cray MPICH wrappers, runtime closure, and launch evidence. |
 | `related_tools_assessment_v1.md` | Comparison with Stackinator and spack-stack. |
+| `reframe_flux_primary_source_research_v1.md` | Primary-source ReFrame and Flux capability, integration, lifecycle, and risk research supporting the CSE validation plan. |
 | `site_stack_survey_v1.md` | External HPC-site survey used as background evidence. |
 | `spack-learnings/CSE-Spack-Learnings.md` | Full technical findings from system validation. |
 | `spack-learnings/CSE-Spack-Learnings-Summary.md` | Short summary of those findings. |

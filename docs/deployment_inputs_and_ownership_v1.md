@@ -161,18 +161,24 @@ packages:
       group: <site-cse-group>
 ```
 
-That example is the restricted build policy. Publication changes the package
-policy to `read: world`, `write: user`, and the same CSE owner group. The
-publisher owns writes while assembling the release; consumers receive
+That example is the restricted build policy. Publication changes only the read
+audience: use `read: world`, `write: group`, and the same CSE owner group. CSE
+package managers retain write access while consumers outside the group receive
 read/execute only. The build/publish adapter applies the same role-specific
-intent to views, modules, workspaces, and release roots, then removes
-group/other write when it freezes an accepted release.
+intent to views, modules, workspaces, and release roots. The final publication
+modes are `2775` for directories, `0775` for executable files, and `0664` for
+ordinary files, with no other write access.
 
 This applies the group and read/write policy to packages installed in the Spack
 store, including setgid inheritance within each package prefix. It does not
 govern the top-level install root, source and misc caches, build stage,
 buildcache files, views, generated modulefiles, release manifests, or the
 `current` pointer. The build/publish adapter still owns those paths.
+
+The leading `2` in directory mode `2775` is the setgid bit. It makes new
+entries inherit the directory's group; it does not grant access by itself.
+Group write comes from the second `7`. The sticky bit is the leading `1` bit
+and is not part of this policy.
 
 Setgid inheritance and default ACL support vary by filesystem and site policy.
 The build/publish adapter therefore owns the concrete POSIX/ACL operations.

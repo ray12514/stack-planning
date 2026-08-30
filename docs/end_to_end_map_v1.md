@@ -25,6 +25,10 @@ Stack Composer has two distinct render contracts:
   an environment `spack.yaml`, operational `modules.yaml`, views, lanes, or a
   build workspace. A package manager includes selected catalog scopes from a
   manually owned `spack.yaml`.
+- `publish-static` promotes that exact reviewed catalog into an immutable,
+  consumer-readable release. It adds approval metadata and a checksum
+  inventory without probing or rerendering. `init-workspace` can consume either
+  the restricted review copy or the verified public release.
 - `render` produces the **full build workspace** described by the managed flow
   below. It combines profile facts, stack intent, package sets, policy, and
   `deployment.yaml` to generate selected config scopes, environment

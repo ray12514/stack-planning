@@ -85,6 +85,13 @@ manually retyping scratch paths. The generated runtime selector performs a
 small execution probe before choosing a stage, because a writable path may
 still be unusable under a site `noexec` or execution policy.
 
+The restricted review copy is promoted with `publish-static`, not a second
+render. The public catalog retains the reviewed bytes and adds
+`publication.yaml` plus `SHA256SUMS`. The CSE restricted build workspace and
+cache-only publication workspace continue to use the retained restricted
+catalog. The public catalog is an independent input for package managers
+outside CSE, not a replacement input for either CSE workspace.
+
 The initializer's generated `cse-build` command also prevents an ambient
 selected provider module from crossing the handoff boundary. Before Spack is
 activated, the command unloads any exact external compiler or MPI module named

@@ -1,4 +1,10 @@
-# CSE Spack Build and Publication SOP - Working Draft
+# CSE Spack Build and Publication SOP
+
+| Document control | Value |
+|---|---|
+| Status | Working draft |
+| Intended operator | CSE package manager or build owner familiar with Spack concepts |
+| Procedure scope | Catalog release, workspace generation, restricted build, validation, promotion, publication, and retention |
 
 ## 1. Purpose
 
@@ -15,13 +21,53 @@ select reviewed platform configuration
   -> concretize and review every environment
   -> build and test in the restricted CSE area
   -> sign and push approved binaries to the private build cache
-  -> publish from the approved lockfiles and cache only
+  -> publish the reviewed static catalog for external package managers
+  -> create the stack release from the approved lockfiles and cache only
   -> validate views, modules, permissions, and runtime behavior
   -> freeze and approve the release
 ```
 
-The Initial Conversion Trials use this process. The trial runbook supplies the
-current commands and site values. This SOP supplies the release policy.
+The Initial Conversion Trials use this process. This SOP contains the normal
+command sequence and release controls. The system handoff supplies actual
+paths, provider selections, node types, and approving roles. The trial runbook
+covers provisioning, exceptional recovery, and system-specific failure
+analysis.
+
+### 1.1 Procedure use
+
+Complete the sections in order. Do not continue past a failed control point.
+The preferred execution interface after workspace generation is the generated
+`cse-build` command. Raw `spack -e` commands in this SOP are inspection and
+publication commands or the documented bare-Spack equivalent.
+
+After Sections 3 through 7 are complete, the normal restricted-build sequence
+is:
+
+```bash
+export WORKDIR="<absolute-builder-work-root>"
+export BUILD_WORKSPACE="<absolute-restricted-workspace>"
+: "${WORKDIR:?WORKDIR must be set}"
+: "${BUILD_WORKSPACE:?BUILD_WORKSPACE must be set}"
+cd "$BUILD_WORKSPACE"
+./cse-build login status --spack-mode shared
+./cse-build login concretize --spack-mode shared
+./cse-build login verify --spack-mode shared
+./cse-build login fetch --spack-mode shared
+./cse-build compute install --spack-mode shared
+./cse-build login verify --spack-mode shared
+```
+
+Run the compute install from an allocation that satisfies the workspace's
+recorded compute context. The system handoff supplies the scheduler command
+used to obtain that allocation.
+
+### 1.2 Evidence format
+
+Retain command output as text together with manifests, values files,
+environment sources, lockfiles, concrete-hash inventories, checksums, test
+programs, SBOMs, and approvals. Record the command, node, date, exit status,
+and output for each required test. Screenshots are not required and must not be
+the only evidence for a control point.
 
 ## 2. Responsibilities
 
@@ -55,6 +101,44 @@ Record these inputs before workspace generation:
 The controlled package roster is the source of truth for root versions and
 variants. Email and this SOP may summarize the roster but do not override it.
 
+### 3.1 CSE operating record
+
+Complete one operating record for each system and release before generating a
+workspace. The record may be a tracked values file, controlled ticket, or
+release database entry. It must provide actual values rather than instructions
+to discover them.
+
+| Item | Shell or configuration name | Actual value required |
+|---|---|---|
+| System | `CSE_SYSTEM_NAME` | Reviewed system identifier |
+| Catalog release | `CATALOG_RELEASE` | Immutable catalog release identifier |
+| Restricted catalog release | `CATALOG` | Absolute reviewed catalog path used for workspace generation |
+| Published catalog release | `PUBLISHED_CATALOG` | Absolute approved path readable by all system users |
+| Static output parent | `STATIC_ROOT` | Absolute restricted catalog output parent |
+| Published static output parent | `PUBLISHED_STATIC_ROOT` | Absolute public catalog output parent |
+| Profile and templates | `SYSTEM_DIR`, `CONTENT`, `TEMPLATE_SET` | Approved input paths and template-set identifier |
+| Render provenance | `RENDERED_AT`, `SOURCE_REPO`, `SOURCE_COMMIT` | Fixed UTC time and reviewed source identity |
+| Publication record | `PUBLISHED_AT`, `CATALOG_REVIEWER`, `CATALOG_APPROVER` | Fixed UTC time and named people or roles |
+| Stack Composer command | `CSE_PYTHON`, `STACK_COMPOSER` | Approved Python interpreter and executable path |
+| Stack and package roster | CSE release inputs | Approved source revision and release identifier |
+| Restricted build values | `BUILD_VALUES` | Absolute approved values-file path |
+| Restricted workspace | `BUILD_WORKSPACE` | Absolute workspace path |
+| Builder work root | `WORKDIR` | Absolute builder-writable path |
+| Published workspace | `PUBLISH_WORKSPACE` | Absolute publication workspace path |
+| Shared Spack checkout | `CSE_SPACK_SHARED_ROOT` | Absolute read-only path |
+| Spack identity | `CSE_SPACK_VERSION`, `CSE_SPACK_TAG`, `CSE_SPACK_COMMIT` | Approved version, tag, and commit |
+| Login and compute contexts | Generated workspace values | Exact node-type keys and stage candidates |
+| Compiler and provider selections | CSE build values | Approved compiler, MPI, target, and optional GPU tuple |
+| Restricted and published releases | Deployment values | Install, view, module, cache, and evidence roots |
+| Collaboration group | `CSE_GROUP` | Installer-confirmed Unix group |
+| Signing identity | Publication record | Full approved public-key fingerprint |
+| Reviewer and release authority | Release record | Named people or documented roles |
+| Support and announcement channels | Release record | Approved queue and user-notification channel |
+
+The handoff owner fills the record before transferring responsibility. The
+receiving builder verifies the values but does not select replacement paths or
+providers during the build.
+
 ## 4. Storage, access, and Spack runtime
 
 ### 4.1 CSE shared layout
@@ -64,7 +148,7 @@ Use separate locations for restricted work and published content:
 ```text
 <approved-cse-shared-root>/
   restricted/
-    catalogs/<system>/<catalog-release>/
+    catalogs/<system>/static/<catalog-release>/
     workspaces/<system>/<stack>/<release>/
     cache/source/
     cache/misc/$USER/
@@ -72,6 +156,8 @@ Use separate locations for restricted work and published content:
     buildcache/<system>/<release>/
     evidence/<system>/<release>/
   published/
+    catalogs/<system>/static/<catalog-release>/
+    catalogs/<system>/static/current
     workspaces/<system>/<stack>/<release>/
     releases/<system>/<release>/
 
@@ -79,6 +165,21 @@ Use separate locations for restricted work and published content:
   build-stage/
   publish-stage/
 ```
+
+The restricted catalog path is the retained CSE catalog of record. Both CSE
+workspaces are initialized from its exact versioned path. The published catalog
+path is an immutable, system-local configuration release for package managers
+outside CSE. It is readable and traversable by all authenticated system users
+and is not writable by consumers outside CSE. Every CSE package manager retains
+management access through the owning group. Immutability means the version is
+not edited or overwritten in place. The optional `current` pointer is for
+discovery. External package-manager environments pin the versioned public path,
+not `current`.
+
+The public static catalog contains reviewed Spack configuration, its manifest,
+profile snapshot, reports, and examples. Publishing it does not publish the
+restricted CSE workspace, private build cache, restricted package prefixes, or
+signing material.
 
 The generated `build_stage::` list uses ordered fallbacks. Put a verified
 temporary or node-local path first, verified scratch paths next, and an
@@ -115,10 +216,12 @@ partition. Every system uses this common generated control; it is not a
 Blueback-specific exception.
 
 Publication uses package permissions equivalent to `read: world`,
-`write: user`, and the recorded collaboration group while the release is
-assembled. Consumers receive read and execute access only. After acceptance,
-remove group and other write access from the release, views, modules, and
-release pointer.
+`write: group`, and the recorded CSE collaboration group. CSE package managers
+retain write access. Consumers outside that group receive read and execute
+access only. Final publication modes are `2775` for directories, `0775` for
+executable files, and `0664` for ordinary files; other write remains disabled.
+The leading `2` is setgid, which makes new entries inherit the CSE group. It is
+not the sticky bit; sticky is the leading `1` bit and is not used here.
 
 Do not apply recursive ownership or mode changes to a shared tree until the
 filesystem owner confirms that the target is dedicated to this release.
@@ -169,7 +272,7 @@ the generated-workspace checks before concretization:
 
 - all required repositories and content are on the approved branch and commit;
 - the catalog manifest and reports match the target system;
-- the selected compiler and compiler–MPI pairings are present;
+- the selected compiler and approved MPI pairings are present;
 - the restricted and published roots have the intended group and permissions;
 - `./cse-build login status` passes from the build owner and from another
   member of the recorded CSE group before responsibility is transferred;
@@ -203,7 +306,78 @@ spack -e <environment-path> config scopes -vp
 Unexpected active user, system, or site policy is a failed preflight. The
 generated `include::` scopes are the CSE configuration boundary.
 
+After Section 7.1 generates the workspace, verify it from the login context:
+
+```bash
+: "${WORKDIR:?WORKDIR must be set}"
+cd "$BUILD_WORKSPACE"
+test -f workspace-manifest.yaml
+test -x cse-build
+test -d catalog/scopes
+test -d environments
+./cse-build login status --spack-mode shared
+```
+
+Run the same `status` command as a second member of the recorded CSE group
+before transferring responsibility. Preflight passes only when the approved
+Spack identity, catalog, generated workspace, stages, shared paths, locking,
+scope boundary, and cross-user access checks pass.
+
 ## 6. Select platform configuration
+
+### 6.1 Generate and review the static catalog
+
+Generate the catalog in the restricted review root from the approved profile,
+template set, and source revisions:
+
+```bash
+"$CSE_PYTHON" "$STACK_COMPOSER" render-static \
+  --profile "$SYSTEM_DIR/profile.yaml" \
+  --templates "$CONTENT/templates" \
+  --template-set "$TEMPLATE_SET" \
+  --output-root "$STATIC_ROOT" \
+  --release "$CATALOG_RELEASE" \
+  --rendered-at "$RENDERED_AT" \
+  --source-repo "$SOURCE_REPO" \
+  --source-commit "$SOURCE_COMMIT"
+```
+
+The operating record or system handoff supplies every variable in this
+command. Use a fixed UTC value for `RENDERED_AT`. Add the renderer's dirty
+source flag only when the release record explicitly permits reviewed,
+uncommitted input.
+
+Inspect the result before selecting scopes:
+
+```bash
+test -r "$CATALOG/README.md"
+test -r "$CATALOG/manifest.yaml"
+test -r "$CATALOG/profile.yaml"
+test -r "$CATALOG/reports/static-plan.yaml"
+cmp "$SYSTEM_DIR/profile.yaml" "$CATALOG/profile.yaml"
+find "$CATALOG/scopes" -type f -print | sort
+```
+
+Review the manifest, static plan, every selected `packages.yaml`, and every
+selected `toolchains.yaml`. Confirm the system, release, compiler, MPI, GPU,
+target, module, prefix, external-package, and node-type facts. Stop if the
+static plan records a missing provider dependency or if a selected pairing is
+not supported by reviewed evidence.
+
+### 6.2 Retain the restricted catalog
+
+After review, keep `$CATALOG` at its versioned restricted path and make that
+review copy read-only. Both the restricted build workspace and the later
+cache-only publication workspace use this retained restricted catalog. The
+workspace snapshot makes each workspace portable after initialization, but it
+does not change the catalog of record.
+
+Do not switch either CSE workspace to a public catalog path. The public static
+catalog is an independent configuration product for package managers outside
+CSE. Publish it during the release procedure in Section 10.2. Public promotion
+does not replace or remove the restricted review copy.
+
+### 6.3 Select scopes
 
 Use the scope paths recorded in the static catalog manifest. Select:
 
@@ -226,9 +400,55 @@ directory name.
 System OpenSSL, curl, platform MPI, fabric, launcher, math, and runtime
 components remain external when the selected catalog policy says so.
 
+Catalog selection passes when each selected path is present in
+`manifest.yaml`, the selected compiler and MPI tuple is supported, and the
+workspace scope listing contains no ambient policy outside the generated CSE
+configuration boundary.
+
 ## 7. Define the environment
 
-### 7.1 CSE environment layout
+### 7.1 Generate and inspect the restricted workspace
+
+Generate the restricted workspace from the approved blueprint, reviewed
+catalog, and completed build values:
+
+```bash
+"$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
+  --blueprint "$CONTENT/pilots/cse-pilot" \
+  --catalog "$CATALOG" \
+  --values "$BUILD_VALUES" \
+  --output "$BUILD_WORKSPACE"
+```
+
+Do not use `--overwrite` on a workspace that contains a lockfile, build output,
+or evidence. Follow the runbook recovery procedure or create a new release.
+
+Inspect the complete handoff:
+
+```bash
+: "${WORKDIR:?WORKDIR must be set}"
+cd "$BUILD_WORKSPACE"
+test -r README.md
+test -r BUILDER-HANDOFF.md
+test -r workspace-manifest.yaml
+test -x cse-build
+find environments -name spack.yaml -print | sort
+find configs/environments -name modules.yaml -print | sort
+find modulefiles -type f -print | sort
+./cse-build login status --spack-mode shared
+```
+
+Confirm that the workspace manifest identifies the approved catalog, values,
+system, stack, release, and source revisions. Confirm that every include path
+resolves inside the complete workspace handoff. Serial environments contain no
+MPI scope. Each MPI environment uses the provider paired with its compiler
+surface. Deployment paths must match the operating record.
+
+Do not hand-edit generated YAML, helper scripts, or module files. Correct the
+catalog, CSE values, blueprint, package roster, template, recipe overlay, or
+reviewed system input and generate a replacement workspace.
+
+### 7.2 CSE environment layout
 
 The Initial Conversion Trials create four independently concretized
 environments for each compiler surface:
@@ -257,7 +477,7 @@ Foundation, and build-tool specs may appear in several environments. Identical
 concrete hashes reuse the shared restricted store; they are not separate
 package builds.
 
-### 7.2 CSE package and dependency policy
+### 7.3 CSE package and dependency policy
 
 - Foundation packages use one pinned version per release.
 - Public packages normally use the current approved CSE version and the newest
@@ -280,7 +500,17 @@ use the generic target required by their recipe.
 
 ## 8. Concretize and review
 
-Concretize each restricted environment and retain its lockfile:
+Concretize and verify the complete restricted workspace:
+
+```bash
+cd "$BUILD_WORKSPACE"
+./cse-build login concretize --spack-mode shared
+./cse-build login verify --spack-mode shared
+```
+
+The generated command creates only the required lockfiles and applies the
+workspace-wide lock verifier. Use the following bare-Spack commands to inspect
+one environment or to follow an approved manual handoff:
 
 ```bash
 spack -e <environment-path> concretize --fresh -j 1
@@ -309,19 +539,33 @@ Run the workspace lock verifier after all environments concretize. Do not edit
 a lockfile or generated YAML. Correct the owning roster, values, catalog,
 template, recipe overlay, or reviewed system data and regenerate.
 
+Concretization passes only when every expected lockfile exists, the workspace
+verifier passes, every reviewed item above is confirmed, and the scope and
+concrete-graph evidence is retained. A failed or incomplete environment holds
+the complete workspace at this control point.
+
 ## 9. Build and validate
 
 Fetch on a login node when compute nodes lack network access:
 
 ```bash
-spack -e <environment-path> fetch -D
+cd "$BUILD_WORKSPACE"
+./cse-build login fetch --spack-mode shared
 ```
 
 The install may continue on a compute node using the same workspace, source
 cache, shared restricted install tree, Spack version, and lockfile. Changing the
 build-stage path or node does not change the concrete DAG.
 
-Install in the restricted area:
+Install in the restricted area from an approved compute allocation:
+
+```bash
+cd "$BUILD_WORKSPACE"
+./cse-build compute install --spack-mode shared
+```
+
+For an approved bare-Spack handoff, the equivalent per-environment commands
+are:
 
 ```bash
 spack -e <environment-path> install --fail-fast
@@ -363,8 +607,45 @@ Run the checks that apply:
 - package-module visibility from a clean shell; and
 - login-node and compute-node access using another `cse` group member.
 
+After every required environment has installed and regenerated its view and
+Spack package modules, refresh the existing workspace's generated controls from
+the reviewed Stack Content revision. Then create the restricted presentation
+checkpoint:
+
+```bash
+cd "$BUILD_WORKSPACE"
+./cse-build login verify --spack-mode shared
+./cse-build login publish-modules
+```
+
+The action copies CSE compiler front doors and ready lane selectors into the
+module root recorded by the restricted build values. It does not publish the
+stack to non-CSE users, publish the static catalog, create the cache-only
+publication workspace, alter lockfiles, or rebuild packages. Review this
+restricted module presentation as a team before any build-cache or public
+promotion.
+
+Presentation-only corrections repeat the control refresh and module review
+without rebuilding or reconcretizing. A module projection correction may
+regenerate the affected Spack module tree when the concrete DAG is unchanged.
+Any package, dependency, compiler, MPI provider, external, or hash change
+returns to the applicable restricted build and validation gate.
+
 Record each environment as `built`, `runtime-passed`, or `held`. Promote only
 `runtime-passed` concrete specs.
+
+After installation and tests, run:
+
+```bash
+cd "$BUILD_WORKSPACE"
+./cse-build login verify --spack-mode shared
+```
+
+Restricted validation passes only when every required environment is
+`runtime-passed`, the final verifier passes, concrete hashes are recorded, and
+the compile, runtime, scheduler, MPI, view, module, clean-session, permission,
+and handoff checks have successful evidence. GPU checks are required only for
+an approved GPU environment.
 
 If a dependency fails with a platform compiler, record the failure first. A
 GCC-built replacement is an explicit mixed-toolchain exception. Review its ABI
@@ -410,10 +691,116 @@ consistency separately:
 spack buildcache check-index --verify all <cse-buildcache-url>
 ```
 
-### 10.2 Cache-only publication
+### 10.2 Publish the static catalog for external consumers
 
-Create a separate publication workspace. Copy the approved restricted
-lockfiles. Do not reconcretize. Install source-free from the signed build cache:
+Publish the retained restricted catalog after the restricted validation and
+build-cache gate. This placement aligns the Initial Conversion Trials approval
+sequence; static-catalog content remains independent of package binaries.
+
+The designated CSE catalog publication procedure performs these operations:
+
+1. Validate the manifest, profile snapshot, static plan, scopes, and examples.
+2. Confirm that all paths and instructions resolve from the final published
+   location. A catalog that embeds a restricted absolute path as a consumer
+   path is not publishable.
+3. Create a checksum inventory for every released file.
+4. Record the source revisions, reviewer, approval, date, and catalog release
+   identifier.
+5. Stage the complete tree under the approved published catalog parent.
+6. Publish the versioned directory as one operation.
+7. Apply `2775` to directories, `0775` to executable files, and `0664` to
+   ordinary files. Retain CSE group management access and remove write access
+   for users outside CSE.
+
+Run the Stack Composer publication command:
+
+```bash
+"$CSE_PYTHON" "$STACK_COMPOSER" publish-static \
+  --catalog "$CATALOG" \
+  --output-root "$PUBLISHED_STATIC_ROOT" \
+  --published-at "$PUBLISHED_AT" \
+  --reviewed-by "$CATALOG_REVIEWER" \
+  --approved-by "$CATALOG_APPROVER" \
+  --group "$CSE_GROUP" \
+  --set-current
+```
+
+The command copies the reviewed bytes without rerendering, creates
+`publication.yaml` and `SHA256SUMS`, applies CSE-group-manageable and
+consumer-readable modes, and publishes the versioned directory as one
+operation. The named CSE group owns the new namespace and complete release
+tree. `--set-current` is optional. An existing versioned publication is never
+overwritten.
+
+Set and verify the resolved public path:
+
+```bash
+export PUBLISHED_CATALOG="${PUBLISHED_STATIC_ROOT}/${CSE_SYSTEM_NAME}/static/${CATALOG_RELEASE}"
+test -r "$PUBLISHED_CATALOG/manifest.yaml"
+test -r "$PUBLISHED_CATALOG/publication.yaml"
+test -r "$PUBLISHED_CATALOG/SHA256SUMS"
+(cd "$PUBLISHED_CATALOG" && sha256sum -c SHA256SUMS)
+test -z "$(find "$PUBLISHED_CATALOG" -type d ! -perm 2775 -print -quit)"
+test -z "$(find "$PUBLISHED_CATALOG" -type f -perm /111 ! -perm 0775 -print -quit)"
+test -z "$(find "$PUBLISHED_CATALOG" -type f ! -perm /111 ! -perm 0664 -print -quit)"
+test -z "$(find "$PUBLISHED_CATALOG" -perm -0002 -print -quit)"
+test -z "$(find "$PUBLISHED_CATALOG" ! -group "$CSE_GROUP" -print -quit)"
+```
+
+Package managers outside CSE pin `$PUBLISHED_CATALOG`. The optional `current`
+pointer is for discovery only. Do not use `$PUBLISHED_CATALOG` to initialize
+either CSE workspace. Do not edit a published catalog release; correct the
+owning input, render a complete new restricted catalog release, review it, and
+publish a complete new public catalog release with a fresh approval record and
+checksum inventory. Move `current` only after acceptance. Record the
+supersession and retain or retire the old release according to policy.
+Directories grant `rwx` to the CSE group and `r-x` to other users; ordinary
+files grant `rw-` to CSE and `r--` to other users. No released path grants
+write access to users outside CSE.
+
+### 10.3 Cache-only stack publication
+
+Create a separate publication workspace from the same restricted `$CATALOG`
+used for the build workspace. Copy the approved restricted lockfiles. Do not
+copy the mutable restricted workspace, do not reconcretize, and do not use the
+public static-catalog path.
+
+The publication values supplied to Stack Composer must contain:
+
+```yaml
+permissions:
+  group: cse
+  read: world
+  write: group
+```
+
+Stack Composer renders those values into the workspace's
+`configs/common/packages.yaml`:
+
+```yaml
+packages:
+  all:
+    permissions:
+      group: cse
+      read: world
+      write: group
+```
+
+Each generated environment includes `configs/common` through its
+`spack.include` list, so the permission policy does not need to appear inline
+in every `spack.yaml`. The static platform catalog does not supply this policy.
+It is CSE deployment configuration generated from the publication values.
+Before installation, inspect the generated file and verify the merged setting:
+
+```bash
+test -r <publication-workspace>/configs/common/packages.yaml
+spack -e <published-environment> config get packages
+```
+
+Stop if the merged `packages:all:permissions` setting does not show the CSE
+group with world read and group write.
+
+Install source-free from the signed build cache:
 
 ```bash
 spack -e <published-environment> install \
@@ -430,10 +817,16 @@ After every cache-only install:
 2. regenerate views and modules;
 3. verify package-module visibility;
 4. run clean-session runtime tests;
-5. verify consumer permissions from login and compute nodes; and
-6. freeze the accepted release.
+5. verify every path retains the recorded CSE group;
+6. verify a second CSE package-manager account can create, replace, and remove
+   a controlled test artifact in the publication tree;
+7. verify directory traverse, file read, executable run, and denied write from
+   a non-CSE account on login and compute nodes;
+8. verify directories are `2775`, executable files are `0775`, ordinary files
+   are `0664`, and no path grants other write; and
+9. version-freeze the accepted release through the release record.
 
-### 10.3 SBOM and external inventory
+### 10.4 SBOM and external inventory
 
 Spack 1.2 writes an SPDX 2.3 SBOM for each non-external installation at:
 
@@ -450,8 +843,19 @@ SBOMs support inventory and security review. They do not perform CVE matching.
 
 ## 11. User access
 
-The accepted CSE module root is added to the site's standard `MODULEPATH`.
-Normal users do not run `module use` for the published CSE environment.
+The site module path exposes the CSE gateway module in the site's established
+module namespace. The gateway is a site integration artifact. It may be placed
+in that namespace directly or supplied through an approved symlink from the
+CSE release tree.
+
+The gateway module selects one accepted CSE compiler surface and adds the
+release-owned lane module location to `MODULEPATH`. The selected lane module
+then adds the corresponding generated Spack package-module root. Generated
+Spack package modules, views, and lane-specific module roots remain under the
+published CSE release tree. They are not copied into the site's general module
+tree.
+
+Normal users do not run `module use` for the accepted CSE environment.
 
 The user sequence is:
 
@@ -464,12 +868,84 @@ module load <package>/<version>
 Use the public names recorded in the release values. Do not expose Spack hashes
 or package-prefix paths as the user interface.
 
+The compiler surface and lane have separate activation responsibilities. The
+compiler front door activates its exact compiler chain and records the selected
+commands in `CSE_CC`, `CSE_CXX`, and `CSE_FC`. A CSE-built MPI lane loads its
+exact generated MPI provider module. A platform Cray MPI lane requires the
+reviewed Cray MPI module already supplied by the selected PrgEnv/CPE chain; it
+does not silently change that chain. After `module load MPI`, the resolved
+interface is recorded in `CSE_MPI_PROVIDER`, `CSE_MPI_VERSION`, `CSE_MPICC`,
+`CSE_MPICXX`, and `CSE_MPIFC`.
+
+Verify the selected commands from a clean login:
+
+```bash
+module load cse/<compiler-surface>
+command -v "$CSE_CC" "$CSE_CXX" "$CSE_FC"
+module load MPI
+module list
+command -v "$CSE_MPICC" "$CSE_MPICXX" "$CSE_MPIFC"
+```
+
+For a CSE-built compiler paired with external Cray MPICH, completed locked MPI
+package builds establish the selected headers, link inputs, and runtime closure
+for the Spack build plane. Validate the ordinary-user interface from the
+workspace candidate module. It must expose the exact-prefix `mpicc`, `mpicxx`,
+`mpifort`, `mpif90`, and `mpif77` wrappers, bind their `MPICH_*` compiler
+overrides to the compiler activated by the CSE front door, and avoid loading a
+compiler-selecting `PrgEnv-*`. Do not publish the selector into the release
+module root until it completes a native multi-node launch through the site's
+approved Slurm or Cray launch path.
+
 Foundation libraries are ambient through the selected compiler/lane view and
 do not receive package modules. Core tools and payload packages use the
 approved module projections. Serial and MPI surfaces conflict. Versioned
 package modules express required dependency loads and conflicts.
 
+Load at least one version-sensitive package during acceptance. For example,
+loading NetCDF-C must activate the exact public HDF5 module it was built and
+tested with. Loading an alternate HDF5 version alongside it must fail with a
+clear conflict diagnostic.
+
 Use `module use <candidate-module-root>` only during validation and rollout.
+
+Validate the gateway from a clean login shell and a clean compute shell. Before
+loading the gateway, the generated package-module roots must not be present in
+`MODULEPATH`. After loading the compiler surface and one lane, only the
+corresponding accepted roots may be present. A Serial and MPI lane conflict
+must prevent both from being active at the same time.
+
+### 11.1 Qualified module comparison
+
+The compiler-surface and lane sequence is the primary CSE presentation. A
+release candidate may also expose a qualified comparison namespace so reviewers
+can compare it with the primary presentation before acceptance.
+
+Generate the comparison namespace from the same concrete specs and installed
+prefixes. Use a second named Spack module set with a separate module root. Do
+not create another environment, view, install tree, or build. A qualified
+Serial package name records the package version, compiler name, and compiler
+version. A qualified MPI package name also records the MPI provider name and
+version.
+
+For each environment, refresh the primary and comparison sets separately:
+
+```bash
+spack -e <environment-path> module tcl refresh --delete-tree -y
+spack -e <environment-path> module tcl -n qualified refresh --delete-tree -y
+```
+
+During comparison, the compiler front door and lane selector may add both
+module roots to `MODULEPATH`. The two modulefiles for one concrete package must
+resolve to the same installed prefix and concrete hash, and they must conflict
+with each other so one process cannot load both names. Record `module avail`,
+`module show`, load, conflict, and runtime results for both names from clean
+login and batch shells.
+
+The qualified namespace is presentation policy. It does not change the
+lockfile, build cache, package prefix, view, or release identity. Select the
+accepted public presentation in the release record. If both remain public,
+keep the lane presentation as the documented CSE entrance.
 
 ## 12. Changes, security events, and platform updates
 
@@ -506,7 +982,7 @@ change:
 
 1. obtain a new reviewed platform record and catalog release;
 2. compare the previous and candidate runtime sets;
-3. review the supported compiler–MPI pairing;
+3. review the supported compiler and MPI pairing;
 4. re-concretize against the candidate catalog;
 5. run clean compile, runtime, scheduler, fabric, MPI, and module tests; and
 6. classify the result as revalidate, remain pinned, rebuild, or hold.
@@ -540,6 +1016,8 @@ accepted release. It does not modify either release.
 Retain:
 
 - system, catalog, package roster, stack, and release identifiers;
+- restricted and published catalog paths, catalog checksum inventory, catalog
+  approval, and non-CSE access test;
 - exact Spack version, tag, commit, and package-recipe source;
 - selected Spack root, runtime-mode, identity verification, and
   configuration-scope evidence;
@@ -549,6 +1027,8 @@ Retain:
 - private build-cache identity, index result, and signing-key fingerprint;
 - package inventory, SPDX 2.3 SBOMs, checksums, and external inventory;
 - compiler, MPI, target, module-chain, and platform-runtime identities;
+- gateway module location, release-owned lane and package-module roots, and
+  clean-session `MODULEPATH` evidence;
 - build, runtime, view, module, and permission test results;
 - change or security assessment when applicable;
 - build owner, technical reviewer, release authority, and dates; and
@@ -581,7 +1061,7 @@ Before this draft is approved, fill in:
   it.
 
 **Toolchain**
-: An explicit compiler or a supported compiler–MPI pairing, with a compatible
+: An explicit compiler or a supported compiler and MPI pairing, with a compatible
   GPU runtime when required.
 
 **Restricted build**

@@ -1,4 +1,10 @@
-# Package Manager Spack Build and Publication SOP - Working Draft
+# Package Manager Spack Build and Publication SOP
+
+| Document control | Value |
+|---|---|
+| Status | Working draft |
+| Intended operator | Package manager familiar with Spack concepts but not site-specific commands |
+| Procedure scope | Environment definition, build, validation, publication, and release retention |
 
 ## 1. Purpose
 
@@ -6,6 +12,13 @@ This SOP defines the standard process for a package manager to build and
 publish software with Spack on a supported system. The package manager supplies
 the package intent. The site-supplied static platform catalog supplies reviewed
 compiler, MPI, target, and external-package configuration.
+
+This document contains the normal operating procedure. A system-specific
+handoff supplies actual paths, supported catalog releases, toolchain names,
+Unix groups, scheduler details, and support contacts. A separate runbook may
+cover site provisioning, exceptional recovery, and platform-specific failure
+analysis. The operator should not need the runbook for a normal build and
+publication cycle.
 
 The required sequence is:
 
@@ -20,6 +33,31 @@ select reviewed platform configuration
 
 Every environment must use an explicit supported toolchain. A successful build
 is not sufficient for publication. Runtime and module tests must also pass.
+
+### 1.1 Procedure use
+
+Complete the sections in order. Each section defines a control point. Do not
+continue past a failed control point.
+
+1. Complete the operating record in Section 3.
+2. Start the approved Spack runtime and complete preflight.
+3. Select one released catalog and its documented scopes.
+4. Define and review the environment source.
+5. Concretize and review `spack.lock`.
+6. Build and run the required tests on the target node types.
+7. Publish only the accepted concrete hashes.
+8. Retain the environment source, lockfile, evidence, and approval record.
+
+Command examples use angle-bracket placeholders for site-supplied values. The
+operator must replace every placeholder before running a command. Shell
+variables shown in the operating record may be used to avoid repeating paths.
+
+### 1.2 Evidence format
+
+Retain command output as text files together with the environment source,
+lockfile, manifests, checksums, and test programs. Record the command, node,
+date, exit status, and output for every required test. Screenshots are not
+required and must not be the only evidence for a control point.
 
 ## 2. Responsibilities
 
@@ -38,7 +76,7 @@ owner of that namespace.
 Record these inputs before concretization:
 
 - target system and node types used for the build and runtime tests;
-- static platform catalog release;
+- approved public static platform catalog root, release, and approval record;
 - selected compiler and, when applicable, matching MPI and GPU scopes;
 - root package specs, versions, variants, and dependency constraints;
 - exact Spack version and package-recipe source;
@@ -49,6 +87,52 @@ Record these inputs before concretization:
 The static platform catalog contains configuration. It does not select the
 application packages, install tree, views, module roots, or release lifecycle.
 Those remain package-manager or site deployment decisions.
+
+### 3.1 Operating record
+
+Create a release worksheet and fill every actual-value field before preflight.
+The worksheet may be a tracked text file, ticket, or release database record.
+
+| Item | Shell name used in this SOP | Actual value required |
+|---|---|---|
+| Target system | `STACK_SYSTEM` | System name |
+| Application release | `STACK_RELEASE` | Immutable application release identifier |
+| Catalog release root | `CATALOG_RELEASE_ROOT` | Absolute path to one approved catalog release |
+| Environment directory | `ENVIRONMENT_ROOT` | Absolute path containing `spack.yaml` |
+| Approved Spack checkout | `SPACK_ROOT` | Absolute path to the pinned checkout |
+| Spack version | `SPACK_VERSION` | Approved version and commit |
+| Per-user Spack state | `SPACK_USER_CACHE_PATH` | Builder-private absolute path |
+| Build stage | `SPACK_STAGE_ROOT` | Builder-writable absolute path |
+| Install tree | Site configuration | Absolute package store selected by the application team |
+| View root | Environment configuration | Absolute view path, or `none` |
+| Module root | Environment configuration | Absolute module path, or `none` |
+| Build group | Deployment record | Approved Unix group |
+| Build and runtime nodes | Deployment record | Login, build, and test node types |
+| Reviewer and release authority | Release record | Named people or approving roles |
+
+Start the approved Spack session after filling the record:
+
+```bash
+export STACK_SYSTEM="<system>"
+export STACK_RELEASE="<application-release>"
+export CATALOG_RELEASE_ROOT="<absolute-catalog-release-root>"
+export ENVIRONMENT_ROOT="<absolute-environment-directory>"
+export SPACK_ROOT="<absolute-approved-spack-root>"
+export SPACK_VERSION="<approved-spack-version>"
+export SPACK_STAGE_ROOT="<absolute-build-stage>"
+
+export SPACK_DISABLE_LOCAL_CONFIG=true
+export SPACK_USER_CACHE_PATH="<absolute-per-user-cache-root>/$USER/spack/$SPACK_VERSION"
+export PYTHONDONTWRITEBYTECODE=1
+
+test -f "$SPACK_ROOT/share/spack/setup-env.sh"
+test -r "$CATALOG_RELEASE_ROOT/manifest.yaml"
+source "$SPACK_ROOT/share/spack/setup-env.sh"
+spack --version
+```
+
+Record the output of `spack --version` and the checkout commit. Stop if they do
+not match the approved Spack identity.
 
 ## 4. Storage, access, and Spack runtime
 
@@ -83,7 +167,8 @@ is assembled. Record the owning Unix group for that independently managed
 software stack in its deployment inputs; different teams or stacks may use
 different approved groups. Keep that group stable for the life of the release.
 Use setgid directories and the site's default ACL or umask policy. Published
-users receive read and execute access, not write access.
+users outside the approved package-manager group receive read and execute
+access, not write access.
 
 Record which paths are shared and which are builder-private before work starts:
 
@@ -103,13 +188,55 @@ directories, `0660` for ordinary files, and `0770` for executables. Spack's
 native package-permission configuration owns installed prefixes; do not use a
 blind recursive chmod around the package database and prefix locks.
 
+### 4.1 Installed-package permission policy
+
+The package manager must supply the installed-prefix policy as deployment
+configuration. It is not part of the static platform catalog. For a published
+stack managed by a package-manager group, use:
+
+```yaml
+packages:
+  all:
+    permissions:
+      group: <approved-package-manager-group>
+      read: world
+      write: group
+```
+
+This may be written directly below `spack.packages` in an environment's
+`spack.yaml`, or placed in a separate `packages.yaml` inside a configuration
+scope named by the environment's `spack.include` list. A managed workspace
+generator should create the included file from the deployment access values so
+every environment receives the same policy. A package manager assembling an
+environment without that generator must create and include the policy file.
+
+For the approved Spack runtime, verify the merged configuration before
+installation:
+
+```bash
+spack -e "$ENVIRONMENT_ROOT" config get packages
+```
+
+The published filesystem contract is `2775` for directories, `0775` for
+executable files, and `0664` for ordinary files. The owner and approved package
+manager group can write. Users outside the group can traverse directories, run
+executables, and read ordinary files, but cannot write. The leading `2` is the
+setgid bit, which makes new entries inherit the directory's group; it is not
+the sticky bit. Sticky is the leading `1` bit and is not used here.
+
+For a restricted build tree, change only `read` from `world` to `group` and
+retain `write: group`. Its normal modes are `2770`, `0770`, and `0660`. Keep the
+private build cache in the restricted tree. General users consume the final
+installed prefixes, views, and modules rather than the private cache.
+
 ## 5. Preflight
 
 Complete these checks from the node types that will perform the build and
 runtime tests:
 
 - the catalog release and selected scopes are readable;
-- the selected compiler and compiler–MPI pairing are present in the catalog;
+- the selected compiler and, when applicable, its approved MPI pairing are
+  present in the catalog;
 - the install tree, caches, views, and module root are reachable;
 - shared generated content is readable, writable, and traversable by another
   member of the approved build group;
@@ -125,8 +252,11 @@ Check the active scopes before using an environment:
 
 ```bash
 spack config scopes -vp
-spack -e <environment-path> config scopes -vp
+spack -e "$ENVIRONMENT_ROOT" config scopes -vp
 ```
+
+Run the global command during initial preflight. Run the environment command
+after `spack.yaml` has been created in Section 7 and before concretization.
 
 Stop if an unexpected scope can affect the solve. Correct the environment or
 runtime setup before concretization.
@@ -146,9 +276,28 @@ df -Pi "$SPACK_STAGE_ROOT"
 
 Also confirm the quota, cleanup schedule, retention period, and mount options.
 
+Confirm the released catalog is readable and complete:
+
+```bash
+test -r "$CATALOG_RELEASE_ROOT/README.md"
+test -r "$CATALOG_RELEASE_ROOT/manifest.yaml"
+test -r "$CATALOG_RELEASE_ROOT/reports/static-plan.yaml"
+test -d "$CATALOG_RELEASE_ROOT/scopes"
+find "$CATALOG_RELEASE_ROOT/scopes" -type f -print | sort
+```
+
+Inspect the release manifest and static plan. Confirm that their system,
+release, compiler, MPI, GPU, target, module, prefix, and external-package facts
+match the operating record. Stop if a required scope is absent or if the
+catalog records an unresolved provider dependency.
+
+Preflight passes only when the recorded paths and node types are usable, the
+approved Spack identity matches, the catalog is readable, and the global and
+environment scope listings contain no unexpected configuration.
+
 ## 6. Select platform configuration
 
-Read the catalog manifest and select the exact scope paths it publishes. A
+Read `manifest.yaml` and select the exact scope paths it publishes. A
 normal environment includes:
 
 1. common site configuration;
@@ -157,31 +306,46 @@ normal environment includes:
 4. one matching MPI scope for MPI builds; and
 5. one compatible GPU scope for GPU builds.
 
+Use an immutable catalog release path in a reproducible environment. A site may
+publish a `current` pointer for discovery, but the environment source and
+release record must identify the resolved release directory. The released
+catalog must be readable and traversable by all authenticated system users.
+Consumers outside the approved catalog-manager group must not have write
+access. The approved group retains management access, but no operator edits a
+released version in place. Correct the owning inputs, generate and review a new
+restricted catalog release, publish a new version with fresh approval metadata
+and checksums, and move the discovery pointer only after acceptance. Retain or
+retire the superseded version through the recorded release policy.
+
 Use `include::` so the environment's explicit configuration replaces ambient
-configuration:
+configuration. Use absolute paths to an immutable catalog release in a
+published environment:
 
 ```yaml
 spack:
-  toolchains:
-    cse_shared:
-      - {spec: '%c=gcc@<version>', when: '%c'}
-      - {spec: '%cxx=gcc@<version>', when: '%cxx'}
-      - {spec: '%fortran=gcc@<version>', when: '%fortran'}
-      - {spec: '%mpi=openmpi@<version>', when: '%mpi'}
-
   include::
-    - ../../../catalog/scopes/common
-    - ../../../catalog/scopes/compilers/<compiler>/<version>
-    - ../../../catalog/scopes/mpi/<provider>/<version>/<compiler-flavor>
-    - ../../../catalog/scopes/platform/<platform>
+    - <absolute-catalog-release-root>/scopes/common
+    - <absolute-catalog-release-root>/scopes/compilers/<compiler>/<version>
+    - <absolute-catalog-release-root>/scopes/mpi/<provider>/<version>/<compiler-flavor>
+    - <absolute-catalog-release-root>/scopes/platform/<platform>
 ```
 
-Keep the catalog and environment tree together when includes are relative. Do
-not copy a single `spack.yaml` without the configuration directories it
-references.
+Use the toolchain name recorded in the selected MPI scope's
+`toolchains.yaml`. A Serial environment omits the MPI scope and constrains each
+root with the selected compiler. Do not retype catalog-owned compiler, MPI,
+external prefix, or module policy in the environment.
 
-Select only documented compiler–MPI pairings. Do not construct a pairing from
+Keep the catalog and environment tree together when a private test uses
+relative includes. Do not copy a single `spack.yaml` without the configuration
+directories it references.
+
+Select only documented compiler and MPI pairings. Do not construct a pairing from
 module names or installed directories without catalog support.
+
+Record the exact selected scope paths in the release worksheet. Catalog
+selection passes when every selected path is present in `manifest.yaml` and
+the environment scope listing resolves those paths without an ambient policy
+override.
 
 ## 7. Define the environment
 
@@ -201,6 +365,81 @@ Minimum requirements:
 A package manager may use one environment or several independently
 concretized environments. Use separate environments when compiler, MPI, GPU,
 or module-conflict boundaries require them.
+
+### 7.1 Minimum Serial environment
+
+The following source is the minimum normal Serial pattern. Replace every
+placeholder with values from the operating record and catalog manifest:
+
+```yaml
+spack:
+  include::
+    - <absolute-catalog-release-root>/scopes/common
+    - <absolute-catalog-release-root>/scopes/compilers/<compiler>/<version>
+    - <absolute-catalog-release-root>/scopes/platform/<platform>
+
+  specs:
+    - <package>@<version>~mpi %<compiler>@<compiler-version>
+
+  concretizer:
+    unify: false
+    reuse: false
+
+  view: false
+```
+
+If the package has no MPI variant, omit `~mpi`. The root must still select the
+approved compiler. Add the application-owned install, view, and module policy
+before concretization.
+
+### 7.2 Minimum MPI environment
+
+The following source is the minimum normal MPI pattern:
+
+```yaml
+spack:
+  include::
+    - <absolute-catalog-release-root>/scopes/common
+    - <absolute-catalog-release-root>/scopes/compilers/<compiler>/<version>
+    - <absolute-catalog-release-root>/scopes/mpi/<provider>/<version>/<compiler-flavor>
+    - <absolute-catalog-release-root>/scopes/platform/<platform>
+
+  specs:
+    - <package>@<version>+mpi %<catalog-toolchain-name>
+
+  concretizer:
+    unify: false
+    reuse: false
+
+  view: false
+```
+
+Read `<catalog-toolchain-name>` from the selected MPI scope's
+`toolchains.yaml`. Do not construct the name from the provider or module name.
+Add a GPU scope and the approved GPU variants only for a GPU build.
+
+### 7.3 Deployment configuration
+
+The package manager or site supplies deployment paths. A minimum environment
+configuration has this form:
+
+```yaml
+spack:
+  config:
+    install_tree:
+      root: <absolute-install-tree>
+    build_stage:
+      - <absolute-per-builder-stage>
+    source_cache: <absolute-source-cache>
+    locks: true
+```
+
+Add view and module configuration only when the release publishes them. The
+view path and module root must be absolute, owned by the application team, and
+recorded before concretization. Do not take deployment paths from the static
+catalog. The catalog provides platform configuration only.
+
+### 7.4 Ordered producer example
 
 Spack 1.2 groups and `needs` may be used to order producers and consumers in
 one environment:
@@ -225,12 +464,12 @@ spack:
     - group: mpi
       needs: [compiler]
       specs:
-        - openmpi@<version> %cse_shared
+        - openmpi@<version> %<catalog-toolchain-name>
 
     - group: applications
       needs: [compiler, mpi]
       specs:
-        - hdf5@<version>+mpi+fortran %cse_shared
+        - hdf5@<version>+mpi+fortran %<catalog-toolchain-name>
 
   concretizer:
     unify: false
@@ -252,9 +491,9 @@ protect from an installed seed-compiler DAG.
 Concretize and retain the generated lockfile:
 
 ```bash
-spack -e <environment-path> concretize --fresh
-spack -e <environment-path> find -c -d -l -v
-spack -e <environment-path> find -c -d -e -l -v
+spack -e "$ENVIRONMENT_ROOT" concretize --fresh
+spack -e "$ENVIRONMENT_ROOT" find -c -d -l -v
+spack -e "$ENVIRONMENT_ROOT" find -c -d -e -l -v
 ```
 
 The first `find` shows the complete concrete DAG, including specs not yet
@@ -274,13 +513,18 @@ Review at least:
 Do not edit `spack.lock`. Correct the environment or selected catalog scopes
 and concretize again.
 
+Concretization passes only when `spack.lock` exists, every root matches the
+approved intent, all providers and externals come from approved scopes, and no
+unreviewed compiler, target, or dependency appears in the graph. Save the two
+`find` listings with the release evidence.
+
 ## 9. Build and validate
 
 Fetch on a network-capable node when compute nodes cannot reach package
 sources:
 
 ```bash
-spack -e <environment-path> fetch -D
+spack -e "$ENVIRONMENT_ROOT" fetch -D
 ```
 
 The later install may run on a different node when it uses the same workspace,
@@ -295,10 +539,14 @@ before transferring responsibility to another builder.
 Install and refresh the environment-owned presentation:
 
 ```bash
-spack -e <environment-path> install --fail-fast
-spack -e <environment-path> env view regenerate
-spack -e <environment-path> module tcl refresh --delete-tree -y
+spack -e "$ENVIRONMENT_ROOT" install --fail-fast
+spack -e "$ENVIRONMENT_ROOT" env view regenerate
+spack -e "$ENVIRONMENT_ROOT" module tcl refresh --delete-tree -y
 ```
+
+Run view regeneration only when the environment defines a view. Run module
+refresh only when the environment defines module generation. A build that does
+not publish a view or modules records those checks as not applicable.
 
 Run the checks that apply:
 
@@ -313,6 +561,11 @@ Run the checks that apply:
 
 Record the result as `built`, `runtime-passed`, or `held`. Publish only a
 `runtime-passed` environment.
+
+Validation passes only when the required compile, runtime, scheduler, MPI,
+GPU, view, module, clean-session, and permission tests have recorded successful
+exit status. Mark the release `held` when a required resource was unavailable
+or a required result was not obtained.
 
 ## 10. Publish
 
@@ -329,6 +582,39 @@ When a build cache is used:
    publication workspace; and
 6. compare the published hashes with the validated build hashes.
 
+The site supplies the approved cache push and signing command. After the
+validated hashes are available in that cache, perform the cache-only install
+with a matching publication environment:
+
+```bash
+export PUBLICATION_ENVIRONMENT_ROOT="<absolute-publication-environment>"
+
+test -f "$PUBLICATION_ENVIRONMENT_ROOT/spack.yaml"
+cp "$ENVIRONMENT_ROOT/spack.lock" "$PUBLICATION_ENVIRONMENT_ROOT/spack.lock"
+spack -e "$PUBLICATION_ENVIRONMENT_ROOT" find -c -d -l -v
+spack -e "$PUBLICATION_ENVIRONMENT_ROOT" install \
+  --only-concrete --use-buildcache=only --fail-fast
+```
+
+Do not concretize the publication environment. A cache miss is a failed
+publication control point. Return to the validated build, supply the missing
+approved hash, and repeat the cache-only install. If the correction changes a
+hash, create a new release record.
+
+Record and compare hashes before approval:
+
+```bash
+export EVIDENCE_ROOT="<absolute-evidence-path>"
+mkdir -p "$EVIDENCE_ROOT"
+spack -e "$ENVIRONMENT_ROOT" find --format '{hash}' | sort \
+  > "$EVIDENCE_ROOT/validated-hashes.txt"
+spack -e "$PUBLICATION_ENVIRONMENT_ROOT" find --format '{hash}' | sort \
+  > "$EVIDENCE_ROOT/published-hashes.txt"
+diff -u \
+  "$EVIDENCE_ROOT/validated-hashes.txt" \
+  "$EVIDENCE_ROOT/published-hashes.txt"
+```
+
 When the validated install tree is published directly, freeze the accepted
 release after view, module, permission, and clean-session tests pass. Do not
 change an accepted release in place.
@@ -336,6 +622,19 @@ change an accepted release in place.
 Generate or refresh views and modules only after installation. Use
 version-sensitive module names, dependencies, and conflicts when more than one
 public package version is available.
+
+When a package exposes a direct dependency as part of its public build or
+runtime interface, configure its module to load the exact compatible dependency
+module. Do not automatically load private transitive dependencies. Apply a
+package-family conflict so a user cannot replace that dependency with another
+published version in the same session. NetCDF-C and HDF5 are the minimum
+acceptance case when both are in the release.
+
+Publication passes only when the validated and published hashes match, the
+required clean-session runtime and module checks pass, users have read and
+execute access, consumers outside the approved package-manager group have no
+write access, a second package manager in the group can perform a controlled
+write test, and the release authority has recorded approval.
 
 ## 11. User access
 
@@ -351,8 +650,10 @@ Use `module use` only for a private, test, or newly introduced module root.
 Document that path with the release.
 
 Verify that users can traverse the module tree, views, external runtime paths,
-and package prefixes from login and compute nodes. Users must not have write
-access to an accepted release.
+and package prefixes from login and compute nodes. Users outside the approved
+package-manager group must not have write access to an accepted release.
+Authorized package-manager writes remain subject to the release procedure; use
+a new release for unrecorded package or configuration changes.
 
 ## 12. Changes, security events, and platform updates
 
@@ -397,7 +698,7 @@ accepted release. It does not modify either release.
 
 Retain:
 
-- system and catalog release;
+- system, resolved public catalog release path, and catalog approval record;
 - environment source and selected scope paths;
 - exact Spack and package-recipe versions;
 - install, cache, view, module, and build-stage locations;
@@ -422,7 +723,7 @@ Retain:
   recorded in `spack.lock`.
 
 **Toolchain**
-: An explicit compiler or a supported compiler–MPI pairing, with a compatible
+: An explicit compiler or a supported compiler and MPI pairing, with a compatible
   GPU runtime when required.
 
 **Lockfile**
