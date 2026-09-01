@@ -97,6 +97,7 @@ operator procedures and do not override the current model.
 | `related_tools_assessment_v1.md` | Comparison with Stackinator and spack-stack. |
 | `reframe_flux_primary_source_research_v1.md` | Primary-source ReFrame and Flux capability, integration, lifecycle, and risk research supporting the CSE validation plan. |
 | `site_stack_survey_v1.md` | External HPC-site survey used as background evidence. |
+| `spack_supply_chain_security_primary_source_research_v1.md` | Primary-source security assessment of recipes, repository pins, source intake, signed cache-only promotion, SBOM limits, and the bounded RPM/DNF comparison used by both SOPs. |
 | `spack-learnings/CSE-Spack-Learnings.md` | Full technical findings from system validation. |
 | `spack-learnings/CSE-Spack-Learnings-Summary.md` | Short summary of those findings. |
 | `robust_testing_roadmap_v1.md` | Testing roadmap and remaining acceptance coverage. |

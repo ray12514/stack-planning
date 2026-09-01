@@ -27,47 +27,56 @@ select reviewed platform configuration
   -> freeze and approve the release
 ```
 
-The Initial Conversion Trials use this process. This SOP contains the normal
-command sequence and release controls. The system handoff supplies actual
-paths, provider selections, node types, and approving roles. The trial runbook
-covers provisioning, exceptional recovery, and system-specific failure
-analysis.
+The Initial Conversion Trials exercise this process. This SOP records the
+durable CSE release contract in Spack and Stack Composer terms. The system
+handoff supplies actual deployment paths, provider selections, node types, and
+approving roles. Trial-only adapters, operator shortcuts, provisioning,
+exceptional recovery, and system-specific failure analysis remain in the
+runbook.
 
 ### 1.1 Procedure use
 
 Complete the sections in order. Do not continue past a failed control point.
-The preferred execution interface after workspace generation is the generated
-`cse-build` command. Raw `spack -e` commands in this SOP are inspection and
-publication commands or the documented bare-Spack equivalent.
+The SOP uses Spack's public environment commands. A CSE automation wrapper may
+run the same operations, but its private variables, status vocabulary, and
+recovery shortcuts are not part of this procedure or the release contract.
 
 After Sections 3 through 7 are complete, the normal restricted-build sequence
-is:
+for each generated environment is:
 
 ```bash
 export WORKDIR="<absolute-builder-work-root>"
 export BUILD_WORKSPACE="<absolute-restricted-workspace>"
+export ENVIRONMENT_ROOT="<absolute-generated-environment-path>"
 : "${WORKDIR:?WORKDIR must be set}"
 : "${BUILD_WORKSPACE:?BUILD_WORKSPACE must be set}"
-cd "$BUILD_WORKSPACE"
-./cse-build login status --spack-mode shared
-./cse-build login concretize --spack-mode shared
-./cse-build login verify --spack-mode shared
-./cse-build login fetch --spack-mode shared
-./cse-build compute install --spack-mode shared
-./cse-build login verify --spack-mode shared
+: "${ENVIRONMENT_ROOT:?ENVIRONMENT_ROOT must be set}"
+
+spack -e "$ENVIRONMENT_ROOT" config scopes -vp
+spack -e "$ENVIRONMENT_ROOT" concretize --fresh -j 1
+spack -e "$ENVIRONMENT_ROOT" find -c -d -l -v
+spack -e "$ENVIRONMENT_ROOT" fetch -D
+# Enter the approved compute allocation before installation when required.
+spack -e "$ENVIRONMENT_ROOT" install --fail-fast
+spack -e "$ENVIRONMENT_ROOT" env view regenerate
+spack -e "$ENVIRONMENT_ROOT" module tcl refresh --delete-tree -y
+spack -e "$ENVIRONMENT_ROOT" find -c -d -l -v
 ```
 
-Run the compute install from an allocation that satisfies the workspace's
-recorded compute context. The system handoff supplies the scheduler command
-used to obtain that allocation.
+Run only the view and module commands enabled by that environment. Repeat the
+sequence in the generated environment order. Run installation from an
+allocation that satisfies the deployment record's compute-node requirements.
+The system handoff supplies the scheduler command used to obtain that
+allocation.
 
 ### 1.2 Evidence format
 
-Retain command output as text together with manifests, values files,
-environment sources, lockfiles, concrete-hash inventories, checksums, test
-programs, SBOMs, and approvals. Record the command, node, date, exit status,
-and output for each required test. Screenshots are not required and must not be
-the only evidence for a control point.
+Retain command output as text together with the reviewed profile, deployment,
+defaults, stack intent, package sets, manifests, environment sources,
+lockfiles, concrete-hash inventories, checksums, test programs, SBOMs, and
+approvals. Record the command, node, date, exit status, and output for each
+required test. Screenshots are not required and must not be the only evidence
+for a control point.
 
 ## 2. Responsibilities
 
@@ -87,8 +96,10 @@ Conversion Trials.
 Record these inputs before workspace generation:
 
 - target system and required login, build, and runtime node types;
-- reviewed static platform catalog release;
-- CSE package roster and package-set release;
+- reviewed system `profile.yaml` and, for external package managers, the
+  corresponding static platform catalog release;
+- installer-owned `deployment.yaml`;
+- reviewed site defaults, CSE `stack.yaml`, and package-set release;
 - compiler surfaces and matching MPI providers;
 - approved portable CPU target;
 - exact Spack version, tag, commit, and package-recipe source;
@@ -104,40 +115,35 @@ variants. Email and this SOP may summarize the roster but do not override it.
 ### 3.1 CSE operating record
 
 Complete one operating record for each system and release before generating a
-workspace. The record may be a tracked values file, controlled ticket, or
-release database entry. It must provide actual values rather than instructions
-to discover them.
+workspace. Use the tracked profile, deployment, defaults, stack intent,
+package-set, and release-manifest files for technical inputs. A controlled
+ticket or release database may carry approvals, owners, and dates. Every
+retained input must provide actual selections rather than instructions to
+discover them during a build.
 
-| Item | Shell or configuration name | Actual value required |
+| Item | Authoritative artifact or Spack term | Actual value required |
 |---|---|---|
-| System | `CSE_SYSTEM_NAME` | Reviewed system identifier |
-| Catalog release | `CATALOG_RELEASE` | Immutable catalog release identifier |
-| Restricted catalog release | `CATALOG` | Absolute reviewed catalog path used for workspace generation |
-| Published catalog release | `PUBLISHED_CATALOG` | Absolute approved path readable by all system users |
-| Static output parent | `STATIC_ROOT` | Absolute restricted catalog output parent |
-| Published static output parent | `PUBLISHED_STATIC_ROOT` | Absolute public catalog output parent |
-| Profile and templates | `SYSTEM_DIR`, `CONTENT`, `TEMPLATE_SET` | Approved input paths and template-set identifier |
-| Render provenance | `RENDERED_AT`, `SOURCE_REPO`, `SOURCE_COMMIT` | Fixed UTC time and reviewed source identity |
-| Publication record | `PUBLISHED_AT`, `CATALOG_REVIEWER`, `CATALOG_APPROVER` | Fixed UTC time and named people or roles |
-| Stack Composer command | `CSE_PYTHON`, `STACK_COMPOSER` | Approved Python interpreter and executable path |
-| Stack and package roster | CSE release inputs | Approved source revision and release identifier |
-| Restricted build values | `BUILD_VALUES` | Absolute approved values-file path |
-| Restricted workspace | `BUILD_WORKSPACE` | Absolute workspace path |
-| Builder work root | `WORKDIR` | Absolute builder-writable path |
-| Published workspace | `PUBLISH_WORKSPACE` | Absolute publication workspace path |
-| Shared Spack checkout | `CSE_SPACK_SHARED_ROOT` | Absolute read-only path |
-| Spack identity | `CSE_SPACK_VERSION`, `CSE_SPACK_TAG`, `CSE_SPACK_COMMIT` | Approved version, tag, and commit |
-| Login and compute contexts | Generated workspace values | Exact node-type keys and stage candidates |
-| Compiler and provider selections | CSE build values | Approved compiler, MPI, target, and optional GPU tuple |
-| Restricted and published releases | Deployment values | Install, view, module, cache, and evidence roots |
-| Collaboration group | `CSE_GROUP` | Installer-confirmed Unix group |
+| System facts | `systems/<system>/profile.yaml` | Reviewed system identifier, node types, compiler, MPI, GPU, target, external, and filesystem facts |
+| Deployment choices | `systems/<system>/deployment.yaml` | Install tree, build stage, caches, view and module roots, build-cache destinations, Spack root, and access policy |
+| Site policy | `templates/<set>/defaults.yaml` | Reviewed compiler, MPI, GPU, target, external, module, Spack-floor, and release defaults |
+| Stack intent | `stacks/<stack>/stack.yaml` and `package-sets/` | CSE package specs, versions, variants, dependency constraints, lane intent, and release identifier |
+| Render mechanics | `templates/<set>/` | Approved template-set identifier and source revision |
+| Package recipes | Pinned `spack-packages` and CSE package repositories | Approved repository locations and commits |
+| Restricted workspace | Rendered release path | Absolute workspace generated from the reviewed inputs |
+| Published workspace | Publication deployment record | Absolute cache-only publication workspace path |
+| Spack runtime identity | Approved Spack source, version, tag, and commit | One exact identity; selected shared or builder-local root may differ |
+| Provider selections | Resolved release manifest and generated Spack scopes | Approved compiler, MPI, target, optional GPU tuple, and exact module or prefix evidence |
+| Restricted and published releases | `deployment.yaml` plus publication record | Install, view, module, cache, evidence, and consumer roots |
+| Collaboration group | `deployment.yaml.access.group` | Installer-confirmed Unix group |
 | Signing identity | Publication record | Full approved public-key fingerprint |
 | Reviewer and release authority | Release record | Named people or documented roles |
 | Support and announcement channels | Release record | Approved queue and user-notification channel |
 
 The handoff owner fills the record before transferring responsibility. The
-receiving builder verifies the values but does not select replacement paths or
-providers during the build.
+receiving builder verifies the retained inputs and rendered Spack
+configuration but does not select replacement paths or providers during the
+build. Session shell variables may abbreviate paths, but they are not release
+artifacts and do not replace the files above.
 
 ## 4. Storage, access, and Spack runtime
 
@@ -265,17 +271,120 @@ Provision a new Spack version in a new sibling directory. Switching between a
 shared and local checkout with the same verified runtime identity is
 operational. A Spack version or commit change is release- and DAG-significant.
 
+### 4.3 Explicit deployment and security configuration
+
+The CSE release uses `deployment.yaml` as the durable record of paths and
+access policy. It does not derive these choices from the system profile or an
+operator's shell. The reviewed file must explicitly contain the selected
+install tree, stage, caches, presentation roots, build-cache destination,
+Spack root when centrally supplied, and collaboration policy:
+
+```yaml
+schema_version: 1
+system: <system>
+
+access:
+  group: cse
+  read: group
+  write: group
+
+install_tree:
+  root: <absolute-restricted-install-tree>
+  padded_length: 128
+
+build_stage:
+  default: <absolute-per-builder-stage>
+  by_node_type:
+    compute: <absolute-compute-stage>
+
+caches:
+  source: <absolute-restricted-source-cache>
+  misc: <absolute-restricted-misc-cache-root>
+
+roots:
+  views: <absolute-restricted-view-root>
+  modules: <absolute-restricted-module-root>
+
+modules:
+  publish_root: <absolute-site-module-publication-root>
+
+buildcache:
+  destinations:
+    - name: restricted
+      url: file://<absolute-private-build-cache-root>
+
+spack:
+  root: <absolute-approved-spack-root>
+```
+
+Before concretization, inspect the rendered Spack configuration for every
+environment:
+
+```bash
+spack -e <environment-path> config get config
+spack -e <environment-path> config get packages
+spack -e <environment-path> config get mirrors
+spack -e <environment-path> config get modules
+spack -e <environment-path> config scopes -vp
+```
+
+The rendered `config.yaml` must show the selected install tree, ordered build
+stages, source cache, builder-specific miscellaneous cache, and enabled locks.
+The rendered `packages.yaml` must show the CSE group and restricted read/write
+policy. Mirror configuration must distinguish the source cache from the signed
+binary build cache. Module configuration must state whether generation is
+enabled, the generated-module root, projections, dependency behavior, and
+conflicts. The SOP does not prescribe a complete `modules.yaml`; retain and
+review the generated file for the release.
+
+Treat every recipe and patch in the selected concrete dependency closure as
+executable build input. Pin the Spack runtime, the upstream `spack-packages`
+repository, and every CSE package repository to reviewed commits. Review the
+repository changes since the previous accepted release, with full manual
+review for new or locally changed recipes, changed fetch logic, custom build
+hooks, checksum exceptions, and security-critical packages.
+
+The restricted workflow separates network access from user publication:
+
+1. Concretize the reviewed specs and retain unedited lockfiles.
+2. Fetch sources into the restricted source cache from a network-enabled node.
+3. Verify recipe checksums or immutable version-control commits and retain the
+   source inputs used by the lockfile.
+4. Build and test in the restricted CSE area. Disable outbound build access
+   when site policy requires it.
+5. Retain concrete hashes, manifests, test evidence, SBOMs, and the separate
+   inventory of system externals.
+6. Sign only validated concrete packages and push them to the private build
+   cache.
+7. Populate the user-facing release from the approved lockfiles and signed
+   build cache only. A cache miss stops publication and returns to the
+   restricted workflow.
+
+Source checksums authenticate fetched bytes against the pinned recipe. They do
+not establish that a recipe or upstream source is free of malicious or
+vulnerable behavior. Lockfiles preserve the selected graph but do not replace
+recipe-repository review. SBOMs support inventory but do not perform CVE
+matching. Use the organization-approved scanners and advisory sources for the
+Spack-installed inventory and the separately recorded externals. The detailed
+Spack signing, SBOM, integrity, recipe-trust, and package-manager comparison is
+kept in the [Spack supply-chain security research](spack_supply_chain_security_primary_source_research_v1.md)
+and the [Spack 1.2 signing and SBOM note](spack_1_2_signing_sbom_security_note_v1.md).
+
 ## 5. Preflight
 
-Complete path, catalog, and Spack checks before workspace generation. Complete
-the generated-workspace checks before concretization:
+Complete profile, deployment, stack-intent, path, package-repository, and Spack
+checks before workspace generation. Complete the generated-workspace checks
+before concretization:
 
 - all required repositories and content are on the approved branch and commit;
-- the catalog manifest and reports match the target system;
+- `profile.yaml` and `deployment.yaml` name the same target system;
+- the selected defaults, stack intent, package sets, and template set are the
+  reviewed release inputs;
 - the selected compiler and approved MPI pairings are present;
 - the restricted and published roots have the intended group and permissions;
-- `./cse-build login status` passes from the build owner and from another
-  member of the recorded CSE group before responsibility is transferred;
+- the build owner and another member of the recorded CSE group can traverse,
+  read, create, replace, and remove a controlled test artifact on each shared
+  working root before responsibility is transferred;
 - the selected Spack checkout matches the approved version, tag, commit, and
   clean state;
 - per-user cache and keyring paths are absolute, private where required, and
@@ -311,17 +420,22 @@ After Section 7.1 generates the workspace, verify it from the login context:
 ```bash
 : "${WORKDIR:?WORKDIR must be set}"
 cd "$BUILD_WORKSPACE"
-test -f workspace-manifest.yaml
-test -x cse-build
-test -d catalog/scopes
+test -f release-manifest.yaml
+test -d configs
 test -d environments
-./cse-build login status --spack-mode shared
+find environments -name spack.yaml -print | sort
+
+spack -e <environment-path> config scopes -vp
+spack -e <environment-path> config get config
+spack -e <environment-path> config get packages
+spack -e <environment-path> config get mirrors
+spack -e <environment-path> config get modules
 ```
 
-Run the same `status` command as a second member of the recorded CSE group
-before transferring responsibility. Preflight passes only when the approved
-Spack identity, catalog, generated workspace, stages, shared paths, locking,
-scope boundary, and cross-user access checks pass.
+Repeat the read-only Spack inspections from the receiving builder's approved
+Spack runtime before transferring responsibility. Preflight passes only when
+the approved Spack identity, canonical inputs, generated workspace, stages,
+shared paths, locking, scope boundary, and cross-user access checks pass.
 
 ## 6. Select platform configuration
 
@@ -331,21 +445,20 @@ Generate the catalog in the restricted review root from the approved profile,
 template set, and source revisions:
 
 ```bash
-"$CSE_PYTHON" "$STACK_COMPOSER" render-static \
-  --profile "$SYSTEM_DIR/profile.yaml" \
-  --templates "$CONTENT/templates" \
-  --template-set "$TEMPLATE_SET" \
-  --output-root "$STATIC_ROOT" \
-  --release "$CATALOG_RELEASE" \
-  --rendered-at "$RENDERED_AT" \
-  --source-repo "$SOURCE_REPO" \
-  --source-commit "$SOURCE_COMMIT"
+stack-composer render-static \
+  --profile systems/<system>/profile.yaml \
+  --templates templates \
+  --template-set <template-set> \
+  --output-root <absolute-restricted-catalog-root> \
+  --release <catalog-release> \
+  --rendered-at <fixed-UTC-time> \
+  --source-repo <approved-source-repository> \
+  --source-commit <approved-source-commit>
 ```
 
-The operating record or system handoff supplies every variable in this
-command. Use a fixed UTC value for `RENDERED_AT`. Add the renderer's dirty
-source flag only when the release record explicitly permits reviewed,
-uncommitted input.
+The operating record or system handoff supplies every placeholder in this
+command. Use a fixed UTC render time. Add the renderer's dirty-source flag only
+when the release record explicitly permits reviewed, uncommitted input.
 
 Inspect the result before selecting scopes:
 
@@ -366,20 +479,22 @@ not supported by reviewed evidence.
 
 ### 6.2 Retain the restricted catalog
 
-After review, keep `$CATALOG` at its versioned restricted path and make that
-review copy read-only. Both the restricted build workspace and the later
-cache-only publication workspace use this retained restricted catalog. The
-workspace snapshot makes each workspace portable after initialization, but it
-does not change the catalog of record.
+After review, keep the catalog at its versioned restricted path and make that
+review copy read-only. It is the source for the later public static-catalog
+publication and for manual package-manager review. The managed CSE workspace
+is rendered separately from the same reviewed `profile.yaml`, defaults,
+templates, and provider policy plus CSE stack intent and `deployment.yaml`.
+It does not use the public catalog as a build input.
 
-Do not switch either CSE workspace to a public catalog path. The public static
-catalog is an independent configuration product for package managers outside
-CSE. Publish it during the release procedure in Section 10.2. Public promotion
-does not replace or remove the restricted review copy.
+The public static catalog is an independent configuration product for package
+managers outside CSE. Publish it during the release procedure in Section 10.2.
+Public promotion does not replace or remove the restricted review copy or the
+managed workspace inputs.
 
 ### 6.3 Select scopes
 
-Use the scope paths recorded in the static catalog manifest. Select:
+For a package-manager-owned environment, use the scope paths recorded in the
+static catalog manifest. Select:
 
 1. common CSE policy;
 2. one compiler scope;
@@ -402,26 +517,32 @@ components remain external when the selected catalog policy says so.
 
 Catalog selection passes when each selected path is present in
 `manifest.yaml`, the selected compiler and MPI tuple is supported, and the
-workspace scope listing contains no ambient policy outside the generated CSE
-configuration boundary.
+environment scope listing contains no ambient policy outside the selected
+configuration boundary. For the managed CSE workspace, Stack Composer resolves
+the equivalent compiler, MPI, target, GPU, and external configuration from the
+reviewed profile, defaults, stack intent, and deployment inputs and records it
+in the release manifest.
 
 ## 7. Define the environment
 
 ### 7.1 Generate and inspect the restricted workspace
 
-Generate the restricted workspace from the approved blueprint, reviewed
-catalog, and completed build values:
+Generate the restricted workspace from the reviewed system facts, deployment
+choices, stack intent, package sets, defaults, and templates:
 
 ```bash
-"$CSE_PYTHON" "$STACK_COMPOSER" init-workspace \
-  --blueprint "$CONTENT/pilots/cse-pilot" \
-  --catalog "$CATALOG" \
-  --values "$BUILD_VALUES" \
-  --output "$BUILD_WORKSPACE"
+stack-composer render \
+  --profile systems/<system>/profile.yaml \
+  --deployment systems/<system>/deployment.yaml \
+  --stack stacks/<stack>/stack.yaml \
+  --templates templates \
+  --package-sets package-sets \
+  --output-root <absolute-restricted-render-root> \
+  --release <release>
 ```
 
-Do not use `--overwrite` on a workspace that contains a lockfile, build output,
-or evidence. Follow the runbook recovery procedure or create a new release.
+Do not replace a workspace that contains a lockfile, build output, or evidence.
+Follow the runbook recovery procedure or create a new release.
 
 Inspect the complete handoff:
 
@@ -430,23 +551,29 @@ Inspect the complete handoff:
 cd "$BUILD_WORKSPACE"
 test -r README.md
 test -r BUILDER-HANDOFF.md
-test -r workspace-manifest.yaml
-test -x cse-build
+test -r release-manifest.yaml
 find environments -name spack.yaml -print | sort
-find configs/environments -name modules.yaml -print | sort
+find configs -type f \( -name config.yaml -o -name packages.yaml \
+  -o -name mirrors.yaml -o -name modules.yaml \) -print | sort
 find modulefiles -type f -print | sort
-./cse-build login status --spack-mode shared
+
+spack -e <environment-path> config scopes -vp
+spack -e <environment-path> config get config
+spack -e <environment-path> config get packages
+spack -e <environment-path> config get mirrors
+spack -e <environment-path> config get modules
 ```
 
-Confirm that the workspace manifest identifies the approved catalog, values,
+Confirm that the release manifest identifies the approved profile, deployment,
+defaults, stack intent, package sets, template set, package repositories,
 system, stack, release, and source revisions. Confirm that every include path
 resolves inside the complete workspace handoff. Serial environments contain no
 MPI scope. Each MPI environment uses the provider paired with its compiler
-surface. Deployment paths must match the operating record.
+surface. Rendered paths and access policy must match `deployment.yaml`.
 
 Do not hand-edit generated YAML, helper scripts, or module files. Correct the
-catalog, CSE values, blueprint, package roster, template, recipe overlay, or
-reviewed system input and generate a replacement workspace.
+profile, deployment, defaults, stack intent, package set, template, recipe
+repository, or other reviewed input and generate a replacement workspace.
 
 ### 7.2 CSE environment layout
 
@@ -500,22 +627,14 @@ use the generic target required by their recipe.
 
 ## 8. Concretize and review
 
-Concretize and verify the complete restricted workspace:
-
-```bash
-cd "$BUILD_WORKSPACE"
-./cse-build login concretize --spack-mode shared
-./cse-build login verify --spack-mode shared
-```
-
-The generated command creates only the required lockfiles and applies the
-workspace-wide lock verifier. Use the following bare-Spack commands to inspect
-one environment or to follow an approved manual handoff:
+Concretize and review each generated environment in the release's documented
+order:
 
 ```bash
 spack -e <environment-path> concretize --fresh -j 1
 spack -e <environment-path> find -c -d -l -v
 spack -e <environment-path> find -c -d -e -l -v
+spack -e <environment-path> config scopes -vp
 ```
 
 `-j 1` limits concretizer parallelism for clearer trial diagnostics. It does
@@ -535,37 +654,32 @@ Review every environment for:
 - identical producer hashes where reuse is intended; and
 - the absence of unexpected providers or configuration scopes.
 
-Run the workspace lock verifier after all environments concretize. Do not edit
-a lockfile or generated YAML. Correct the owning roster, values, catalog,
-template, recipe overlay, or reviewed system data and regenerate.
+After all environments concretize, compare their concrete hashes and provider
+bindings with the release manifest and retain the listings as the
+cross-environment lock review. Do not edit a lockfile or generated YAML.
+Correct the owning stack intent, package set, profile, deployment, defaults,
+template, or recipe repository and render a replacement workspace.
 
-Concretization passes only when every expected lockfile exists, the workspace
-verifier passes, every reviewed item above is confirmed, and the scope and
-concrete-graph evidence is retained. A failed or incomplete environment holds
-the complete workspace at this control point.
+Concretization passes only when every expected lockfile exists, every reviewed
+item above is confirmed, intended producer reuse has identical hashes, and the
+scope and concrete-graph evidence is retained. A failed or incomplete
+environment holds the complete workspace at this control point.
 
 ## 9. Build and validate
 
 Fetch on a login node when compute nodes lack network access:
 
 ```bash
-cd "$BUILD_WORKSPACE"
-./cse-build login fetch --spack-mode shared
+spack -e <environment-path> fetch -D
 ```
 
-The install may continue on a compute node using the same workspace, source
-cache, shared restricted install tree, Spack version, and lockfile. Changing the
-build-stage path or node does not change the concrete DAG.
+Complete fetch for every locked environment and retain the source-cache
+inventory before entering an egress-restricted build context. The install may
+continue on a compute node using the same environment, source cache, shared
+restricted install tree, Spack version, and lockfile. Changing the build-stage
+path or node does not change the concrete DAG.
 
 Install in the restricted area from an approved compute allocation:
-
-```bash
-cd "$BUILD_WORKSPACE"
-./cse-build compute install --spack-mode shared
-```
-
-For an approved bare-Spack handoff, the equivalent per-environment commands
-are:
 
 ```bash
 spack -e <environment-path> install --fail-fast
@@ -578,22 +692,24 @@ Keep Spack locking enabled. The shared filesystem must support the lock
 semantics. Separate Spack processes also have separate build-job budgets; the
 operators must coordinate total CPU and memory use.
 
-Parallel installation begins only after all lockfiles pass the workspace
-verifier and the real install tree passes the cross-node prefix-lock test. Use
-distinct environments or the two disjoint surface commands:
+Parallel installation begins only after all lockfiles pass review and the real
+install tree passes the cross-node prefix-lock test. Use distinct generated
+environments and a separate process for each one:
 
 ```bash
-./cse-build compute install --surface shared
-./cse-build compute install --surface platform
+spack -e <first-environment-path> install --fail-fast
+spack -e <second-environment-path> install --fail-fast
 ```
 
 Do not run the same environment twice. Each process has a distinct private
 `SPACK_USER_CACHE_PATH`; each builder has a distinct persistent misc-cache
 partition. The owning process alone regenerates that environment's views and
-modules. After parallel processes stop, each builder exits its prepared shell
-so its own misc-cache partition is normalized. The designated handoff owner
-then runs `./cse-build login status` to perform the shared-output permission
-gate before another builder resumes.
+modules. After parallel processes stop, each builder runs the approved
+shared-output permission normalization for entries that builder owns. The
+designated handoff owner then runs the read, write, traverse, group, and mode
+checks across the shared workspace, source cache, that builder's misc-cache
+partition, views, modules, and file-backed build cache before another builder
+resumes. The system runbook owns the filesystem-specific commands.
 
 Run the checks that apply:
 
@@ -607,21 +723,21 @@ Run the checks that apply:
 - package-module visibility from a clean shell; and
 - login-node and compute-node access using another `cse` group member.
 
-After every required environment has installed and regenerated its view and
-Spack package modules, refresh the existing workspace's generated controls from
-the reviewed Stack Content revision. Then create the restricted presentation
-checkpoint:
+After every required environment has installed, regenerate its enabled view
+and Spack package modules and create the restricted presentation checkpoint:
 
 ```bash
-cd "$BUILD_WORKSPACE"
-./cse-build login verify --spack-mode shared
-./cse-build login publish-modules
+spack -e <environment-path> find -c -d -l -v
+spack -e <environment-path> env view regenerate
+spack -e <environment-path> module tcl refresh --delete-tree -y
+spack -e <environment-path> config get modules
 ```
 
-The action copies CSE compiler front doors and ready lane selectors into the
-module root recorded by the restricted build values. It does not publish the
+Run the view command only for environments that define a view. Stage the
+rendered CSE compiler front doors and ready lane selectors under the restricted
+module root recorded by `deployment.yaml`. This checkpoint does not expose the
 stack to non-CSE users, publish the static catalog, create the cache-only
-publication workspace, alter lockfiles, or rebuild packages. Review this
+publication workspace, alter lockfiles, or rebuild packages. Review the
 restricted module presentation as a team before any build-cache or public
 promotion.
 
@@ -634,18 +750,22 @@ returns to the applicable restricted build and validation gate.
 Record each environment as `built`, `runtime-passed`, or `held`. Promote only
 `runtime-passed` concrete specs.
 
-After installation and tests, run:
+After installation and tests, repeat the retained Spack inspections for every
+environment:
 
 ```bash
-cd "$BUILD_WORKSPACE"
-./cse-build login verify --spack-mode shared
+spack -e <environment-path> find -c -d -l -v
+spack -e <environment-path> config scopes -vp
+spack -e <environment-path> config get packages
+spack -e <environment-path> config get mirrors
+spack -e <environment-path> config get modules
 ```
 
 Restricted validation passes only when every required environment is
-`runtime-passed`, the final verifier passes, concrete hashes are recorded, and
-the compile, runtime, scheduler, MPI, view, module, clean-session, permission,
-and handoff checks have successful evidence. GPU checks are required only for
-an approved GPU environment.
+`runtime-passed`, concrete hashes are recorded, the rendered configuration
+still matches the retained inputs, and the compile, runtime, scheduler, MPI,
+view, module, clean-session, permission, and handoff checks have successful
+evidence. GPU checks are required only for an approved GPU environment.
 
 If a dependency fails with a platform compiler, record the failure first. A
 GCC-built replacement is an explicit mixed-toolchain exception. Review its ABI
@@ -664,7 +784,7 @@ Trust a reviewed public-key file deliberately:
 
 ```bash
 spack gpg trust <verified-cse-public-key-file>
-spack mirror add --signed cse-buildcache <cse-buildcache-url>
+spack mirror add --signed cse-private-cache <private-build-cache-url>
 ```
 
 `spack buildcache keys --install --trust` trusts every key served by the
@@ -677,7 +797,7 @@ Push approved concrete packages with signing enabled:
 
 ```bash
 spack buildcache push --signed --key <full-key-fingerprint> \
-  <cse-buildcache-url> <approved-specs>
+  <private-build-cache-url> <approved-specs>
 ```
 
 Do not use unsigned pushes or signature-bypass options in the normal path.
@@ -688,7 +808,7 @@ content. Spack 1.2 does not sign the build-cache index manifest. Check index
 consistency separately:
 
 ```bash
-spack buildcache check-index --verify all <cse-buildcache-url>
+spack buildcache check-index --verify all <private-build-cache-url>
 ```
 
 ### 10.2 Publish the static catalog for external consumers
@@ -715,13 +835,13 @@ The designated CSE catalog publication procedure performs these operations:
 Run the Stack Composer publication command:
 
 ```bash
-"$CSE_PYTHON" "$STACK_COMPOSER" publish-static \
-  --catalog "$CATALOG" \
-  --output-root "$PUBLISHED_STATIC_ROOT" \
-  --published-at "$PUBLISHED_AT" \
-  --reviewed-by "$CATALOG_REVIEWER" \
-  --approved-by "$CATALOG_APPROVER" \
-  --group "$CSE_GROUP" \
+stack-composer publish-static \
+  --catalog <absolute-reviewed-restricted-catalog> \
+  --output-root <absolute-published-static-root> \
+  --published-at <fixed-UTC-time> \
+  --reviewed-by <reviewer-or-role> \
+  --approved-by <approver-or-role> \
+  --group <approved-CSE-group> \
   --set-current
 ```
 
@@ -735,7 +855,8 @@ overwritten.
 Set and verify the resolved public path:
 
 ```bash
-export PUBLISHED_CATALOG="${PUBLISHED_STATIC_ROOT}/${CSE_SYSTEM_NAME}/static/${CATALOG_RELEASE}"
+export PUBLISHED_CATALOG="<absolute-versioned-published-catalog>"
+export CSE_GROUP="<approved-CSE-group>"
 test -r "$PUBLISHED_CATALOG/manifest.yaml"
 test -r "$PUBLISHED_CATALOG/publication.yaml"
 test -r "$PUBLISHED_CATALOG/SHA256SUMS"
@@ -760,21 +881,26 @@ write access to users outside CSE.
 
 ### 10.3 Cache-only stack publication
 
-Create a separate publication workspace from the same restricted `$CATALOG`
-used for the build workspace. Copy the approved restricted lockfiles. Do not
-copy the mutable restricted workspace, do not reconcretize, and do not use the
-public static-catalog path.
+Render a separate publication workspace from the same reviewed profile,
+defaults, stack intent, package sets, templates, recipe-repository revisions,
+and release identity used for the restricted workspace. Substitute the
+reviewed publication `deployment.yaml`, then copy the approved restricted
+lockfiles into their corresponding generated environments. Verify that the
+publication release manifest identifies the same package and platform inputs.
+Do not copy the mutable restricted workspace, do not reconcretize, and do not
+use either static-catalog path as a managed-workspace input.
 
-The publication values supplied to Stack Composer must contain:
+The publication deployment must change the access audience while retaining the
+same CSE management group:
 
 ```yaml
-permissions:
+access:
   group: cse
   read: world
   write: group
 ```
 
-Stack Composer renders those values into the workspace's
+Stack Composer renders that deployment policy into the workspace's
 `configs/common/packages.yaml`:
 
 ```yaml
@@ -789,7 +915,9 @@ packages:
 Each generated environment includes `configs/common` through its
 `spack.include` list, so the permission policy does not need to appear inline
 in every `spack.yaml`. The static platform catalog does not supply this policy.
-It is CSE deployment configuration generated from the publication values.
+It is CSE deployment configuration generated from the reviewed publication
+`deployment.yaml`.
+
 Before installation, inspect the generated file and verify the merged setting:
 
 ```bash
@@ -865,8 +993,8 @@ module load <Serial|MPI>
 module load <package>/<version>
 ```
 
-Use the public names recorded in the release values. Do not expose Spack hashes
-or package-prefix paths as the user interface.
+Use the public names recorded in the release manifest and module configuration.
+Do not expose Spack hashes or package-prefix paths as the user interface.
 
 The compiler surface and lane have separate activation responsibilities. The
 compiler front door activates its exact compiler chain and records the selected
@@ -949,10 +1077,11 @@ keep the lane presentation as the documented CSE entrance.
 
 ## 12. Changes, security events, and platform updates
 
-A root spec, version, variant, recipe, patch, compiler, MPI, GPU provider,
-catalog scope, Spack version, package-recipe source, workspace input, or
-lockfile change creates a new CSE release. Reuse unchanged concrete packages
-only when their full hashes remain unchanged.
+A root spec, version, variant, recipe, patch, package-repository revision or
+order, compiler, MPI, GPU provider, catalog scope, Spack version,
+external-package identity, workspace input, or lockfile change creates a new
+CSE release. Reuse unchanged concrete packages only when their full hashes
+remain unchanged.
 
 For a security advisory:
 
@@ -1018,13 +1147,15 @@ Retain:
 - system, catalog, package roster, stack, and release identifiers;
 - restricted and published catalog paths, catalog checksum inventory, catalog
   approval, and non-CSE access test;
-- exact Spack version, tag, commit, and package-recipe source;
+- exact Spack version, tag, and commit plus every package-repository source,
+  commit, and effective search order;
 - selected Spack root, runtime-mode, identity verification, and
   configuration-scope evidence;
 - restricted and published deployment roots and access policy;
 - environment sources, selected scopes, and approved lockfiles;
 - restricted and published concrete hashes;
-- private build-cache identity, index result, and signing-key fingerprint;
+- source-cache inventory, recipe-delta review, approved scan results, private
+  build-cache identity, index result, and signing-key fingerprint;
 - package inventory, SPDX 2.3 SBOMs, checksums, and external inventory;
 - compiler, MPI, target, module-chain, and platform-runtime identities;
 - gateway module location, release-owned lane and package-module roots, and

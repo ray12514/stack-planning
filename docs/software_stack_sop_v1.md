@@ -101,9 +101,13 @@ The worksheet may be a tracked text file, ticket, or release database record.
 | Environment directory | `ENVIRONMENT_ROOT` | Absolute path containing `spack.yaml` |
 | Approved Spack checkout | `SPACK_ROOT` | Absolute path to the pinned checkout |
 | Spack version | `SPACK_VERSION` | Approved version and commit |
+| Package repository | Release record | Approved `spack-packages` or site-repository source and commit |
 | Per-user Spack state | `SPACK_USER_CACHE_PATH` | Builder-private absolute path |
 | Build stage | `SPACK_STAGE_ROOT` | Builder-writable absolute path |
 | Install tree | Site configuration | Absolute package store selected by the application team |
+| Source cache | Site configuration | Absolute shared cache populated during the controlled fetch step |
+| Miscellaneous cache | Site configuration | Absolute shared root, partitioned by builder when required |
+| Build cache | Release configuration | Approved private or published mirror URL and trust policy |
 | View root | Environment configuration | Absolute view path, or `none` |
 | Module root | Environment configuration | Absolute module path, or `none` |
 | Build group | Deployment record | Approved Unix group |
@@ -228,6 +232,109 @@ For a restricted build tree, change only `read` from `world` to `group` and
 retain `write: group`. Its normal modes are `2770`, `0770`, and `0660`. Keep the
 private build cache in the restricted tree. General users consume the final
 installed prefixes, views, and modules rather than the private cache.
+
+### 4.2 Spack configuration ownership
+
+Record portable package intent separately from system deployment choices. A
+managed stack uses these durable inputs:
+
+| Information | Authoritative input | Spack output or configuration |
+|---|---|---|
+| Observed compiler, MPI, GPU, operating-system, and external-package facts | `profile.yaml` or the released static catalog | Selected `packages.yaml`, compiler, target, and provider scopes |
+| Package names, versions, variants, dependency constraints, and lane intent | `stack.yaml`, a package set, or a package-manager-owned `spack.yaml` | `spack.specs` and explicit compiler or toolchain constraints |
+| Install tree, build stage, source and miscellaneous caches, view and module roots, build-cache destinations, and access policy | `deployment.yaml` or an equivalent controlled deployment record | `config.yaml`, `packages.yaml`, `modules.yaml`, mirror configuration, and view paths |
+| Site-wide provider and selection defaults | Reviewed defaults and catalog policy | Included configuration scopes |
+
+Do not use an operator-local shell-variable bundle as the release contract.
+Shell variables may shorten commands during one session, but the retained
+environment source, deployment record, lockfile, and release manifest must
+contain the reviewed values.
+
+At minimum, the effective Spack configuration must explicitly resolve these
+settings before concretization:
+
+```yaml
+config:
+  install_tree:
+    root: <absolute-install-tree>
+  build_stage:
+    - <absolute-per-builder-stage>
+  source_cache: <absolute-reviewed-source-cache>
+  misc_cache: <absolute-builder-misc-cache>
+  locks: true
+```
+
+Keep `SPACK_USER_CACHE_PATH`, bootstrap state, and the signing keyring outside
+that shared configuration because they are private to the active builder.
+Configure build-cache mirrors separately from the source cache. A source cache
+contains fetched source inputs. A build cache contains installed concrete
+packages and their metadata. They are different trust and promotion
+boundaries.
+
+Module configuration must state whether module generation is enabled, the
+absolute generated-module root, the naming or projection policy, and required
+dependency loads and conflicts. The SOP does not prescribe one complete
+`modules.yaml`; the package manager selects those presentation details and
+retains the generated file with the release.
+
+Verify the merged values rather than assuming that the intended file won
+scope precedence:
+
+```bash
+spack -e "$ENVIRONMENT_ROOT" config get config
+spack -e "$ENVIRONMENT_ROOT" config get packages
+spack -e "$ENVIRONMENT_ROOT" config get mirrors
+spack -e "$ENVIRONMENT_ROOT" config get modules
+spack -e "$ENVIRONMENT_ROOT" config scopes -vp
+```
+
+### 4.3 Supply-chain security boundary
+
+Treat the Spack runtime, package repositories, package recipes, patches,
+fetched sources, external packages, and binary caches as separate inputs to
+the release. A checksum proves that fetched bytes match the checksum approved
+by the recipe. It does not prove that the recipe, upstream source, or dependency
+is safe. A lockfile fixes the selected concrete graph; it does not replace
+review of a changed recipe repository or vulnerability assessment.
+
+Use this control sequence for every release:
+
+1. Pin the Spack runtime and every package repository to reviewed commits.
+2. Record the package-repository diff since the last accepted release. Review
+   changed recipes, patches, fetch locations, build systems, and custom hooks
+   that enter the selected dependency closure.
+3. Concretize once, review the complete graph and externals, and retain the
+   resulting `spack.lock` without manual edits.
+4. Fetch in the restricted, network-enabled stage. Require approved checksums
+   or immutable version-control commits and retain the populated source cache.
+5. Build the reviewed lockfile from that cache. Where policy requires network
+   isolation, block outbound access during compilation and installation.
+6. Run compile, runtime, linkage, integrity, module, and permission tests.
+   Retain the generated SBOMs and maintain a separate inventory for externals.
+7. Sign approved binary packages and promote only their exact concrete hashes
+   to the controlled build cache.
+8. Install the user-facing release from the approved lockfiles and signed build
+   cache only. A cache miss returns to restricted build and review.
+
+Reviewing every line of every recipe on every build is not a scalable control.
+The scalable unit is the change to a pinned package-repository generation plus
+the recipes and patches reachable from the selected lockfile. Perform deeper
+manual review for new repositories, new or locally modified recipes, changed
+fetch logic, packages that execute downloaded code during the build, security
+critical components, and exceptions to checksums or isolation. Run the
+approved source-code, secret, license, and vulnerability scanners in addition
+to this review.
+
+Spack's source-oriented model gives the operator detailed control over specs,
+recipes, patches, source checksums, build provenance, and concrete hashes, but
+it also places more recipe and build-process trust on the site than a signed
+binary distribution normally does. The release process supplies the policy
+boundary: pinned inputs, reviewed changes, controlled fetching, isolated
+building, validation, signed binary promotion, SBOM retention, vulnerability
+scanning, and immutable publication. See the
+[Spack supply-chain security research](spack_supply_chain_security_primary_source_research_v1.md)
+and the [Spack 1.2 signing and SBOM note](spack_1_2_signing_sbom_security_note_v1.md)
+for the exact signing, SBOM, integrity, and CVE boundaries.
 
 ## 5. Preflight
 
@@ -420,7 +527,8 @@ Add a GPU scope and the approved GPU variants only for a GPU build.
 
 ### 7.3 Deployment configuration
 
-The package manager or site supplies deployment paths. A minimum environment
+The package manager or site supplies deployment paths through the reviewed
+deployment record described in Section 4.2. A minimum rendered environment
 configuration has this form:
 
 ```yaml
@@ -431,13 +539,16 @@ spack:
     build_stage:
       - <absolute-per-builder-stage>
     source_cache: <absolute-source-cache>
+    misc_cache: <absolute-builder-misc-cache>
     locks: true
 ```
 
 Add view and module configuration only when the release publishes them. The
 view path and module root must be absolute, owned by the application team, and
-recorded before concretization. Do not take deployment paths from the static
-catalog. The catalog provides platform configuration only.
+recorded before concretization. Configure the build-cache destination and
+signature policy independently from the source and miscellaneous caches. Do
+not take deployment paths from the static catalog. The catalog provides
+platform configuration only.
 
 ### 7.4 Ordered producer example
 
@@ -657,10 +768,11 @@ a new release for unrecorded package or configuration changes.
 
 ## 12. Changes, security events, and platform updates
 
-A change to a root spec, version, variant, recipe, patch, compiler, MPI, GPU
-provider, catalog scope, Spack version, or lockfile requires a new release
-record. Rebuild and retest the affected dependency closure. Reuse unchanged
-concrete packages only when their hashes are unchanged.
+A change to a root spec, version, variant, recipe, patch, package-repository
+revision or order, compiler, MPI, GPU provider, catalog scope, Spack version,
+external-package identity, or lockfile requires a new release record. Rebuild
+and retest the affected dependency closure. Reuse unchanged concrete packages
+only when their hashes are unchanged.
 
 For a security advisory:
 
@@ -699,10 +811,14 @@ accepted release. It does not modify either release.
 Retain:
 
 - system, resolved public catalog release path, and catalog approval record;
-- environment source and selected scope paths;
-- exact Spack and package-recipe versions;
-- install, cache, view, module, and build-stage locations;
+- environment source, selected scope paths, and effective scope listing;
+- exact Spack runtime and every package-repository source, commit, and search
+  order;
+- deployment record and the install, source-cache, miscellaneous-cache,
+  build-cache, view, module, and build-stage locations;
 - approved `spack.lock` and concrete hashes;
+- source-cache inventory, recipe-delta review, build-cache signing identity,
+  and approved scan results;
 - build, runtime, view, module, and permission test results;
 - package inventory, SBOM locations, and external inventory;
 - change or security assessment when applicable;
