@@ -80,19 +80,13 @@ for a control point.
 
 ### 1.3 Static platform catalog orientation
 
-The static platform catalog is the versioned platform-configuration contract
-shared by CSE and other Spack package managers. It contains reviewed,
-include-ready scopes for supported compilers, compiler and MPI pairings, GPU
-toolkits, targets, system externals, and path-independent site policy, together
-with its manifest, profile snapshot, reports, and examples.
-
-CSE retains the restricted catalog release for review and managed workspace
-preparation. Package managers outside CSE consume the approved published copy.
-The platform configuration is the same; the audience, path, and surrounding
-package and deployment inputs differ. CSE may generate the catalog with Stack
-Composer or assemble the same contract manually when the producer tool is not
-available on the target system. Consumers need only the released files. See the
-[Static Platform Catalog Overview](static_platform_catalog_overview_v1.md).
+The static platform catalog is CSE's versioned statement of the platform
+configuration supported for Spack builds on one system. It tells a package
+manager which compilers, compatible MPI and GPU providers, targets, externals,
+and common Spack policies are approved, including which combinations may be
+used together. It does not select CSE packages or deployment paths. CSE uses
+the restricted release during managed workspace preparation; other package
+managers receive the approved published release.
 
 ## 2. Responsibilities
 
@@ -486,11 +480,11 @@ record explicitly permits reviewed, uncommitted input.
 
 If Stack Composer is unavailable on the target system, generate the catalog in
 another controlled CSE environment and transfer the complete tree, or assemble
-the versioned tree manually according to the Static Platform Catalog Overview
-and detailed design note. Every scope file must be complete valid Spack
-configuration, and the manifest must identify the supported selections and
-their provenance. All production paths pass the same inspection and approval
-gates.
+the versioned tree manually according to the internal Static Platform Catalog
+CSE Team Guide and detailed design note. Every scope file must be complete
+valid Spack configuration, and the manifest must identify the supported
+selections and their provenance. All production paths pass the same inspection
+and approval gates.
 
 Inspect the result before selecting scopes:
 

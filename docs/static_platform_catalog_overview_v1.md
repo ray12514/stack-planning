@@ -1,10 +1,10 @@
-# Static Platform Catalog Overview v1
+# Static Platform Catalog CSE Team Guide v1
 
 | Document control | Value |
 |---|---|
-| Status | Pre-v1 consumer overview |
-| Intended readers | CSE stack maintainers and other Spack package managers |
-| Scope | Catalog contents, ownership, consumption, and manual availability |
+| Status | Internal pre-v1 team guide |
+| Intended readers | CSE stack maintainers and reviewers |
+| Scope | Internal catalog contents, ownership, consumption, production options, and publication boundary |
 
 ## Purpose
 

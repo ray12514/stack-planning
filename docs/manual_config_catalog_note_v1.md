@@ -6,9 +6,9 @@ catalog with `render-static`, generate it in another controlled environment,
 or assemble and validate the same contract manually.
 
 Start with the shorter
-[Static Platform Catalog Overview](static_platform_catalog_overview_v1.md) for
-the contents and consumer workflow. This note retains the detailed product and
-producer contract.
+[Static Platform Catalog CSE Team Guide](static_platform_catalog_overview_v1.md)
+for the contents and consumer workflow. This note retains the detailed product
+and producer contract.
 
 No v1 stack release has been deployed yet. This note is changeable pre-v1.
 
