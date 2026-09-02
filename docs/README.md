@@ -93,6 +93,7 @@ operator procedures and do not override the current model.
 | File | Purpose |
 |---|---|
 | `cce_aocc_cpu_baseline_research_v1.md` | CPU-baseline research for CCE, AOCC, and GNU on AMD-based Cray EX systems. |
+| `hpc_compiler_hardening_security_performance_research_v1.md` | Primary-source assessment of memory-corruption risk on isolated compute nodes, compiler-hardening controls, performance qualification, CCE considerations, and a proposed risk-tiered policy for ISSO review. |
 | `cray_mpich_gcc_compatibility_v1.md` | Evidence for treating Cray MPICH GNU path versions as compiler-family baselines rather than exact lane pins. |
 | `cray_wrapper_consumption_primary_source_research_v1.md` | Primary-source HPE guidance and the trial recommendation for CCE drivers, direct CSE GCC, Cray MPICH wrappers, runtime closure, and launch evidence. |
 | `related_tools_assessment_v1.md` | Comparison with Stackinator and spack-stack. |
