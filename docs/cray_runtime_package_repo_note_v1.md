@@ -143,7 +143,7 @@ Consequences:
    Spack 1.1.1 and the active Spack 1.2 line.
 3. Blueback/Cray template validation checks that GPU-aware Cray MPICH lanes have
    a coherent CPE/ROCm/GTL package story.
-4. Manual config catalog and managed stack render both include the repo through
+4. Static platform catalog and managed stack render both include the repo through
    standard Spack `repos.yaml`.
 5. The runbook states whether the lane is still workaround-backed or package
    repo-backed.

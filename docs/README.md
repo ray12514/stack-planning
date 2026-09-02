@@ -39,6 +39,7 @@ mode.
 | `cse_spack_catalog_to_build_handoff_v1.md` | Self-contained bare-Spack guide with a per-system path/variable handoff sheet, shared-Spack startup, environment selection, scope inspection, concretization, fetching, installation, and build-state inspection. |
 | `initial_conversion_trials_build_findings_v1.md` | Running technical record of trial build failures, causes, recoveries, permanent mitigations, and validation gates. |
 | `cse_spack_customization_and_upstream_inventory_v1.md` | Consolidated inventory of CSE Spack policy, integration controls, provider adapters, active package overlays, and the upstream retirement queue. |
+| `static_platform_catalog_overview_v1.md` | Consumer introduction to the static platform catalog: what it contains, what remains outside it, restricted versus published use, and manual production when the generator is unavailable on the target. |
 | `software_stack_sop_v1.md` | Working SOP for an application package manager using the static platform catalog, including shared/private build state and cross-builder permission controls. |
 | `cse_software_stack_sop_v1.md` | Working CSE SOP for restricted shared builds, builder-private state, parallel handoff, signed build-cache promotion, cache-only publication, modules, and release controls. |
 | `stack_build_handoff_note_v1.md` | Where render stops; build is a co-equal choice (spacktools / spack-build / Ansible / bare Spack); stack-content + config delivery modes. |
@@ -67,7 +68,7 @@ stated scope and must remain aligned with the current-model documents above.
 | `platform_runtime_set_design_v1.md` | Coherent platform runtime-set selection across compiler, MPI, fabric, and CPE facts. |
 | `cray_runtime_package_repo_note_v1.md` | Cray runtime package-repository direction for GTL, PMI/PALS, libfabric/CXI, and runtime closure. |
 | `cpe_rocm_compatibility_note_v1.md` | Compatibility evidence and validation rules for CPE, ROCm, and Cray MPICH. |
-| `manual_config_catalog_note_v1.md` | `render-static` product contract for reusable, include-ready platform configuration scopes. |
+| `manual_config_catalog_note_v1.md` | Detailed static platform catalog and `render-static` product contract for reusable, include-ready configuration scopes. |
 
 ## Initial Conversion Trials operations and acceptance
 

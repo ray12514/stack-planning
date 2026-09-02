@@ -1,14 +1,22 @@
-# Manual Config Catalog Note v1
+# Static Platform Catalog Design Note v1
 
-This note records a follow-up product for manual/package-manager users. It is
-not part of the current Blueback managed-stack validation path.
+This note defines the detailed product contract for the static platform
+catalog. Consumers do not need access to Stack Composer. CSE may produce the
+catalog with `render-static`, generate it in another controlled environment,
+or assemble and validate the same contract manually.
+
+Start with the shorter
+[Static Platform Catalog Overview](static_platform_catalog_overview_v1.md) for
+the contents and consumer workflow. This note retains the detailed product and
+producer contract.
 
 No v1 stack release has been deployed yet. This note is changeable pre-v1.
 
 ## Decision
 
-Keep the **manual config catalog** separate from the existing managed workspace
-render.
+Keep the **static platform catalog** separate from the existing managed
+workspace output. Both products use the same approved platform configuration
+contract.
 
 The full managed render remains:
 
@@ -19,7 +27,7 @@ profile.yaml + deployment.yaml + stack.yaml + package sets + policy
   -> complete build workspace
 ```
 
-The manual config catalog is a separate flow:
+The static platform catalog is a separate flow:
 
 ```text
 profile.yaml + defaults/site policy
@@ -63,7 +71,7 @@ environments. This is implementation reuse, not a shared output contract.
 
 ## Purpose
 
-The manual config catalog gives package managers and advanced users a supported
+The static platform catalog gives package managers and advanced users a supported
 way to consume maintainer-vetted platform facts without asking Stack Composer to
 own their package intent.
 
@@ -86,8 +94,8 @@ The catalog owns:
   mirror, and concretizer policy when the site chooses to publish it.
 
 The catalog does not own install trees, build stages, view roots, module roots,
-or filesystem permissions. Those are deployment decisions owned by the full
-renderer.
+or filesystem permissions. Those are deployment decisions owned by the CSE
+installer or the independent package manager.
 
 ## Non-goals
 
@@ -134,9 +142,10 @@ exception is the top-level `profile.yaml`: it is the exact reviewed input kept
 for provenance and human inspection, not a file included by Spack.
 
 An observed MPI installation whose build compiler cannot be proved remains
-review evidence in `profile.yaml`, but it is not a valid catalog input.
-`cluster-inspector verify` and `render-static` fail with the provider, version,
-prefix, and module evidence. A compiler-named MPI scope and its toolchain are
+review evidence in `profile.yaml`, but it is not a valid catalog input. Manual
+review rejects the scope with the provider, version, prefix, and module
+evidence. `cluster-inspector verify` and `render-static` must fail on the same
+condition. A compiler-named MPI scope and its toolchain are
 written only when wrapper, module, or platform evidence establishes one exact
 compiler/MPI pairing. The catalog has no `unpaired` MPI path.
 
@@ -164,8 +173,8 @@ writable by consumers. Its manifest, README, examples, and scope references
 must resolve from the published location without access to the restricted
 review copy.
 
-Stack Composer promotes the reviewed tree with a separate command. It does not
-run `render-static` a second time:
+The Stack Composer publication command promotes the reviewed tree without
+running `render-static` a second time:
 
 ```bash
 stack-composer publish-static \
@@ -188,7 +197,7 @@ during concretization.
 The existing managed render can continue to emit only the config scopes needed
 by the resolved stack lanes. That is correct for curated stack builds.
 
-The manual config catalog should emit the full maintainer-supported config set
+The static platform catalog should emit the full maintainer-supported config set
 for the system, independent of one `stack.yaml`.
 
 | Product | Primary user | User owns specs? | Stack Composer writes environment `spack.yaml`? | Output |
@@ -210,7 +219,7 @@ These should be resolved before publishing a catalog:
 5. How should provenance be recorded for catalog files published to the shared
    filesystem and source repository?
 
-## Recommended timing
+## Manual production and automation
 
 The Blueback managed-stack blueprint path passed on 2026-07-05:
 
@@ -218,12 +227,19 @@ The Blueback managed-stack blueprint path passed on 2026-07-05:
 cluster-inspector -> profile.yaml -> stack-composer render -> build/concretize
 ```
 
-The catalog can now begin as a separate command and output contract, using the
-proven Blueback profile as the first fixture. The first implementation should
-reuse the same resolved plan data used by managed render instead of duplicating
-MPI, GPU, fabric, or system-external selection in catalog-specific templates.
+When Stack Composer is unavailable on the target system, a maintainer may
+generate the catalog elsewhere or assemble the tree manually from the reviewed
+profile and site policy. The manual release must use complete valid Spack
+configuration files, retain the same manifest and review evidence, validate
+the example environments, and follow the same immutable publication procedure.
+Manual production does not weaken the catalog contract.
 
-Recommended first slice:
+The automated implementation uses the same resolved plan data as managed
+render instead of duplicating MPI, GPU, fabric, or system-external selection in
+catalog-specific templates. The proven Blueback profile remains a fixture for
+that contract.
+
+Contract validation baseline:
 
 1. Add a catalog plan report that lists what would be published for Blueback.
 2. Emit complete Spack config scopes for one selected platform runtime set.

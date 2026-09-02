@@ -40,7 +40,7 @@ Create a new template set only for a real contract break, such as:
   uses a new layout;
 - a future Spack version requires materially different config syntax or include
   behavior;
-- a separate product output, such as the future manual config catalog, diverges
+- a separate product output, such as the static platform catalog, diverges
   enough that sharing the managed-workspace templates becomes confusing.
 
 Do **not** create separate template sets for Cray vs. Linux, Blueback vs. another

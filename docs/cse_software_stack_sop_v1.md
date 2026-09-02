@@ -78,6 +78,22 @@ approvals. Record the command, node, date, exit status, and output for each
 required test. Screenshots are not required and must not be the only evidence
 for a control point.
 
+### 1.3 Static platform catalog orientation
+
+The static platform catalog is the versioned platform-configuration contract
+shared by CSE and other Spack package managers. It contains reviewed,
+include-ready scopes for supported compilers, compiler and MPI pairings, GPU
+toolkits, targets, system externals, and path-independent site policy, together
+with its manifest, profile snapshot, reports, and examples.
+
+CSE retains the restricted catalog release for review and managed workspace
+preparation. Package managers outside CSE consume the approved published copy.
+The platform configuration is the same; the audience, path, and surrounding
+package and deployment inputs differ. CSE may generate the catalog with Stack
+Composer or assemble the same contract manually when the producer tool is not
+available on the target system. Consumers need only the released files. See the
+[Static Platform Catalog Overview](static_platform_catalog_overview_v1.md).
+
 ## 2. Responsibilities
 
 | Role | Responsibility |
@@ -96,8 +112,9 @@ Conversion Trials.
 Record these inputs before workspace generation:
 
 - target system and required login, build, and runtime node types;
-- reviewed system `profile.yaml` and, for external package managers, the
-  corresponding static platform catalog release;
+- reviewed system `profile.yaml` and corresponding restricted static platform
+  catalog release or equivalent reviewed platform-plan record;
+- published catalog release when package managers outside CSE will consume it;
 - installer-owned `deployment.yaml`;
 - reviewed site defaults, CSE `stack.yaml`, and package-set release;
 - compiler surfaces and matching MPI providers;
@@ -124,6 +141,7 @@ discover them during a build.
 | Item | Authoritative artifact or Spack term | Actual value required |
 |---|---|---|
 | System facts | `systems/<system>/profile.yaml` | Reviewed system identifier, node types, compiler, MPI, GPU, target, external, and filesystem facts |
+| Platform catalog | Restricted static catalog release or equivalent reviewed platform-plan record | Versioned path or source identities, manifest, selected-scope inventory, and checksums |
 | Deployment choices | `systems/<system>/deployment.yaml` | Install tree, build stage, caches, view and module roots, build-cache destinations, Spack root, and access policy |
 | Site policy | `templates/<set>/defaults.yaml` | Reviewed compiler, MPI, GPU, target, external, module, Spack-floor, and release defaults |
 | Stack intent | `stacks/<stack>/stack.yaml` and `package-sets/` | CSE package specs, versions, variants, dependency constraints, lane intent, and release identifier |
@@ -132,7 +150,7 @@ discover them during a build.
 | Restricted workspace | Rendered release path | Absolute workspace generated from the reviewed inputs |
 | Published workspace | Publication deployment record | Absolute cache-only publication workspace path |
 | Spack runtime identity | Approved Spack source, version, tag, and commit | One exact identity; selected shared or builder-local root may differ |
-| Provider selections | Resolved release manifest and generated Spack scopes | Approved compiler, MPI, target, optional GPU tuple, and exact module or prefix evidence |
+| Provider selections | Catalog manifest, resolved release manifest, and generated Spack scopes | Approved compiler, MPI, target, optional GPU tuple, and exact module or prefix evidence |
 | Restricted and published releases | `deployment.yaml` plus publication record | Install, view, module, cache, evidence, and consumer roots |
 | Collaboration group | `deployment.yaml.access.group` | Installer-confirmed Unix group |
 | Signing identity | Publication record | Full approved public-key fingerprint |
@@ -172,15 +190,21 @@ Use separate locations for restricted work and published content:
   publish-stage/
 ```
 
-The restricted catalog path is the retained CSE catalog of record. Both CSE
-workspaces are initialized from its exact versioned path. The published catalog
-path is an immutable, system-local configuration release for package managers
-outside CSE. It is readable and traversable by all authenticated system users
-and is not writable by consumers outside CSE. Every CSE package manager retains
-management access through the owning group. Immutability means the version is
-not edited or overwritten in place. The optional `current` pointer is for
-discovery. External package-manager environments pin the versioned public path,
-not `current`.
+The restricted catalog path is the retained CSE catalog of record. CSE
+workspace preparation uses the platform configuration from that exact release.
+A trial or manual initializer may include its scopes directly. A managed
+renderer may copy selected scope content into the workspace or materialize the
+same selections from the reviewed profile and policy plan. The release
+manifest must bind the workspace to the catalog release or to the equivalent
+reviewed source identities and selected-scope digests.
+
+The published catalog path is an immutable, system-local configuration release
+for package managers outside CSE. It is readable and traversable by all
+authenticated system users and is not writable by consumers outside CSE. Every
+CSE package manager retains management access through the owning group.
+Immutability means the version is not edited or overwritten in place. The
+optional `current` pointer is for discovery. External package-manager
+environments pin the versioned public path, not `current`.
 
 The public static catalog contains reviewed Spack configuration, its manifest,
 profile snapshot, reports, and examples. Publishing it does not publish the
@@ -439,10 +463,10 @@ shared paths, locking, scope boundary, and cross-user access checks pass.
 
 ## 6. Select platform configuration
 
-### 6.1 Generate and review the static catalog
+### 6.1 Create and review the static catalog
 
-Generate the catalog in the restricted review root from the approved profile,
-template set, and source revisions:
+Create the catalog in the restricted review root from the approved profile,
+site policy, and source revisions. The normal producer-side command is:
 
 ```bash
 stack-composer render-static \
@@ -456,18 +480,28 @@ stack-composer render-static \
   --source-commit <approved-source-commit>
 ```
 
-The operating record or system handoff supplies every placeholder in this
-command. Use a fixed UTC render time. Add the renderer's dirty-source flag only
-when the release record explicitly permits reviewed, uncommitted input.
+The operating record or system handoff supplies every placeholder. Use a fixed
+UTC render time. Add the renderer's dirty-source flag only when the release
+record explicitly permits reviewed, uncommitted input.
+
+If Stack Composer is unavailable on the target system, generate the catalog in
+another controlled CSE environment and transfer the complete tree, or assemble
+the versioned tree manually according to the Static Platform Catalog Overview
+and detailed design note. Every scope file must be complete valid Spack
+configuration, and the manifest must identify the supported selections and
+their provenance. All production paths pass the same inspection and approval
+gates.
 
 Inspect the result before selecting scopes:
 
 ```bash
+export SYSTEM_PROFILE="<absolute-reviewed-profile>"
+export CATALOG="<absolute-versioned-restricted-catalog>"
 test -r "$CATALOG/README.md"
 test -r "$CATALOG/manifest.yaml"
 test -r "$CATALOG/profile.yaml"
 test -r "$CATALOG/reports/static-plan.yaml"
-cmp "$SYSTEM_DIR/profile.yaml" "$CATALOG/profile.yaml"
+cmp "$SYSTEM_PROFILE" "$CATALOG/profile.yaml"
 find "$CATALOG/scopes" -type f -print | sort
 ```
 
@@ -479,12 +513,16 @@ not supported by reviewed evidence.
 
 ### 6.2 Retain the restricted catalog
 
-After review, keep the catalog at its versioned restricted path and make that
-review copy read-only. It is the source for the later public static-catalog
-publication and for manual package-manager review. The managed CSE workspace
-is rendered separately from the same reviewed `profile.yaml`, defaults,
-templates, and provider policy plus CSE stack intent and `deployment.yaml`.
-It does not use the public catalog as a build input.
+After review, keep the catalog at its versioned restricted path and freeze that
+version through the release procedure. Do not edit it in place. The owning CSE
+group retains management access for controlled replacement, retention, and
+retirement actions. The restricted release is the source for the later public
+static-catalog publication and the platform-configuration record for CSE
+workspace preparation. The managed CSE workspace either consumes selected
+restricted scope content or materializes the same selections from the reviewed
+`profile.yaml`, defaults, templates, and provider policy. It then adds CSE
+stack intent and `deployment.yaml`. It does not use the public catalog to
+authorize a restricted build.
 
 The public static catalog is an independent configuration product for package
 managers outside CSE. Publish it during the release procedure in Section 10.2.
@@ -519,9 +557,10 @@ Catalog selection passes when each selected path is present in
 `manifest.yaml`, the selected compiler and MPI tuple is supported, and the
 environment scope listing contains no ambient policy outside the selected
 configuration boundary. For the managed CSE workspace, Stack Composer resolves
-the equivalent compiler, MPI, target, GPU, and external configuration from the
-reviewed profile, defaults, stack intent, and deployment inputs and records it
-in the release manifest.
+the compiler, MPI, target, GPU, and external configuration from the restricted
+catalog contract or the equivalent reviewed profile and policy plan. It adds
+stack intent and deployment inputs and records the catalog or source identity,
+selected scopes, and resulting configuration in the release manifest.
 
 ## 7. Define the environment
 
@@ -832,7 +871,8 @@ The designated CSE catalog publication procedure performs these operations:
    ordinary files. Retain CSE group management access and remove write access
    for users outside CSE.
 
-Run the Stack Composer publication command:
+Use `publish-static` to perform the copy, metadata, checksum, mode, and
+atomic-publication operations:
 
 ```bash
 stack-composer publish-static \
@@ -851,6 +891,10 @@ consumer-readable modes, and publishes the versioned directory as one
 operation. The named CSE group owns the new namespace and complete release
 tree. `--set-current` is optional. An existing versioned publication is never
 overwritten.
+
+If Stack Composer is unavailable where publication occurs, perform the seven
+operations above through the approved manual release procedure. The resulting
+tree must pass the same checksum, ownership, mode, and immutability checks.
 
 Set and verify the resolved public path:
 
@@ -888,7 +932,9 @@ reviewed publication `deployment.yaml`, then copy the approved restricted
 lockfiles into their corresponding generated environments. Verify that the
 publication release manifest identifies the same package and platform inputs.
 Do not copy the mutable restricted workspace, do not reconcretize, and do not
-use either static-catalog path as a managed-workspace input.
+switch to the public static-catalog path. Use the same restricted catalog
+release or equivalent reviewed platform-plan identity recorded for the
+restricted workspace.
 
 The publication deployment must change the access audience while retaining the
 same CSE management group:

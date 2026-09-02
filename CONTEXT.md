@@ -97,11 +97,11 @@ lane-sensitive payload → lane modules.**
   vendor update. Its outcome is recorded per lane as revalidate, remain pinned
   to a supported older set, rebuild, or hold promotion. Coexisting modules and
   changed system defaults are evidence to investigate, not compatibility proof.
-- **Manual config catalog** - a maintainer-generated set of complete Spack
-  configuration YAML files for one system, derived from `profile.yaml` facts and
-  site policy for manual/package-manager use. Users write their own `spack.yaml`
-  and include catalog files; this is separate from the managed stack workspace
-  render, where Stack Composer writes the full environment.
+- **Static platform catalog** - a versioned, system-specific bundle of reviewed,
+  include-ready Spack platform configuration that is independent of package
+  intent and deployment paths. CSE uses the restricted release as its platform
+  contract; other package managers consume the approved published copy.
+  Avoid: manual config catalog, build workspace, package catalog.
 - **Spack runtime identity** - the exact Spack source, version/tag, and commit
   approved for a release. Two checkouts at different paths have the same
   runtime identity only when those values and their clean source trees match.

@@ -238,8 +238,8 @@ change or staged (compilers first, then mpi/gpu).
 ## Scope boundary
 
 This design is the **managed render** (Stack Composer owns package intent → one
-coherent set). It is deliberately *not* the **manual config catalog**
-(`manual_config_catalog_note_v1.md`), a separate future flow where a full
+coherent set). It is deliberately *not* the **static platform catalog**
+(`manual_config_catalog_note_v1.md`), a separate product where a full
 multi-flavor catalog is a feature, not a bug. Do not let the catalog use case
 pull the managed render back toward rendering everything.
 

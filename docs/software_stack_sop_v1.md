@@ -59,6 +59,23 @@ lockfile, manifests, checksums, and test programs. Record the command, node,
 date, exit status, and output for every required test. Screenshots are not
 required and must not be the only evidence for a control point.
 
+### 1.3 Static platform catalog orientation
+
+The static platform catalog is a versioned configuration release for one
+system. It contains reviewed, include-ready Spack scopes for supported
+compilers, compiler and MPI pairings, GPU toolkits, targets, system externals,
+and path-independent site policy. It also contains a manifest, the reviewed
+profile snapshot, a static-plan report, and small example environments.
+
+The catalog does not contain application package intent, deployment paths,
+installed software, lockfiles, or a complete build workspace. A package
+manager selects compatible scopes from the published catalog, includes them
+from a package-manager-owned `spack.yaml`, and supplies the remaining package
+and deployment choices. The package manager does not need Stack Composer. CSE
+may generate the catalog internally or assemble the same contract manually
+when the producer tool is unavailable on the target system. See the
+[Static Platform Catalog Overview](static_platform_catalog_overview_v1.md).
+
 ## 2. Responsibilities
 
 | Role | Responsibility |
@@ -403,6 +420,10 @@ approved Spack identity matches, the catalog is readable, and the global and
 environment scope listings contain no unexpected configuration.
 
 ## 6. Select platform configuration
+
+The [Static Platform Catalog Overview](static_platform_catalog_overview_v1.md)
+defines the complete consumer boundary. This section applies that contract to
+one package-manager-owned environment.
 
 Read `manifest.yaml` and select the exact scope paths it publishes. A
 normal environment includes:

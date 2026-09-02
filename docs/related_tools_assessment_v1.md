@@ -39,7 +39,7 @@ relevant to the CPE 26.03/ROCm 7 transition
 
 **Validates (nothing to import):** their cluster-config/recipe split mirrors
 our profile+deployment vs stack split; their shipped user-facing config scope
-is prior art for our manual config catalog mode
+is prior art for our static platform catalog mode
 (`manual_config_catalog_note_v1.md`).
 
 ## spack-stack (JCSDA/NOAA, CC0-1.0)
