@@ -1,0 +1,991 @@
+# CSE Spack security assurance case for DoD HPC v1
+
+| Document control | Value |
+|---|---|
+| Date | 2026-09-03 |
+| Status | Research-backed proposed policy basis; not an authorization decision or operator procedure |
+| Audience | CSE package managers, ISSM/ISSO personnel, assessors, system owners, and authorizing officials |
+| Primary scope | Spack 1.2.2 used to build and publish software for unclassified DoD HPC systems |
+| Secondary scope | Transfer of approved artifacts to a classified enclave is identified only as a separate acceptance boundary |
+| Method | Primary sources from NIST, DoD, OMB, Spack, RPM, DNF, Conda, GCC, GNU binutils, glibc, and HPE |
+
+## Executive assessment
+
+Spack is not inherently secure or insecure. Its risk depends on the operating
+mode and the controls around it.
+
+A normal network-connected Spack source build should not be the approved path
+for system-wide HPC software. That mode executes Python package recipes and
+upstream build systems, accepts several configuration scopes, and may fetch
+source or bootstrap content from public locations. Spack checksums, lockfiles,
+package hashes, tests, signatures, and SBOMs provide useful evidence, but none
+of them independently establishes that the input or output is benign.
+
+The proposed CSE process can support a defensible DoD HPC software supply
+chain. The acceptable operating model is:
+
+> controlled intake, immutable input admission, concrete-graph review,
+> egress-denied unprivileged build, security and functional validation,
+> independent approval and signing, immutable publication, cache-only
+> consumption, and continuous monitoring.
+
+This model addresses the valid part of the ISSM concern. It also provides a
+more accurate comparison with Yum/DNF, RPM, and Conda. Their practical security
+advantage, when present, comes from consuming binaries from a curated and
+trusted repository. It does not come from a package format that is incapable
+of executing code. A signed, immutable CSE Spack build cache creates a similar
+consumer trust boundary while preserving the compiler, provider, ABI, and
+microarchitecture precision required for HPC.
+
+### Proposed authorization position
+
+| Operating mode | Proposed position | Reason |
+|---|---|---|
+| Ad hoc Spack source build with public fallback, ambient user configuration, or unsigned output | Do not approve for system-wide publication | The executable input set, network path, and promotion authority are not adequately bounded |
+| Restricted CSE intake and build using the gates in this document | Conditionally approve as the candidate-production process | The process separates intake, build, validation, approval, signing, and publication and retains evidence for each decision |
+| Published consumer using only the approved signed CSE build cache | Preferred production consumption mode | Consumers do not fetch upstream sources or execute package build phases. Approved consumer-side Spack core, repositories, hooks, and installation behavior remain within the trust boundary |
+| Transfer from unclassified to classified | New acceptance decision | The destination enclave, transfer mechanism, target compatibility, keys, scanning, and AO conditions require separate approval |
+
+Approval should attach to the controlled CSE operating model and its evidence,
+not to the word `Spack`. A deviation such as an unreviewed overlay, public fetch
+fallback, an uncontrolled configuration scope, unsigned publication, or an
+in-place release edit invalidates the assurance case for that candidate.
+
+## Scope, assumptions, and limitations
+
+This assessment assumes that CSE intends to:
+
+* pin Spack core, `spack-packages`, overlays, sources, and concrete dependency
+  selections;
+* use an access-controlled management area for intake, resolution, build,
+  testing, and review;
+* fetch source content in a distinct, controlled-egress step;
+* build as a nonprivileged identity with outbound network access denied;
+* prevent ambient `~/.spack` and other unapproved configuration from affecting
+  the build;
+* scan, test, document, approve, and sign candidate artifacts before
+  publication;
+* publish versioned releases that are immutable rather than repaired in place;
+  and
+* require normal consumers to install from the approved signed build cache
+  without source-build fallback.
+
+The ISSM white paper was not available for review. This document therefore
+answers the concerns as described, not the exact wording or evidence in that
+paper. The system categorization, NSS status, selected RMF baseline, overlays,
+Control Correlation Identifiers, assignment values, contract requirements,
+Component policy, and AO-specific conditions were also unavailable.
+
+The NIST control references in this document are candidate traceability
+mappings. They do not mean that a Spack command implements a control, that
+every listed control is assigned to the system, or that the process is
+compliant. The system owner, assessor, ISSM, and AO must confirm the actual
+requirements and the evidence accepted for them.
+
+Unclassified does not mean non-NSS. That designation must be confirmed. An
+approved artifact on an unclassified system does not become approved for a
+classified enclave merely because it was scanned and signed.
+
+## Findings
+
+### The security concern is valid
+
+A Spack package repository is executable supply-chain input. Spack imports
+`package.py`, invokes package and builder methods, modifies the build
+environment, applies patches and resources, and runs external build tools. The
+recipe can therefore perform actions under the authority of the build identity
+([Spack repository loader](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/repo.py#L128-L176),
+[imperative install example](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/packaging_guide_creation.rst#L1297-L1308)).
+
+That executable surface is larger than `package.py`. A recipe may invoke
+upstream `configure`, CMake, Make, Python, shell, vendor installers, generated
+code, patches, tests, and bootstrap tools. Compilers, Cray PE modules, MPI,
+system libraries, and other externals also participate in the result. Reading
+only a recipe does not fully vet the software.
+
+Spack source and package hashes improve change detection and identity. They do
+not approve intent. An archive checksum proves that downloaded bytes match an
+admitted digest. A malicious change that replaces both a URL and its digest can
+still pass the checksum. A build-cache signature proves that the trusted key
+holder signed the described cache object. It does not prove that the source,
+recipe, builder, or binary was safe.
+
+### The categorical conclusion does not follow
+
+No primary source reviewed here characterizes Spack as prohibited for DoD HPC
+or characterizes Yum/DNF or Conda as inherently secure. NIST and DoD guidance
+focus on risk, provenance, controlled processes, testing, integrity,
+authorization, and continuous monitoring.
+
+The DoD memorandum on software development and open source software requires
+open source to receive equal consideration while meeting the same rigorous
+supply-chain and cyber-testing expectations as other software
+([DoD software development and open source software memorandum](https://dodcio.defense.gov/Portals/0/Documents/Library/SoftwareDev-OpenSource.pdf)).
+The defensible comparison is therefore between configured operating modes, not
+brand names.
+
+### The proposed CSE architecture is directionally sound
+
+The existing restricted-intake, isolated-environment, lockfile, testing,
+build-cache, SBOM, and immutable-publication design contains the right
+boundaries. It becomes assessable when each boundary has:
+
+1. a named owner;
+2. an explicit pass or fail decision;
+3. evidence bound to the exact release;
+4. a defined failure response; and
+5. a rule that changed input creates a new candidate release.
+
+The remaining work is primarily control completion and evidence definition,
+not a replacement of Spack.
+
+## Trust-boundary model
+
+| Input or authority | Security effect | Required control |
+|---|---|---|
+| Spack core | Runs the concretizer, configuration system, fetch logic, build orchestration, hooks, signing, and installation | Pin an exact approved commit or release; record origin and verification; update through change control |
+| `spack-packages` and overlays | Supply executable recipes, patches, resources, variants, providers, conflicts, and hooks | Pin exact commits; record repository order; review the reachable baseline or approved delta |
+| Source archives and VCS content | Supply the software and upstream build logic | Use approved origins, immutable identifiers, strong digests, controlled intake, scanning, and retained source objects |
+| Bootstrap content | May introduce solvers, GPG support, or other tools outside the ordinary package source mirror. Spack's default bootstrap enables bundled public binary and source methods | Disable bootstrap and pre-provision approved prerequisites, or admit a separate local bootstrap mirror and its metadata and digests. Bootstrap's `--trust` setting is configuration trust, not a GPG signature assertion ([default bootstrap configuration](https://github.com/spack/spack/blob/v1.2.2/etc/spack/defaults/bootstrap.yaml), [bootstrap verification path](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/bootstrap/core.py#L154-L192)) |
+| Configuration scopes and command line | Can replace compilers, externals, mirrors, repos, permissions, variants, targets, and build behavior | Use a controlled launcher, allowlist scopes, prohibit unapproved overrides, and retain effective configuration evidence |
+| Compilers, Cray PE, MPI, OS, libraries, and other externals | Affect ABI, generated code, runtime behavior, and dependency trust but may not be fully represented in a lockfile | Inventory exact module/version/path/identity; validate target compatibility; include externals in vulnerability and release records |
+| Build host or image | Supplies kernel, filesystem, process, network, tool, and credential boundaries | Harden and baseline it; use least privilege; deny egress; make approved inputs read-only; preserve logs |
+| Builder | Can execute recipes and produce candidate artifacts | Separate from signing and publication; grant only required write paths; monitor actions |
+| Reviewer and approver | Determines whether input and evidence satisfy policy | Define review depth, two-person rules, exceptions, and go/no-go authority |
+| Release signing key | Converts a candidate into an authenticated CSE artifact | Protect outside the builder; control use, fingerprint distribution, rotation, revocation, and recovery |
+| Catalog, index, and release aliases | Determine which signed packages consumers discover | Bind the approved set in a signed CSE release manifest and update aliases atomically |
+| Consumer configuration | Can permit unapproved mirrors, keys, recipes, hooks, source fallback, upstream stores, existing local installs, or externals | Trust only approved fingerprints; verify signed release membership; use a clean or dedicated store; prohibit unapproved upstreams; admit externals separately; require build-cache-only installation; block fallback |
+
+## Defining recipe vetting
+
+An instruction to fully vet every recipe is not testable until the subject,
+depth, frequency, and approval authority are defined. The following definition
+is both rigorous and scalable.
+
+### Initial baseline admission
+
+For the first approved baseline, generate the complete concrete closure of the
+selected root specifications. Identify the effective recipe selected for every
+node after repository precedence and namespace resolution. Review and retain:
+
+* the exact Spack core, `spack-packages`, and overlay commits;
+* effective repository names, namespaces, order, and overrides;
+* every reachable recipe, patch, resource, submodule, extra source, and custom
+  build phase;
+* lifecycle hooks and code that changes the build or dependent environment;
+* URLs, VCS revisions, archive digests, upstream signatures when available,
+  and license information;
+* build-time network activity, generated downloads, vendored dependencies, and
+  package-manager use inside upstream build systems;
+* compilers, MPI, Cray PE modules, system libraries, and other externals;
+* bootstrap sources and tools; and
+* maintainer health, release history, known vulnerabilities, source-origin
+  concerns, and criticality appropriate to the package.
+
+The initial review does not need to claim that every line of every transitive
+upstream source file was manually proven safe. That claim would be impractical
+and misleading. The review should identify the full executable trust boundary,
+apply automated checks across the candidate, and use deeper human review where
+criticality, exposure, privilege, source novelty, custom logic, or change risk
+justifies it. NIST SP 800-161 and SP 1326 support risk- and criticality-based
+due diligence rather than a single undifferentiated review depth
+([NIST SP 800-161 Rev. 1 Update 1](https://doi.org/10.6028/NIST.SP.800-161r1-upd1),
+[NIST SP 1326](https://doi.org/10.6028/NIST.SP.1326)).
+
+### Later release admission
+
+A later release may use delta review only when the prior approved baseline and
+its evidence remain immutable. The release process must compare:
+
+* root specifications and the full concrete DAG;
+* recipe, patch, resource, and overlay content;
+* repository commits and order;
+* source origins, versions, commits, and digests;
+* variants, providers, targets, compilers, and externals;
+* effective configuration and command-line inputs;
+* builder baseline and build tools; and
+* hardening, test, scan, signing, and publication policy.
+
+Every changed reachable input receives review. A newly introduced package,
+custom phase, lifecycle hook, external, mutable source, security-sensitive
+component, or privilege boundary should trigger deeper or two-person review.
+An unchanged package can inherit its prior recipe-review decision only when the
+input identity and effective context are demonstrably unchanged.
+
+### Minimum review record
+
+| Field | Required content |
+|---|---|
+| Candidate identity | Release ID, root specification, environment, lane, platform, and build ID |
+| Effective recipe input | Repository, commit, namespace, package file digest, patches, resources, and override status |
+| Change | New, changed, removed, or unchanged relative to the approved baseline |
+| Executable behavior | Phases, hooks, commands, environment changes, downloads, write locations, tests, and install actions |
+| Source provenance | Origin, immutable identifier, digest, upstream signature status, acquisition time, and mirror object |
+| Dependency and external impact | Changed DAG nodes, providers, compiler, MPI, Cray PE, system libraries, and bootstrap inputs |
+| Automated evidence | Spack audit results, malware result, vulnerability result, source analysis, secrets result where applicable |
+| Human decision | Reviewer, date, disposition, rationale, required controls, and second reviewer when required |
+| Exceptions | Scope, unmitigated risk, compensating controls, approver, expiration, and retest triggers |
+
+`spack audit` is useful structural lint. It is not a malicious-code review or a
+vulnerability scanner
+([Spack audit implementation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/audit.py#L180-L223)).
+
+## Assurance gates
+
+The release should move forward only when every applicable gate passes.
+
+| Gate | Decision | Mandatory evidence | Failure response | Candidate NIST alignment |
+|---|---|---|---|---|
+| G0 Governance and baseline | Are policy, roles, package criticality, exact tool and repository revisions, and configuration authority approved? | C-SCRM plan; owners; review and exception policy; exact commits; repository order; approved launcher and configuration baseline | Do not resolve or fetch | SR-1, SR-2, SR-3, RA-3, RA-9, CM-2, CM-5; SP 800-161; SP 1326 |
+| G1 Resolve and review | Is the complete concrete closure and executable input delta understood and approved? | `spack.yaml`; `spack.lock`; evaluated roots, DAGs and hashes; recipe and patch snapshots; change report; review decisions | Reject, revise, or return to review | SR-5, SR-6, SR-10, SR-11, SA-11; SSDF PW.4. SA-9 applies only if CSE relies on an externally operated repository, mirror, scanner, signer, or build service |
+| G2 Source intake | Did controlled intake acquire immutable, verified, scanned, and complete source and bootstrap content? | Origins; commits and digests; VCS-commit-to-mirror-archive bindings; separate bootstrap admission; mirror inventory; TLS/checksum results; scanner engine, policy, signature database date and result; acquisition log | Quarantine or reject | SI-3, SI-7, SC-7, AC-6; SSDF PO.5; SP 800-204D by analogy |
+| G3 Controlled build | Did a nonprivileged builder use only approved, read-only inputs with no outbound network and no release-key access? | builder identity and baseline; effective scopes; config blame; security environment variables; compiler/module/external inventory; egress-denial evidence; full logs | Destroy candidate output and rebuild | AC-6, CM-2, CM-3, CM-4, CM-5, CM-6, CM-7, SA-10, SA-15; SSDF PO.3, PO.5, PW.6 |
+| G4 Validate | Did the candidate pass the security, integrity, functional, ABI, linkage, runtime, numerical, MPI/GPU, and performance checks applicable to its risk tier? | test results; artifact inspection; `spack verify` results; malware and vulnerability results; SBOM; external inventory; documented exceptions | Reject or obtain authorized scoped exception | RA-5, SA-11, SI-2, SI-3, SI-7; SSDF PW.6, PW.7, PW.8; NIST IR 8397. CA-2 applies when the results support a formal assessment of assigned controls |
+| G5 Approve and sign | Did a separate release authority approve the exact artifact set and bind it to the evidence? | go/no-go record; artifact digests; package signatures; key fingerprint; signed CSE release manifest; exception acceptance | Do not publish | AC-5, CM-3, CM-5, SI-7, SR-4, SR-9, SR-10, SR-11; SSDF PS.2, PS.3 |
+| G6 Publish and consume | Is the release immutable, readable by authorized consumers, and usable only through verified cache-only consumption? | immutable namespace; permission check; backend-appropriate consistency and signing evidence; signed release-manifest membership; clean or dedicated store; no unapproved upstreams; approved external inventory; cache-only acceptance and negative-fallback tests; atomic alias update | Block or withdraw release | CM-5, SI-7, SR-9, SR-11; SSDF PS.2 |
+| G7 Monitor and withdraw | Are later CVEs, upstream compromise, scanner intelligence, key status, exceptions, and policy changes monitored and acted on? | periodic scan and review records; findings and dispositions; revocation or withdrawal record; replacement release linkage | Quarantine, revoke, rebuild, and re-release | CA-7, RA-5, SI-2, SI-4, SI-5, IR-4; SSDF RV.1 through RV.3 |
+
+These mappings are a traceability aid. The actual RMF package, assessment
+procedures, and AO determinations control.
+
+## Configuration isolation requirements
+
+`SPACK_DISABLE_LOCAL_CONFIG=true` is necessary for the proposed model, but it
+does not prove that only CSE configuration is active. In Spack 1.2.2 it disables
+the system and user scopes. Spack can still consider defaults, site, plugin,
+Spack-instance, environment, custom `-C`, and command-line inputs. Configuration
+lists can also merge across scopes
+([configuration scope precedence](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/configuration.rst#L55-L134),
+[local-configuration and isolation limits](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/configuration.rst#L667-L711)).
+
+The controlled CSE launcher should therefore:
+
+1. invoke a pinned Spack installation;
+2. set `SPACK_DISABLE_LOCAL_CONFIG=true`;
+3. set `SPACK_USER_CACHE_PATH` to a candidate-specific controlled location;
+4. activate an explicit environment by controlled path;
+5. control or remove Spack site and plugin configuration;
+6. pin and allowlist package repositories and their order;
+7. prohibit unapproved custom scopes, `-C` inputs, and security-relevant CLI
+   overrides;
+8. start from an allowlisted process environment and module state;
+9. capture `spack config scopes -p`, `spack config blame`, repository status,
+   mirrors, compilers, externals, and bootstrap configuration; and
+10. fail if observed inputs differ from the approved baseline.
+
+Spack 1.2.2 describes `spack isolate` as experimental and best effort. It may
+assist with reproducibility, but it should not be the security boundary. Host,
+container, scheduler, filesystem, identity, and network controls must enforce
+the boundary outside Spack.
+
+## Source intake and scanning
+
+The fetch phase should be the only phase with outbound access. It should create
+a closed source set for the reviewed concrete graph, including archives, VCS
+content, patches, resources, submodules, generated dependencies, and bootstrap
+content. For URL sources, strong checksums are mandatory. For VCS sources, use
+full immutable commits and retain the acquired archive or checkout digest
+([Spack checksum rules](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/packaging_guide_creation.rst#L542-L564),
+[Git provenance rules](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/packaging_guide_creation.rst#L618-L648)).
+
+Spack mirrors support offline source preparation, including creation from a
+concrete environment
+([Spack mirror documentation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/mirrors.rst#L12-L77)).
+A configured mirror does not prove that a build could not fall back to a public
+origin or that an upstream build script did not make its own download. Outbound
+network denial must be enforced and tested outside Spack. Missing approved
+content must cause a build failure. Spack's ordinary fetcher path retains the
+public origin after caches and mirrors
+([Spack stage and fetcher behavior](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/stage.py#L555-L600)).
+
+VCS-backed sources require an additional control. When the original source is
+Git or another VCS but a mirror supplies an archive, Spack 1.2.2 cannot prove
+that the archive is equivalent to the VCS checkout because the recipe does not
+contain a tree-archive hash. Spack warns and skips the ordinary archive checksum
+verification for that mirror object. CSE must retain evidence that binds the
+approved full commit to the exact archived mirror object and its independently
+calculated digest
+([Spack VCS mirror verification limitation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/stage.py#L669-L685)).
+
+Bootstrap is a separate supply-chain path. Spack's default bootstrap methods
+are enabled and include public binary and source locations. Prebuilt bootstrap
+packages are intentionally treated as unsigned cache packages and checked
+against SHA-256 values in bootstrap metadata. That is not the same trust model
+as the signed CSE release cache. CSE should either disable bootstrap and
+pre-provision approved prerequisites or separately admit a local bootstrap
+mirror, metadata, exact digests, and transfer evidence. `spack bootstrap add
+--trust` marks a configuration source as trusted; it does not verify a GPG
+signature
+([default bootstrap methods](https://github.com/spack/spack/blob/v1.2.2/etc/spack/defaults/bootstrap.yaml),
+[bootstrap core verification](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/bootstrap/core.py#L154-L192)).
+
+If Trellix or another organization-approved scanner is used, retain at least:
+
+* the source object digest and origin;
+* scanner product, engine version, policy, and command or job identity;
+* signature or intelligence database version and timestamp;
+* scan time, result, exclusions, errors, and reviewer disposition; and
+* quarantine, exception, or acceptance decision.
+
+Scan the staged source and the installed candidate. Reevaluate retained release
+inventory when scanner intelligence or vulnerability data changes. One intake
+scan is not a continuing assurance claim.
+
+## Controlled build requirements
+
+The build identity should be nonprivileged and distinct from the signing and
+publication identities. It should have read-only access to approved inputs,
+write access only to candidate work and output locations, no routine ability to
+alter the admitted mirror or baseline, no outbound network access, and no
+access to the release private key.
+
+The release record should identify the builder host or image, OS, architecture
+and microarchitecture target, kernel-relevant constraints, Spack revision,
+package-repository revisions, compiler and Cray PE state, MPI provider,
+bootstrap tools, externals, environment variables, and complete build logs.
+`spack.lock` is central evidence, but it is not a complete build attestation or
+a guarantee of bit-for-bit reproducibility
+([Spack manifest and lock](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/environments.rst#L39-L47),
+[lockfile recreation qualifications](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/environments.rst#L84-L121)).
+
+An approved source set should be built without `--dirty`, `--no-checksum`,
+`--insecure`, unsigned ordinary-release-cache, signature-bypass, or unapproved
+configuration options. The separately admitted bootstrap path described above
+is not evidence that unsigned ordinary release packages are acceptable. Any
+required exception must be visible in the candidate record and approved before
+promotion.
+
+## Validation requirements
+
+Validation depth should follow package criticality, exposure, privilege,
+language, compiler, and lane. The complete program may include:
+
+* package and installation tests;
+* command startup and representative functional tests;
+* library, RPATH/RUNPATH, ABI, symbol, and unintended-system-dependency checks;
+* serial, OpenMP, MPI, multi-node, GPU, and mixed-language tests where
+  applicable;
+* numerical correctness, reproducibility, and restart or checkpoint checks;
+* input parser, archive, protocol, and file-format negative tests;
+* malware scanning of installed output;
+* software-composition and vulnerability analysis against the release SBOM
+  and separate external inventory;
+* static, dynamic, fuzz, sanitizer, and hardening checks selected by risk; and
+* performance, memory, startup, launch-scale, and scaling comparisons for
+  security controls that may affect HPC behavior.
+
+Spack 1.2 writes a per-install SPDX 2.3 document. Its generator sets
+`filesAnalyzed` to false and skips an external root. The result is useful
+inventory, but it is not a release-wide SBOM, a malware result, a CVE result,
+or build provenance
+([Spack 1.2 release](https://github.com/spack/spack/releases/tag/v1.2.0),
+[SBOM generator](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/hooks/sbom_generate.py#L53-L170)).
+
+Preserve and hash the candidate-production SBOM before build-cache publication
+and bind that exact copy in the signed CSE release manifest. A build-cache
+installation runs post-install hooks that regenerate the SPDX file and the
+install manifest using the consumer's installation time and local recipe
+metadata. The consumer's `.spack/sbom/spdx-2.3.json` is useful local inventory,
+but it should not be treated as cryptographically identical to the retained
+release copy
+([binary install hooks](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/binary_distribution.py#L2163-L2174),
+[hook ordering](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/hooks/__init__.py),
+[SBOM hook](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/hooks/sbom_generate.py)).
+
+`spack verify manifest` can detect changed installed files and `spack verify
+libraries` can detect missing or unintended library dependencies. These are
+integrity and linkage checks, not vulnerability scanners
+([Spack verification documentation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/advanced_topics.rst#L53-L104)).
+
+## Security evidence answers different questions
+
+| Evidence or control | What it establishes | What it does not establish |
+|---|---|---|
+| TLS during acquisition | Confidentiality and server authentication according to the configured trust store | That the server content is benign or the selected origin is approved |
+| Source checksum | The acquired bytes match the admitted digest | Publisher identity, intent, absence of vulnerabilities, or review approval |
+| Upstream signature | A holder of the corresponding upstream key signed the content | That the signer or content is trustworthy for CSE without key and publisher due diligence |
+| Recipe and patch review | Identified executable packaging behavior was reviewed at the stated depth | Complete safety of upstream source or generated build logic |
+| Malware scan | Content did not trigger the selected engine, policy, and intelligence at that time | Absence of unknown, obfuscated, logic-level, or later-discovered threats |
+| Vulnerability or SCA scan | Known component or vulnerability matches and dispositions at that time | Malware absence, exploitability certainty, or complete component discovery |
+| Static and dynamic analysis | Selected defect classes in analyzed code or executions | Complete path coverage or absence of other defects |
+| Functional and numerical tests | Observed behavior met defined cases and tolerances | Absence of malicious behavior or behavior outside test coverage |
+| SBOM | Component and relationship inventory to the tool's available metadata | Safety, approval, vulnerability disposition, malware absence, or complete external inventory |
+| Lockfile | A fully concrete Spack dependency graph | Signature, approval, host-tool identity, complete externals, or bit-for-bit reproducibility |
+| Build attestation | Recorded builder, inputs, parameters, and output digests at the claimed assurance level | Safety of those inputs or builder unless their trust is separately established |
+| Build-cache signature | CSE's trusted key signed the described package manifest and its referenced content digests | Safety before signing or authenticity of an unsigned release index |
+| Install integrity manifest | Installed files still match the recorded post-build state | That the original recorded state was safe |
+
+## Signing, immutable publication, and consumption
+
+Spack build caches contain installed prefixes and metadata. Spack 1.2.2 can
+sign binary package manifests, configure a mirror as signed, select a signing
+key, and verify signatures during installation
+([build-cache creation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/binary_caches.rst#L27-L38),
+[signing controls](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/binary_caches.rst#L229-L309)).
+`spack install --use-buildcache only` prevents fallback to a source build
+([cache-only consumption](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/binary_caches.rst#L99-L137)).
+
+That option governs packages Spack must install. It does not retroactively
+verify signatures for a matching hash already present in the local store or an
+upstream store, and declared externals do not come from the cache. A production
+consumer must therefore use a clean or dedicated controlled store, prohibit
+unapproved upstream stores, separately admit and inventory externals, and
+verify that the requested concrete DAG hashes are members of the approved CSE
+release manifest before installation
+([existing-install decisions](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/new_installer.py#L1792-L1812),
+[external and installed-spec handling](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/installer.py#L2271-L2278)).
+
+CSE should:
+
+* keep the private release key outside the builder and ordinary workspaces;
+* authorize a separate release role to use it only after the validation gate;
+* distribute the complete public-key fingerprint through a controlled channel;
+* trust only designated CSE keys, not every key downloadable from a mirror;
+* configure the authoritative mirror as signed;
+* prohibit unsigned pushes and signature-verification bypasses;
+* record the release key fingerprint and signature result;
+* publish into a new immutable release namespace;
+* update any human-friendly alias atomically after the release passes; and
+* revoke or withdraw by state change and replacement release, not by modifying
+  installed files in place.
+
+Spack 1.2.2 explicitly states that build-cache index manifests are not yet
+signed
+([build-cache index caveat](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/binary_caches.rst#L676-L704)).
+The CSE release process must not say that the entire index is authenticated by
+native Spack signing. Supplement the per-package signatures with a separately
+signed CSE release manifest that binds:
+
+* release ID and approval state;
+* expected root specifications and complete DAG hashes;
+* package-manifest and content-blob digests;
+* catalog and build-cache index digests;
+* platform, target, compiler, provider, and external identities;
+* release evidence location and digest;
+* signing identity and timestamp; and
+* prior or replacement release relationships.
+
+`spack buildcache check-index --verify all` remains useful as a mirror
+consistency check. It does not replace signature verification or the CSE
+release-set signature. The verified release manifest must constrain the
+expected DAG hashes before installation. Merely producing a signed release
+manifest does not prevent index-based omission, selection of a different but
+validly signed artifact, or rollback if the consumer does not enforce that
+binding.
+
+Native Spack signing is also backend-dependent in 1.2.2. When an `oci://`
+build-cache push requests signing, Spack warns and forces the push to unsigned.
+OCI caches also lack the index views used by `spack buildcache check-index`.
+An OCI or GitLab container registry cannot satisfy this document's native
+Spack-signature gate unless CSE implements a separate OCI signing mechanism and
+mandatory verification that binds the same release evidence. The safer initial
+authority is a supported filesystem, HTTPS, or object-store Spack cache with
+native package signing
+([Spack OCI signing behavior](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/cmd/buildcache.py#L516-L532),
+[OCI index limitation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/cmd/buildcache.py#L1031-L1045)).
+
+### Cryptographic compliance caution
+
+FIPS 140-3 defines requirements for cryptographic modules, and the CMVP
+validates modules. It does not validate package managers or supply chains. A
+successful GPG signature does not, by itself, establish that signing or
+verification used a CMVP-validated module in an approved mode. When
+cryptography is required to protect sensitive information or by an assigned
+control or local policy, CSE must identify the exact implementation, version,
+module certificate, operating environment, approved mode, key generation and
+storage path, and verification path. Do not label ordinary Spack GPG use as
+FIPS compliant without that evidence
+([FIPS 140-3](https://csrc.nist.gov/pubs/fips/140-3/final),
+[NIST Cryptographic Module Validation Program](https://csrc.nist.gov/projects/cryptographic-module-validation-program)).
+
+The CMVP transition schedule states that FIPS 140-2 modules on the Active list
+may be used for new systems only through September 21, 2026. They then move to
+the Historical list for existing-system use under the applicable policy. This
+near-term date should be checked before selecting a signing or verification
+module.
+
+FIPS 199 and FIPS 200 address system categorization and minimum system-security
+requirements. They do not certify Spack, a recipe repository, or a build cache
+([FIPS 199](https://csrc.nist.gov/pubs/fips/199/final),
+[FIPS 200](https://csrc.nist.gov/pubs/fips/200/final)). DoDI 8510.01 directs
+DoD categorization and control selection through CNSSI 1253 and DoD-specific
+assignments and overlays. Confirm that operative process rather than treating
+FIPS 199 or FIPS 200 as a direct certification mechanism for this workflow.
+
+## Package-manager comparison
+
+| Dimension | Ordinary Spack source build | Governed CSE Spack release | Curated RPM/DNF consumption | Governed Conda channel consumption |
+|---|---|---|---|---|
+| Consumer receives | Source plus recipe-driven local build | Prebuilt CSE package from approved cache | Prebuilt RPM from configured repository | Prebuilt Conda package from selected channel |
+| Package build phases and upstream build system execute on consumer | Normally yes | No for packages installed from the cache. The approved recipe module can still be imported and Spack post-install hooks run | No for a prebuilt RPM, although install or transaction scriptlets may execute | No build recipe for a prebuilt package, although link or activation scripts may execute |
+| Main trust anchor | Public recipes, upstream sources, local configuration, local builder | CSE intake, builder, evidence, approval, key, and release manifest | Distribution or repository governance and trusted package or metadata keys | Channel governance and whatever signature or trust controls are configured |
+| Dependency identity | Concrete DAG and package hashes | Approved lock, DAG, artifact manifest, and external inventory | Repository metadata and RPM dependencies | Channel metadata, package records, and environment solution |
+| Integrity mechanism | Source checksums and local install metadata | Source digests, evidence, signed package manifests, and signed CSE release manifest | RPM signatures/digests and configured DNF package or repository checks | Package and metadata checks plus channel-specific signature controls when configured |
+| Executable supply-chain surface | Spack Python, recipe, patches, resources, upstream build system, tools, and externals | Build phases are confined to CSE intake/build. Approved consumer-side Spack core, repositories, hooks, and installation behavior remain in the consumer trust boundary | Upstream distro build pipeline plus RPM transaction scriptlets on consumer | Upstream channel build pipeline plus link and activation scripts on consumer |
+| Principal risk if poorly governed | Recipe/source compromise, public fallback, configuration injection, builder compromise | CSE pipeline, reviewer, signer, key, external dependency, or release-manifest compromise | Repository, build system, maintainer, key, metadata, or scriptlet compromise | Channel, build system, maintainer, metadata, link script, activation script, or trust-configuration compromise |
+
+DNF exposes package signature and repository metadata checks as configuration
+controls
+([DNF configuration reference](https://dnf.readthedocs.io/en/latest/conf_ref.html#gpgcheck)).
+RPM signatures and digests support integrity and signer verification, while RPM
+packages may include executable scriptlets
+([RPM signatures and digests](https://rpm.org/docs/4.20.x/manual/signatures_digests.html),
+[RPM scriptlets](https://rpm.org/docs/latest/manual/triggers.html)).
+
+Conda-build recipes execute shell or batch build scripts. Packages may contain
+link scripts that run during installation or removal, and may install activation
+scripts that are sourced or called when an environment activates
+([Conda build scripts](https://docs.conda.io/projects/conda-build/en/stable/resources/build-scripts.html),
+[Conda link scripts](https://docs.conda.io/projects/conda-build/en/stable/resources/link-scripts.html),
+[Conda activation scripts](https://docs.conda.io/projects/conda-build/en/stable/resources/activate-scripts.html)).
+
+The supported conclusion is not that all four modes have equal risk. Ordinary
+Spack source building has a larger local build-plane trust surface than
+consuming a curated binary. The supported conclusion is that repository
+governance and the configured consumption path determine the comparison. A
+controlled CSE binary-promotion process is the relevant analogue to a curated
+RPM or Conda channel.
+
+## Compiler hardening for HPC
+
+### Policy principle
+
+Compute-node isolation reduces some likelihood and blast radius. It does not
+eliminate memory-corruption risk. During an allocation, a process may retain
+whatever access the job identity and allocation grant, including access to
+persistent storage, peer ranks, interconnects, devices, services, and output
+data. A defect can corrupt results and checkpoints, destroy accessible data,
+consume an allocation, affect distributed ranks, or participate in an exploit
+chain. Post-job sanitization cannot undo an impact that occurred during the
+job.
+
+NIST SP 800-223 identifies specialized HPC software, compilers, libraries,
+communications, shared access, compute, and data zones and recommends measuring
+security controls against performance. NIST SP 800-234 provides an HPC overlay
+intended to be practical and performance-conscious. It calls for zone-specific
+tailoring and recognizes scanner and integrity-check scaling effects
+([NIST SP 800-223](https://doi.org/10.6028/NIST.SP.800-223),
+[NIST SP 800-234](https://doi.org/10.6028/NIST.SP.800-234)).
+
+The following CSE policy is a local implementation proposal informed by the
+NIST guidance. SP 800-223 and SP 800-234 do not prescribe these package tiers,
+compiler profiles, benchmark methods, or waiver thresholds. The appropriate
+policy is not to inject every available hardening flag into every package. It
+is to maintain approved, compiler- and language-specific profiles, test their
+operational effects, and document narrow exceptions.
+
+### Risk tiers
+
+| Tier | Typical software | Production disposition |
+|---|---|---|
+| A | Access-node, management, network-facing, parser, scheduler-adjacent, publication, or privileged tools | Apply an approved high-assurance production profile after correctness, ABI, platform, and performance qualification. Evaluate PIE, strong stack protection, fortification, RELRO/NOW, non-executable stack, stack-clash protection, and supported hardware control-flow protection as applicable |
+| B | Site-wide shared libraries and applications, especially those processing user-controlled content | Retain low-cost baseline controls. Qualify stronger controls for ABI, plugin, MPI, GPU, startup, and performance effects. A shared library inherits the risk of its highest-risk consumer |
+| C | Closed numerical kernels using trusted input under exclusive, nonprivileged compute allocation | Retain qualified low-cost controls. Permit an exception only for a demonstrated correctness, compatibility, or statistically supported performance problem with compensating controls |
+| D | Restricted test and quarantine builds | Select applicable, supported sanitizers, fuzzing, bounds checks, race detection, and other diagnostics in separate validation builds. Do not publish sanitizer- or diagnostic-instrumented binaries as normal production or performance artifacts |
+
+### Control disposition
+
+| Control | Proposed disposition | Qualification concern |
+|---|---|---|
+| PIC for shared libraries | Require PIC for objects incorporated into ELF shared objects, including static archives consumed by shared objects, using the exact compiler's supported syntax. Verify absence of text relocations. PIC is a linkage enabler, not a standalone memory-safety control | Non-PIC assembly, TLS models, linker limitations, and compiler-specific syntax. Ordinary fully static executables do not require PIC; static PIE is a distinct case |
+| PIE for executables | Strong candidate for tiers A and B; measure tier C hot executables | Fixed-address assumptions, mixed objects, old build systems, launcher and startup behavior; OS ASLR must be enabled for address randomization |
+| Strong stack protector | Strong candidate for supported C/C++ tiers A and B; evaluate broader use | Language and compiler coverage, prologue/epilogue cost, Fortran behavior, and silently ignored options |
+| `_FORTIFY_SOURCE` | Use an approved level only for translation units, optimization modes, and libc/compiler combinations that support it. It protects selected libc calls, not general C/C++ memory accesses or Fortran arrays | Object-size analysis and optimization, libc/compiler version, source/runtime compatibility, and level 3 dynamic-object-size cost |
+| RELRO | Strong candidate for dynamic executables and shared objects. Validate emitted `PT_GNU_RELRO` and loader behavior | Linker and loader compatibility. RELRO alone is not full RELRO; immediate binding remains a separate control |
+| Immediate binding or NOW | Strong candidate for tier A; benchmark launch and plugin-heavy paths elsewhere | Startup, `dlopen`, optional symbols, rank count, and plugin behavior |
+| Non-executable stack | Strong candidate after correcting objects that request an executable stack | Nested-function trampolines, JIT behavior, hand assembly, and missing metadata |
+| Stack-clash protection | Use where the exact compiler and target support it and tests pass | Target support, large or variable stack frames, and Fortran automatic arrays |
+| CET, BTI, or PAC | Risk-based, platform-specific qualification | Matching compiler instrumentation and object metadata, CPU, kernel, loader, and compatible assembly and vendor objects |
+| Compiler control-flow integrity | Risk-based qualification, with no universal cross-DSO assumption | LTO, visibility, whole-program requirements, plugin and MPI boundaries, mixed languages, vendor libraries, and experimental cross-DSO behavior |
+| ASan, TSan, MSan, LSan, and broad UBSan | Restricted validation builds by default | Significant time or memory overhead, runtime dependencies, static-link limits, MPI-scale output, and production-support limitations |
+
+Do not adopt GCC `-fhardened` as a universal Spack flag. GCC documents it as a
+moving set whose exact contents can change by compiler release. It is not a
+portable C, C++, Fortran, Clang, CCE, MPI, GPU, static, and shared-library
+policy
+([GCC instrumentation options](https://gcc.gnu.org/onlinedocs/gcc-15.2.0/gcc/Instrumentation-Options.html)).
+
+### CCE qualification
+
+Record the exact CPE and CCE version and whether the build used Cray PE wrappers
+`cc`, `CC`, and `ftn` or direct drivers such as `craycc` and `crayCC`. The Cray
+PE wrappers use the active PE/module environment and add the associated compile
+and link options and libraries; direct drivers bypass that PE integration. CCE
+C/C++ compiler lineage does not prove that a GCC flag works for Cray Fortran.
+HPE's public `crayftn` manual documents PIC and experimental address and thread
+sanitizer behavior, but does not establish a general GCC-equivalent Fortran
+hardening set
+([HPE CPE and CCE overview](https://cpe.ext.hpe.com/docs/latest/getting_started/CPE-CCE-Overview.html),
+[HPE `crayftn` manual](https://cpe.ext.hpe.com/docs/latest/cce/man1/crayftn.1.html)).
+
+These HPE pages were reviewed as CPE 26.03 and CCE 21.0.0 documentation; the
+`crayftn` page is dated November 13, 2025. Because the `/latest/` URLs are
+mutable, retain a snapshot and digest with the policy decision. Blueback's
+actual CPE/CCE patch level and driver behavior remain authoritative.
+
+For every required flag, probe each language and production driver actually
+used by the package or profile. Fail if a required option is rejected or
+silently ignored. The absence of a public `crayftn` stack-protector entry means
+CSE must not assume that GCC's option works. Require an effective artifact or
+runtime probe, not only a zero compiler exit status. Validate shared and static
+linkage separately. Do not infer CCE coverage from a successful GCC build.
+
+### Qualification and waiver evidence
+
+For each `package@version`, compiler and version, language, architecture, lane,
+and linkage model:
+
+1. build the baseline and hardening candidate from identical approved source,
+   lockfile, dependency graph, and configuration, changing only the hardening
+   delta;
+2. retain the exact compiler and linker invocations and option-support probes;
+3. run functional, numerical, ABI, mixed-language, plugin, serial, OpenMP, MPI,
+   multi-node, and GPU tests that apply;
+4. inspect applicable ELF headers, dynamic tags, and program headers using
+   expected results defined for the linker and linkage model. Examples include
+   `PT_GNU_RELRO`, `BIND_NOW` or NOW dynamic flags, non-executable
+   `PT_GNU_STACK`, absence of TEXTREL and unexpected read-write-execute
+   segments, and CET or BTI GNU properties together with runtime capability.
+   `ET_DYN` alone does not prove PIE because shared objects also use it, and
+   ordinary static binaries have no lazy dynamic binding;
+5. benchmark with the same allocations, input, affinity, clocks, rank layout,
+   toolchain, and storage conditions, randomizing paired order and reporting
+   variability rather than one run;
+6. measure startup and `dlopen` separately from steady-state computation and
+   scaling; and
+7. archive raw results, tool versions, artifacts, reviewer decisions, and
+   predeclared site or mission thresholds.
+
+A waiver must name the exact control, package, version, compiler, language,
+architecture, lane, failure or regression, unmitigated threat, compensating
+controls, affected consumers, owner, approver, expiration, and retest triggers.
+There should be no blanket CCE exemption and no blanket HPC-performance
+exemption.
+
+## NIST and DoD traceability
+
+| Lifecycle objective | Candidate controls and guidance | CSE evidence |
+|---|---|---|
+| Governance and C-SCRM plan | SP 800-53 SR-1, SR-2, SR-3, RA-3, RA-9; SP 800-161; SP 1326; DoDI 8510.01 | roles, criticality tiers, risk and exception policy, AO-confirmed tailoring |
+| Source, supplier, and recipe due diligence | CM-10, SR-5, SR-6, SR-10, SR-11, SA-11; SSDF PW.4; DoD OSS memorandum. SA-9 applies when an externally operated service is relied upon | source and repository admission, reachable-delta review, provenance, maintainer and dependency assessment |
+| Controlled configuration and build | AC-6, CM-2, CM-3, CM-4, CM-5, CM-6, CM-7, SA-10, SA-15; SSDF PO.3, PO.5, PW.6 | launcher, scope evidence, exact pins, least-privilege builder, egress denial, build baseline and logs |
+| Integrity and provenance | CM-3, CM-8, SA-10, SI-7, SI-12, SR-4, SR-9, SR-11; SSDF PS.2 and PS.3; SP 800-204D by analogy. AU-3, AU-9, and AU-11 apply when build and release actions and records are defined as auditable events in the system logging strategy | source and artifact digests, lockfile, SBOM, external inventory, build record, signed package and release manifests |
+| Verification and hardening | RA-5, SA-11, SI-2, SI-3, SI-7; SSDF PW.6, PW.7, PW.8; NIST IR 8397. CA-2 applies when evidence supports formal assessment of assigned controls | functional, numerical, linkage, multi-node, security, scanner, vulnerability, hardening, and performance results |
+| Promotion and separation of duties | AC-5, CM-3, CM-5, SR-9, SR-10, SI-7; SSDF PS.2 and PS.3 | independent go/no-go, protected signing key, immutable namespace, atomic alias, approvals and exceptions |
+| Continuous monitoring and response | CA-7, RA-5, SI-2, SI-4, SI-5, IR-4; SP 800-161; SSDF RV.1 through RV.3 | periodic rescans, intelligence review, finding dispositions, revocation, withdrawal, replacement release |
+| HPC performance-conscious tailoring | SP 800-223; SP 800-234 | zone and package risk tiers, controlled A/B builds, correctness and performance data, expiring exceptions |
+| Classified transfer | DoDI 8540.01 plus destination AO, CDS, media, and enclave procedures | authorized transfer record, post-transfer hash/signature verification, destination scan and approval, enclave-controlled key if required |
+
+NIST SP 800-234 is an optional HPC overlay built from the SP 800-53B moderate
+baseline. It is not automatically the assigned DoD overlay. Reconcile any use
+of it with CNSSI 1253, the DoD RMF Knowledge Service, the system's selected
+controls, and AO-approved tailoring. Its zone-aware and performance-conscious
+guidance supports the local CSE proposal, but it does not prescribe CSE's
+package tiers, compiler profiles, A/B builds, or waiver thresholds.
+
+NIST SP 800-53 is a flexible control catalog, and DoDI 8510.01 establishes the
+DoD RMF and AO risk-decision structure. The control set actually assigned to
+the system takes precedence over this candidate mapping
+([NIST SP 800-53 Rev. 5, Release 5.2.0](https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final),
+[DoDI 8510.01](https://www.esd.whs.mil/Portals/54/Documents/DD/issuances/dodi/851001p.pdf)).
+
+NIST SP 800-204D focuses on cloud-native CI/CD. Its artifact, attestation,
+isolation, repository, and promotion-gate concepts are used here by analogy,
+not presented as HPC-specific requirements
+([NIST SP 800-204D](https://doi.org/10.6028/NIST.SP.800-204D)).
+
+## Current federal policy context
+
+OMB M-26-05, issued January 23, 2026, rescinded M-22-18 and M-23-16. It requires
+agencies to maintain complete software and hardware inventories and to develop
+assurance processes matched to mission and risk. The government-wide secure
+software attestation form developed under the now-rescinded M-22-18 regime
+remains available as an optional tool. Contractual SBOM provisions are also
+optional government-wide tools unless another authority, Component, AO,
+acquisition, or contract requires them
+([OMB M-26-05](https://www.whitehouse.gov/wp-content/uploads/2026/01/M-26-05-Adopting-a-Risk-based-Approach-to-Software-and-Hardware-Security.pdf)).
+
+This change does not reduce the need for evidence. It means the CSE response
+should be anchored in the system's current RMF package, C-SCRM plan, mission
+risk, and AO decision rather than an outdated claim that one universal federal
+attestation workflow is mandatory.
+
+## Release evidence package
+
+| Evidence group | Minimum contents |
+|---|---|
+| Release control | release ID, status, timestamps, owners, reviewers, approvers, immutable path, predecessor, replacement, and withdrawal state |
+| Tool and recipe provenance | Spack core and package-repository commits, origins, verification, overlay commits and diffs, repository namespaces and order, controlled launcher version |
+| Environment identity | `spack.yaml`, `spack.lock`, evaluated root specs, full DAGs and hashes, variants, providers, architecture, lane, view and module configuration |
+| Effective configuration | `spack config scopes -p`, config-blame evidence, approved scope digests, repositories, mirrors, bootstrap configuration, compilers, externals, and security-relevant environment variables |
+| Source intake | source, patch, resource, submodule, VCS and bootstrap inventory; URL or origin; immutable identifier; digest; VCS-commit-to-mirror-archive binding; upstream signature status; acquisition log; mirror location; scan evidence |
+| Builder provenance | builder identity and baseline, OS, host or image ID, CPE and module state, compiler and linker, target, build tools, network-policy evidence, start/end times, and full logs |
+| Validation | package and functional tests, ABI and linkage, runtime, numerical, serial, OpenMP, MPI, multi-node, GPU, artifact inspection, scanner and vulnerability results, performance results and dispositions |
+| Inventory | per-install Spack SPDX documents, release-level component inventory, separate system-external inventory, licenses, known vulnerabilities and dispositions |
+| Publication | package-manifest and blob digests, signature verification, trusted key fingerprint, backend-appropriate consistency result, catalog and index digests, signed CSE release manifest, consumer-store and upstream-store policy, external admission, permission checks |
+| Exceptions and monitoring | exception scope and residual risk, compensating controls, approval and expiry, retest triggers, rescan history, later findings, revocations, withdrawals, and replacement linkage |
+
+The evidence package should be write-protected after approval. Corrections and
+minor changes create a new candidate, new evidence, new checksums, new approval,
+and new release. Restricted candidates should also be regenerated rather than
+manually edited when their evidence is expected to support publication.
+
+## Classified transfer boundary
+
+The classified workflow is not simply a file copy. The approved unclassified
+build cache may be the source set for transfer, but the destination must apply
+its authorized cross-domain or media procedure. At minimum, the destination
+should verify digests and signatures after transfer, rescan under enclave
+policy, confirm platform and external compatibility, review revocation status,
+approve the artifact set, and re-sign under enclave-controlled keys if required.
+
+DoDI 8540.01 governs cross-domain solutions in its scope. Offline media and
+destination procedures may impose additional requirements that are not public
+and are not defined here
+([DoDI 8540.01](https://www.esd.whs.mil/portals/54/documents/dd/issuances/dodi/854001p.pdf)).
+
+## Residual risk
+
+The controlled process reduces risk but does not eliminate:
+
+* deliberately malicious upstream source or build logic that survives review
+  and scanning;
+* scanner false negatives, incomplete vulnerability data, and unknown defects;
+* compromised build hosts, credentials, dependencies, or trusted insiders;
+* weak or vulnerable compilers, Cray PE components, MPI, system libraries, and
+  other externals;
+* signing-key compromise, incorrect trust bootstrap, or approval error;
+* incomplete SBOM metadata and external inventory;
+* mismatch between build and target systems;
+* non-reproducible outputs even when the concrete Spack DAG is unchanged;
+* unsigned Spack cache index semantics without the supplemental CSE release
+  manifest; and
+* vulnerabilities discovered after publication.
+
+Residual release risk is handled by the authority defined in the authorized
+system's configuration- and change-management process. Significant changes or
+risks outside existing authorization conditions are elevated to the AO as
+required. CSE provides the evidence and enforces the release process; it does
+not self-declare system compliance.
+
+## Responses to likely assertions
+
+### Every recipe must be read line by line
+
+Recipes are executable and require governance. No reviewed NIST or DoD source
+requires the same manual line-by-line review of every unchanged transitive
+recipe for every release. The more complete policy is to admit and review the
+initial reachable baseline, preserve it immutably, review every reachable
+change, apply deeper human review according to risk, and scan and test the full
+candidate. A local AO may still require a stricter rule. If so, that rule should
+state exactly what content, depth, reviewer qualification, and evidence satisfy
+it.
+
+### Yum or Conda is more secure
+
+A consumer of a well-governed signed binary repository has a smaller local
+build-plane trust surface than an ordinary Spack source builder. That is a
+valid distinction. It does not prove that Yum/DNF, RPM, or Conda content is
+inherently safer. Their recipes, upstream pipelines, transaction scripts, link
+scripts, channels, maintainers, metadata, and keys remain supply-chain inputs.
+The CSE design intentionally moves Spack's public consumer into the governed
+binary-repository model.
+
+### Checksums and SBOMs prove security
+
+They do not. Checksums establish content identity relative to an admitted
+digest. SBOMs support inventory and analysis. Neither proves benign intent,
+absence of vulnerabilities, correct build behavior, or approval.
+
+### All hardening flags must apply to every package
+
+NIST guidance supports risk-informed controls, approved build configurations,
+testing, and documented decisions. Assigned RMF controls or local policy may
+make particular practices mandatory. NIST does not publish one universal GCC,
+CCE, Fortran, MPI, and GPU flag set. CSE should implement a qualified baseline,
+stronger profiles for higher-risk software, validation builds with diagnostic
+controls, and narrowly scoped expiring exceptions supported by correctness and
+performance evidence.
+
+### Exclusive compute nodes remove memory-safety risk
+
+Exclusive allocation and post-job sanitization are valuable compensating
+controls. They do not protect a user's persistent data, peer ranks, output,
+credentials, interconnect, devices, or scientific results during the job.
+They reduce selected threats; they do not eliminate the need for proportionate
+hardening and testing.
+
+### One intake malware scan is sufficient
+
+It is not. Intake scanning addresses the scanner's knowledge at acquisition
+time. Later CVEs, source compromise, scanner updates, key compromise, and new
+threat intelligence require monitoring, rescanning, disposition, withdrawal,
+and replacement procedures.
+
+## Conditions to resolve before ISSM review
+
+1. Confirm the system's categorization, NSS status, selected control baseline,
+   overlays, CCIs, assignment values, and AO-specific conditions.
+2. Confirm whether DoDI 5200.44 applies and identify designated critical
+   components.
+3. Approve package criticality tiers, recipe-review depth, second-reviewer
+   triggers, and exception authority.
+4. Name the approved source and binary scanners, update cadence, evidence
+   fields, false-positive process, quarantine rule, rescan cadence, and
+   remediation timing.
+5. Select the authoritative build-cache backend and define signing-key custody,
+   fingerprint distribution, use authorization, rotation, revocation, and
+   recovery.
+6. Define evidence retention and any immutable or WORM storage requirement.
+7. Approve hardening profiles, correctness and performance thresholds, and
+   waiver authority for every compiler, language, architecture, and lane.
+8. Define the allowed source domains, intake egress path, technical egress
+   denial for builds, and negative tests that prove fallback fails.
+9. Define the classified transfer and destination acceptance process.
+10. Decide whether bit-for-bit reproducibility is required for selected
+    critical packages or whether repeatable inputs and functionally equivalent
+    output are the accepted objective.
+
+## Proposed ISSM response language
+
+> CSE agrees that ordinary network-connected Spack source builds are not an
+> adequate system-wide publication control. Spack recipes, upstream build
+> systems, sources, bootstrap tools, configuration, and externals are treated
+> as executable supply-chain inputs. CSE proposes authorization of a specific
+> controlled operating model rather than blanket approval of Spack.
+>
+> The model pins the complete tool, recipe, source, configuration, compiler,
+> provider, and dependency baseline; reviews the initial reachable closure and
+> every later reachable change; performs source acquisition and scanning in a
+> distinct controlled-egress step; builds without outbound network access as a
+> nonprivileged identity; retains the concrete graph and complete effective
+> configuration; performs risk-based security, functional, numerical, ABI,
+> linkage, multi-node, and performance validation; and separates builders from
+> the approval and release-signing role.
+>
+> Only accepted artifacts are signed and published into an immutable CSE build
+> cache using a backend that satisfies the selected signing policy. Consumers
+> verify the approved CSE key and signed release-set membership, use a clean or
+> dedicated controlled store with separately admitted externals, and use
+> cache-only installation with no transparent public-source fallback. Each
+> release retains source and artifact digests, recipe and configuration
+> provenance, lockfiles, external inventory, build logs, test and scan results,
+> the candidate-production SBOMs, approvals, exceptions, and a separately
+> signed CSE release manifest that binds the approved release set. Changes
+> create a new release. Published artifacts remain subject to vulnerability
+> monitoring, revocation, withdrawal, and replacement.
+>
+> CSE requests that the ISSM and AO evaluate this evidence-based process against
+> the system's assigned RMF controls and mission risk. Any additional recipe
+> review, compiler-hardening, scanning, retention, cryptographic, or transfer
+> requirement should be stated as a testable gate with scope, evidence, and an
+> approval authority so that it can be implemented and assessed consistently.
+
+## Claim-to-source ledger
+
+| ID | Claim | Principal primary source | Confidence and qualification |
+|---|---|---|---|
+| C1 | Spack recipes are executable inputs | [Spack v1.2.2 repository loader](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/repo.py#L128-L176) and [packaging guide](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/packaging_guide_creation.rst#L1297-L1308) | High; upstream build logic remains a separate executable input |
+| C2 | Checksums establish admitted-byte identity, not safety | [Spack v1.2.2 checksum rules](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/packaging_guide_creation.rst#L542-L564) | High |
+| C3 | Full VCS commits are preferable to mutable branches and tags | [Spack v1.2.2 Git provenance rules](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/packaging_guide_creation.rst#L618-L648) | High; commit identity is not author approval |
+| C4 | A lockfile fixes a concrete DAG but is not a complete attestation | [Spack v1.2.2 environment guide](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/environments.rst#L84-L121) | High |
+| C5 | `SPACK_DISABLE_LOCAL_CONFIG` does not eliminate every configuration scope | [Spack v1.2.2 configuration guide](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/configuration.rst#L55-L134) | High |
+| C6 | `spack isolate` is experimental and best effort | [Spack v1.2.2 isolation documentation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/configuration.rst#L694-L711) | High; external host and network controls remain required |
+| C7 | Source mirrors support offline preparation but do not prove egress denial | [Spack v1.2.2 mirror guide](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/mirrors.rst#L12-L77) | High for mirror behavior; enforced no-egress is a CSE control |
+| C8 | Signed build-cache packages and cache-only installation are supported | [Spack v1.2.2 binary-cache guide](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/binary_caches.rst#L99-L137) | High |
+| C9 | Spack 1.2.2 does not sign build-cache index manifests | [Spack v1.2.2 build-cache layout](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/binary_caches.rst#L676-L704) | High; a signed CSE release-set manifest is a recommended compensating control |
+| C10 | Spack SPDX output is useful but incomplete and is not a scan | [Spack v1.2.2 SBOM generator](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/hooks/sbom_generate.py#L53-L170) | High |
+| C11 | RPM and Conda do not eliminate executable lifecycle code | [RPM scriptlets](https://rpm.org/docs/latest/manual/triggers.html), [Conda link scripts](https://docs.conda.io/projects/conda-build/en/stable/resources/link-scripts.html), and [Conda activation scripts](https://docs.conda.io/projects/conda-build/en/stable/resources/activate-scripts.html) | High; governance varies by repository and channel |
+| C12 | NIST supports risk-based C-SCRM and due diligence | [SP 800-161 Rev. 1 Update 1](https://doi.org/10.6028/NIST.SP.800-161r1-upd1) and [SP 1326](https://doi.org/10.6028/NIST.SP.1326) | High; due diligence depth remains a local risk decision |
+| C13 | NIST provides HPC-specific, performance-conscious system-control tailoring guidance | [SP 800-223](https://doi.org/10.6028/NIST.SP.800-223) and [SP 800-234](https://doi.org/10.6028/NIST.SP.800-234) | High; the CSE package tiers, compiler profiles, A/B method, and waiver thresholds are local proposals. SP 800-234 is optional and not automatically the assigned DoD overlay |
+| C14 | Approved compiler and build configuration requires operational testing | [SP 800-218](https://doi.org/10.6028/NIST.SP.800-218) | High; NIST does not prescribe a universal flag set |
+| C15 | DoD authorization remains an RMF and AO decision | [DoDI 8510.01](https://www.esd.whs.mil/Portals/54/Documents/DD/issuances/dodi/851001p.pdf) | High |
+| C16 | Open source is subject to the same rigorous SCRM and cyber-testing expectations | [DoD OSS memorandum](https://dodcio.defense.gov/Portals/0/Documents/Library/SoftwareDev-OpenSource.pdf) | High |
+| C17 | Classified transfer is a separate authorization boundary | [DoDI 8540.01](https://www.esd.whs.mil/portals/54/documents/dd/issuances/dodi/854001p.pdf) | High for CDS scope; local media and enclave procedures may add requirements |
+| C18 | Government-wide software assurance policy changed in 2026 | [OMB M-26-05](https://www.whitehouse.gov/wp-content/uploads/2026/01/M-26-05-Adopting-a-Risk-based-Approach-to-Software-and-Hardware-Security.pdf) | High; Component, contract, acquisition, and AO requirements may still mandate specific artifacts |
+| C19 | Native Spack 1.2.2 signing is not available for OCI build-cache pushes | [Spack v1.2.2 OCI push logic](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/cmd/buildcache.py#L516-L532) | High; separate OCI signing and mandatory verification may supply another trust model but is not native Spack package signing |
+| C20 | Default bootstrap is a separate public and unsigned-cache trust path | [Spack v1.2.2 default bootstrap configuration](https://github.com/spack/spack/blob/v1.2.2/etc/spack/defaults/bootstrap.yaml) and [bootstrap core](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/bootstrap/core.py#L154-L192) | High; SHA-256 metadata verification provides identity, not a native package signature |
+| C21 | VCS mirror archives have a commit-to-archive verification gap | [Spack v1.2.2 stage implementation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/stage.py#L669-L685) | High; CSE must create and retain the missing binding evidence |
+| C22 | Cache-only installation does not retroactively verify existing stores or supply externals | [Spack v1.2.2 install decisions](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/new_installer.py#L1792-L1812) | High; use a clean controlled store and separate external admission |
+| C23 | Consumer-side binary installation regenerates the local SBOM through hooks | [Spack v1.2.2 binary installation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/binary_distribution.py#L2163-L2174) | High; retain and sign the candidate-production SBOM separately |
+
+## Primary-source register
+
+### NIST, OMB, and DoD
+
+* [OMB M-26-05, Adopting a Risk-based Approach to Software and Hardware Security](https://www.whitehouse.gov/wp-content/uploads/2026/01/M-26-05-Adopting-a-Risk-based-Approach-to-Software-and-Hardware-Security.pdf), January 23, 2026.
+* [DoDI 8510.01, Risk Management Framework for DoD Systems](https://www.esd.whs.mil/Portals/54/Documents/DD/issuances/dodi/851001p.pdf), July 19, 2022.
+* [NIST SP 800-53 Rev. 5, Release 5.2.0](https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final), August 27, 2025.
+* [NIST SP 800-53B, Release 5.2.0](https://csrc.nist.gov/pubs/sp/800/53/b/upd1/final), August 27, 2025.
+* [NIST SP 800-161 Rev. 1 Update 1](https://doi.org/10.6028/NIST.SP.800-161r1-upd1), November 1, 2024 update.
+* [NIST SP 1326, C-SCRM Due Diligence Assessment Quick-Start Guide](https://doi.org/10.6028/NIST.SP.1326), July 8, 2026.
+* [NIST SP 800-218, Secure Software Development Framework v1.1](https://doi.org/10.6028/NIST.SP.800-218), February 3, 2022.
+* [NIST SP 800-204D, Strategies for the Integration of Software Supply Chain Security in DevSecOps CI/CD Pipelines](https://doi.org/10.6028/NIST.SP.800-204D), February 12, 2024.
+* [NIST SP 800-223, High-Performance Computing Security](https://doi.org/10.6028/NIST.SP.800-223), February 2024.
+* [NIST SP 800-234, High-Performance Computing Security Overlay](https://doi.org/10.6028/NIST.SP.800-234), May 4, 2026.
+* [NIST IR 8397, Guidelines on Minimum Standards for Developer Verification of Software](https://doi.org/10.6028/NIST.IR.8397), October 2021.
+* [FIPS 199, Standards for Security Categorization of Federal Information and Information Systems](https://csrc.nist.gov/pubs/fips/199/final), February 2004.
+* [FIPS 200, Minimum Security Requirements for Federal Information and Information Systems](https://csrc.nist.gov/pubs/fips/200/final), March 2006.
+* [FIPS 140-3, Security Requirements for Cryptographic Modules](https://csrc.nist.gov/pubs/fips/140-3/final), March 22, 2019.
+* [DoD software development and open source software memorandum](https://dodcio.defense.gov/Portals/0/Documents/Library/SoftwareDev-OpenSource.pdf), January 24, 2022.
+* [DoD Enterprise DevSecOps Fundamentals v2.5](https://dodcio.defense.gov/Portals/0/Documents/Library/DoD%20Enterprise%20DevSecOps%20Fundamentals%20v2.5.pdf), October 16, 2024. This is an educational compendium, not a control baseline.
+* [DoDI 5200.44, Protection of Mission Critical Functions to Achieve Trusted Systems and Networks](https://www.esd.whs.mil/Portals/54/Documents/DD/issuances/dodi/520044p.pdf), February 16, 2024. Applicability must be confirmed.
+* [DoDI 8540.01, Cross Domain (CD) Policy](https://www.esd.whs.mil/portals/54/documents/dd/issuances/dodi/854001p.pdf), May 8, 2015, Change 1, August 28, 2017.
+
+### Spack 1.2.2
+
+* [Package repository loading](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/repo.py#L128-L176)
+* [Package creation and source integrity](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/packaging_guide_creation.rst)
+* [Repository pinning and precedence](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/repositories.rst)
+* [Configuration scopes and isolation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/configuration.rst)
+* [Environment manifests and lockfiles](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/environments.rst)
+* [Source mirrors](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/mirrors.rst)
+* [Bootstrapping and air-gapped bootstrap mirrors](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/bootstrapping.rst)
+* [Default bootstrap methods](https://github.com/spack/spack/blob/v1.2.2/etc/spack/defaults/bootstrap.yaml)
+* [Bootstrap verification implementation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/bootstrap/core.py#L154-L192)
+* [Source-stage fallback and VCS mirror verification](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/stage.py)
+* [Binary caches and signing](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/binary_caches.rst)
+* [OCI build-cache behavior](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/cmd/buildcache.py#L516-L532)
+* [Binary installation hooks](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/binary_distribution.py#L2163-L2174)
+* [SPDX generator](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/hooks/sbom_generate.py)
+* [Audit implementation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/audit.py)
+
+### Package comparison and compiler hardening
+
+* [DNF configuration reference](https://dnf.readthedocs.io/en/latest/conf_ref.html)
+* [RPM signatures and digests](https://rpm.org/docs/4.20.x/manual/signatures_digests.html)
+* [RPM package scripts and triggers](https://rpm.org/docs/latest/manual/triggers.html)
+* [Conda-build recipe and build process](https://docs.conda.io/projects/conda-build/en/stable/concepts/recipe.html)
+* [Conda-build scripts](https://docs.conda.io/projects/conda-build/en/stable/resources/build-scripts.html)
+* [Conda link scripts](https://docs.conda.io/projects/conda-build/en/stable/resources/link-scripts.html)
+* [Conda activation scripts](https://docs.conda.io/projects/conda-build/en/stable/resources/activate-scripts.html)
+* [GCC instrumentation options](https://gcc.gnu.org/onlinedocs/gcc-15.2.0/gcc/Instrumentation-Options.html)
+* [GCC link options](https://gcc.gnu.org/onlinedocs/gcc-15.2.0/gcc/Link-Options.html)
+* [GNU linker options](https://sourceware.org/binutils/docs/ld/Options.html)
+* [glibc source fortification](https://sourceware.org/glibc/manual/latest/html_node/Source-Fortification.html)
+* [HPE CPE and CCE overview](https://cpe.ext.hpe.com/docs/latest/getting_started/CPE-CCE-Overview.html)
+* [HPE `crayftn` manual](https://cpe.ext.hpe.com/docs/latest/cce/man1/crayftn.1.html)
+* [HPE Sanitizers4HPC guide](https://cpe.ext.hpe.com/docs/25.03/debugging-tools/sanitizers4hpc/guides/user_guide.html)
+
+## Conclusion
+
+The strongest response to the ISSM is not that Spack is safe because it is
+popular, community maintained, checksum-driven, or used by major laboratories.
+It is also not that RPM, Yum/DNF, or Conda are unsafe. The defensible response
+is narrower and evidence based:
+
+1. acknowledge that source recipes and upstream build systems are executable
+   and must be governed;
+2. define a complete, risk-based admission and review boundary;
+3. enforce source intake and build isolation outside the package manager;
+4. retain the exact configuration, dependency, external, build, test, scan,
+   and approval evidence;
+5. separate building from signing and publication;
+6. publish immutable signed binaries and require cache-only consumption;
+7. qualify compiler hardening against both security and HPC correctness and
+   performance; and
+8. monitor, revoke, and replace releases when risk changes.
+
+Under those conditions, Spack is a suitable mechanism inside a controlled CSE
+software supply chain. The authorization decision belongs to the AO for the
+specific system, release process, evidence, and residual risk.
