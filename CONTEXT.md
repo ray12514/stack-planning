@@ -41,6 +41,12 @@ lane-sensitive payload → lane modules.**
 
 ## Other terms
 
+- **Static catalog** - reviewed, reusable platform configuration scopes without
+  package intent or deployment roots. It is an input to an authored environment,
+  not a build workspace.
+- **Workspace blueprint** - authored templates and data defining a specialized
+  workspace layout. The blueprint owns that layout's policy; its assembler is
+  not a separate stack-intent language or lane planner.
 - **Managed consumption environment** - the deployed user-facing CSE
   development surface. A user enters a selected release/compiler/lane and
   receives approved commands, headers, libraries, metadata, and platform

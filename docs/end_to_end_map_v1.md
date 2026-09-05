@@ -44,6 +44,13 @@ package managers include scopes from the published catalog. See
 `static_platform_catalog_overview_v1.md` for the consumer model and
 `manual_config_catalog_note_v1.md` for the detailed producer contract.
 
+`init-workspace` is the supported assembler for an authored workspace blueprint
+plus one exact static catalog and explicit values. The current CSE trial uses
+that path. It retains the reviewed catalog, renders the blueprint's files, and
+records input digests; it does not add another lane planner. Full `render`
+continues to consume the standard managed inputs above. Keeping the assembler
+does not require refreshing existing trial workspaces or changing their locks.
+
 ## Actors and tools
 
 | Actor / tool | Role |

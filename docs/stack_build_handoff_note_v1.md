@@ -78,7 +78,7 @@ workspace assembled from `render-static`. It snapshots the static catalog tree
 under `catalog/` and emits relative paths from each environment to
 `catalog/scopes/...` and `configs/...`. The source catalog path remains in the
 workspace manifest as provenance, but it is not a runtime dependency of the
-initialized build handoff. For this temporary initializer only, the static
+initialized build handoff. For this blueprint-based handoff, the static
 manifest also preserves the profile's node-type stage facts so a reviewed build
 workspace can record separate login and compute stage candidates without
 manually retyping scratch paths. The generated runtime selector performs a

@@ -48,6 +48,13 @@ group: publish a versioned schema artifact that consumers pin.
 
 ## Validation harness
 
+Newly rendered release manifests record the deployment file digest and the
+content digest of each selected package repository, alongside the existing
+profile, stack, package-set, and template evidence. The `deployment` and
+`package_repositories` fields are additive: already generated CSE trial
+manifests remain valid without them. Do not regenerate a trial workspace or
+its lockfiles solely to add this evidence. New candidate renders include it.
+
 Developer-only validation lives in `.validation/`:
 
 - `example-cray.yaml`
