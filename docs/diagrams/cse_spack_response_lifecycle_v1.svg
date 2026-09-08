@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="845" viewBox="0 0 1100 845" role="img" aria-labelledby="title desc">
+<title id="title">Proposed Spack release lifecycle</title>
+<desc id="desc">A proposed eight-stage lifecycle with responsible roles and evidence. Review baseline, resolve graph, admit sources and bootstrap, build, validate, approve and sign, publish and install from cache, then execute and monitor. Failed gates hold the candidate. Changed inputs or advisories can require a new candidate. This diagram does not assert that controls are deployed.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#38566b" stroke-width="1.4"/></marker></defs>
+<rect width="1100" height="845" fill="white"/>
+<g font-family="Arial, sans-serif" fill="#111111">
+<text x="22" y="34" font-size="28" font-weight="bold">Proposed Spack release lifecycle</text>
+<text x="22" y="64" font-size="21">Reconcile roles, gates and implementation status with the supplied SOP</text>
+<text x="22" y="109" font-size="21" font-weight="bold">Responsible role</text>
+<text x="274" y="109" font-size="21" font-weight="bold">Stage and decision gate</text>
+<text x="726" y="109" font-size="21" font-weight="bold">Example evidence or output</text>
+<text x="22" y="161" font-size="22">Preparation owner</text>
+<rect x="270" y="127" width="430" height="55" rx="4" fill="#eef3f6" stroke="#718491" stroke-width="1.5"/>
+<text x="485" y="161" font-size="22" text-anchor="middle">Review tool and recipe baseline</text>
+<text x="725" y="161" font-size="20">Approved identities and scope</text>
+<path d="M485 184 V198" fill="none" stroke="#38566b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="22" y="236" font-size="22">Preparation owner</text>
+<rect x="270" y="202" width="430" height="55" rx="4" fill="#eef3f6" stroke="#718491" stroke-width="1.5"/>
+<text x="485" y="236" font-size="22" text-anchor="middle">Resolve and review graph</text>
+<text x="725" y="236" font-size="20">Lockfile and reachable inputs</text>
+<path d="M485 259 V273" fill="none" stroke="#38566b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="22" y="311" font-size="22">Intake owner</text>
+<rect x="270" y="277" width="430" height="55" rx="4" fill="#eef3f6" stroke="#718491" stroke-width="1.5"/>
+<text x="485" y="311" font-size="22" text-anchor="middle">Admit sources and bootstrap</text>
+<text x="725" y="311" font-size="20">Origin, digests and intake results</text>
+<path d="M485 334 V348" fill="none" stroke="#38566b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="22" y="386" font-size="22">Build owner</text>
+<rect x="270" y="352" width="430" height="55" rx="4" fill="#eef3f6" stroke="#718491" stroke-width="1.5"/>
+<text x="485" y="386" font-size="22" text-anchor="middle">Build with enforced boundaries</text>
+<text x="725" y="386" font-size="20">Inputs, host state and build logs</text>
+<path d="M485 409 V423" fill="none" stroke="#38566b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="22" y="461" font-size="22">Validation and review</text>
+<rect x="270" y="427" width="430" height="55" rx="4" fill="#eef3f6" stroke="#718491" stroke-width="1.5"/>
+<text x="485" y="461" font-size="22" text-anchor="middle">Validate candidate</text>
+<text x="725" y="461" font-size="20">Tests, scans and dispositions</text>
+<path d="M485 484 V498" fill="none" stroke="#38566b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="22" y="536" font-size="22">Release authority</text>
+<rect x="270" y="502" width="430" height="55" rx="4" fill="#eef3f6" stroke="#718491" stroke-width="1.5"/>
+<text x="485" y="536" font-size="22" text-anchor="middle">Approve and sign exact set</text>
+<text x="725" y="536" font-size="20">Decision and signed release record</text>
+<path d="M485 559 V573" fill="none" stroke="#38566b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="22" y="611" font-size="22">Publisher or installer</text>
+<rect x="270" y="577" width="430" height="55" rx="4" fill="#eef3f6" stroke="#718491" stroke-width="1.5"/>
+<text x="485" y="611" font-size="22" text-anchor="middle">Publish and install from cache</text>
+<text x="725" y="611" font-size="20">Verification and exposure checks</text>
+<path d="M485 634 V648" fill="none" stroke="#38566b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="22" y="686" font-size="22">Users and support</text>
+<rect x="270" y="652" width="430" height="55" rx="4" fill="#eef3f6" stroke="#718491" stroke-width="1.5"/>
+<text x="485" y="686" font-size="22" text-anchor="middle">Execute and monitor release</text>
+<text x="725" y="686" font-size="20">Module use and advisory response</text>
+<text x="22" y="758" font-size="21">Arrows show the candidate or approved release advancing after the applicable gate passes.</text>
+<text x="22" y="793" font-size="21">Failed gate → hold or quarantine → review and correction → new candidate when inputs change.</text>
+<text x="22" y="824" font-size="21">Advisory → assess exposure → withdraw or mitigate as required → validate a replacement release.</text>
+</g></svg>
