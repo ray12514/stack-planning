@@ -43,6 +43,7 @@ performed on each system.
 | Assign roles and record the release | Sections 2 and 3 | Sections 2 and 3 |
 | Prepare runtime, storage, and configuration | Sections 4 and 5 | Sections 4 and 5 |
 | Select the catalog and prepare environments | Sections 6 and 7 | Sections 6 and 7 |
+| Maintain local package corrections | [Local correction procedure](software_stack_sop_v1.md#procedure-local-corrections) | Section 7.3 |
 | Resolve and review the candidate | [Review procedure](software_stack_sop_v1.md#procedure-review) | Section 8 |
 | Prepare sources and mirrors | [Source mirror procedure](software_stack_sop_v1.md#procedure-source-mirrors) | Section 9.1 |
 | Deliver inputs to a system with limited or no external network access | [Transfer procedure](software_stack_sop_v1.md#procedure-disconnected-transfer) | Section 9.2 |
@@ -289,6 +290,40 @@ compatibility.
 - Apply the approved portable CPU target to source-built roots and dependencies.
   Approved architecture-specific binary distributions may use their recipe's
   required generic target.
+
+### 7.3 CSE local package corrections
+
+CSE may maintain a local recipe or source correction when the approved package
+and platform combination needs behavior that the pinned upstream recipe set
+does not provide correctly. Keep the upstream repository at its approved pin;
+record the correction in a separately versioned local package repository with
+an explicit namespace and search order. Follow the shared
+[local correction procedure](software_stack_sop_v1.md#procedure-local-corrections).
+Package selections and deployment settings remain in their owning configuration
+under shared procedure Section 4.2.
+
+The build owner retains the original failure, correction rationale, complete
+recipe and supporting files, applicable versions/compilers/variants, upstream
+reference or disposition, and affected environment graphs. The independent
+reviewer examines the local changes and validation evidence under Sections
+2.1 and 8.1. This targeted review is part of the candidate's release assessment.
+Security involvement follows the existing triggers in Section 2.2.
+
+Coordinate changes across every CSE environment that uses the local repository,
+including shared dependencies and other compiler surfaces. A condition limited
+to one compiler is not sufficient evidence that every other concrete identity
+is unchanged. Preserve accepted releases; retain a new candidate input revision,
+review affected locks, and rebuild and retest the affected dependency closure.
+Keep the validated repository revision available to another authorized builder
+and include it in applicable transfer and retention records.
+
+If a supported public catalog selection requires a correction, provide the
+approved audience with the exact immutable local repository through an
+authorized accessible source, together with its identity and selection
+instructions. A restricted internal path is not a usable public dependency.
+When a later approved upstream baseline includes the correction, assess its
+equivalence and retire the redundant local change through the same candidate
+review and validation process.
 
 ## 8. Concretize and review
 

@@ -138,7 +138,7 @@ The worksheet may be a tracked text file, ticket, or release database record.
 | Environment directory | `ENVIRONMENT_ROOT` | Absolute path containing `spack.yaml` |
 | Approved Spack checkout | `SPACK_ROOT` | Absolute path to the pinned checkout |
 | Spack version | `SPACK_VERSION` | Approved version and commit |
-| Package repository | Release record | Approved `spack-packages` or site-repository source and commit |
+| Package repositories | Release record | Every approved upstream and local source, commit or digest, namespace, and search order |
 | Per-user Spack state | `SPACK_USER_CACHE_PATH` | Builder-private absolute path |
 | Bootstrap configuration | `BOOTSTRAP_CONFIG_DIR` | Absolute approved scope outside the Spack checkout; Section 4.5 |
 | Build stage | `SPACK_STAGE_ROOT` | Builder-writable absolute path |
@@ -294,6 +294,20 @@ managed stack uses these durable inputs:
 | Package names, versions, variants, dependency constraints, and compiler/provider selection | Package-manager-owned `spack.yaml` | `spack.specs` and explicit compiler or toolchain constraints |
 | Install tree, build stage, source and miscellaneous caches, view and module roots, build-cache destinations, and access policy | Controlled deployment record with the actual values from Section 3 | `config.yaml`, `packages.yaml`, `modules.yaml`, mirror configuration, and view paths |
 | Site-wide provider and selection defaults | Reviewed defaults and catalog policy | Included configuration scopes |
+
+Choose the owning input before making a local correction. Package versions,
+variants, dependency constraints, and compiler/provider selection belong in
+the environment or reviewed `packages.yaml` scopes. Paths, access, mirrors,
+views, and module presentation belong in deployment configuration. Correct
+inaccurate platform facts through the catalog owner and use the resulting
+reviewed catalog revision. Verify the effective values with the commands below.
+
+Use a local package recipe or source patch when the pinned recipe or package
+source needs a build correction; follow Section 7.6. This can preserve the
+upstream package-repository pin while separately versioning the local change.
+Do not encode deployment paths or routine package selections in a recipe merely
+to avoid correcting their owning configuration. Every retained configuration
+change still follows Section 12 and the applicable release checks.
 
 Do not use an operator-local shell-variable bundle as the release contract.
 Shell variables may shorten commands during one session, but the retained
@@ -812,6 +826,173 @@ access before transferring responsibility. Correct the owning input and
 prepare a new candidate when configuration must change. Preserve existing
 lockfiles, build output and evidence rather than overwriting their workspace.
 
+<a id="procedure-local-corrections"></a>
+
+### 7.6 Maintain local package corrections
+
+A local recipe repository allows a package manager to correct package source
+or build behavior while retaining the approved upstream package-repository
+pin. The local repository has its own recorded revision or archive digest.
+It is a controlled executable input, subject to the same admission, review,
+transfer, and retention requirements as the upstream recipes. Use Section 4.2
+first to determine whether the change belongs in configuration instead.
+
+For an unqualified package name, Spack selects the recipe from the first
+configured repository that provides it. Spack does not merge `package.py`
+files. A local recipe may explicitly inherit the pinned upstream package class
+and add a scoped patch or override. Inheritance must preserve the recipe's
+existing behavior, including any recipe-specific builder class. A complete
+replacement requires review of the behavior it replaces. See
+[Spack repositories and recipe inheritance](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/repositories.rst).
+
+#### 7.6.1 Record the correction and its scope
+
+Retain the failing command and log, exact package/compiler versions, variants,
+target, affected environment and concrete hash, pinned upstream recipe and
+repository identity, and existing local recipe/patch files. Identify the
+demonstrated cause before choosing the correction layer. When adapting a newer
+upstream fix, retain its exact revision and check compatibility with the pinned
+recipe and package source; adopting that fix does not require changing the
+whole upstream repository pin.
+
+Obtain a complete updated local `package.py` and every referenced patch or
+helper file, with a diff and proposed validation. Preserve existing local fixes
+that still apply. Limit the change by package version, compiler/version,
+variant, platform, or target where the evidence supports that condition.
+Record why the selected scope is sufficient. The authoring method does not
+change the required review.
+
+#### 7.6.2 Select or create the local repository
+
+Use an existing approved local repository when one already owns the package
+correction. For a new repository, choose a managed location and namespace,
+record its ownership/access policy under Section 4, and initialize it once:
+
+```bash
+export LOCAL_REPO_PROJECT="<absolute-new-local-repository-project>"
+spack -C "$BOOTSTRAP_CONFIG_DIR" repo create \
+  "$LOCAL_REPO_PROJECT" local_overlay
+export LOCAL_REPO_ROOT="$LOCAL_REPO_PROJECT/spack_repo/local_overlay"
+test -r "$LOCAL_REPO_ROOT/repo.yaml"
+```
+
+Spack 1.2.2 creates an API v2 repository. Verify the printed path, namespace,
+and API in `repo.yaml`. For an existing repository, set `LOCAL_REPO_ROOT` to
+the directory containing its `repo.yaml` and retain its approved namespace;
+do not run the initialization command over it. The default package layout is:
+
+```text
+<local-repository-root>/
+  repo.yaml
+  packages/
+    <package-module>/
+      package.py
+      <referenced-local-patch-or-helper-files>
+```
+
+Use the API v2 Python module spelling from the pinned recipe; for example,
+`netlib-lapack` uses the directory `netlib_lapack`. The repository and the
+environment may be in separately recorded locations. No generator, wrapper,
+or prescribed workspace layout is required.
+
+#### 7.6.3 Place and register the reviewed files
+
+Coordinate with all builders using the affected repository. Preserve the
+original recipe files, effective configuration, and each affected lock before
+changing candidate inputs. Keep accepted release inputs immutable; prepare a
+new candidate repository revision or snapshot for a correction.
+
+Review the candidate under Section 8.1, then place the complete local recipe
+and its explicitly listed supporting files in the matching package directory.
+A patch file must be referenced by the recipe. Check file completeness and
+group access before use; do not continue from a partial copy. Record the local
+repository commit or archive digest. Do not edit the cached upstream tree.
+
+Select the local repository in the candidate environment's reviewed `repos`
+configuration. For the example namespace above, add this mapping under the
+existing `spack:` section of `spack.yaml`:
+
+```yaml
+  repos:
+    local_overlay: <absolute-local-repository-root-containing-repo.yaml>
+```
+
+Merge this entry into the existing configuration rather than creating a second
+`repos` key. Retain every approved upstream repository entry and its exact pin
+in its owning scope. Verify that the effective order puts the local repository
+before the upstream repository for the affected package. Do not use an
+unrecorded user-level `spack repo add` as a substitute for retained environment
+configuration. The operator records actual paths in Section 3.
+
+#### 7.6.4 Verify selection and the proposed correction
+
+After reviewing the executable recipe inputs, select the actual package and
+inspect repository order and the recipe path without running the solver:
+
+```bash
+export PACKAGE_NAME="<affected-spack-package-name>"
+spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" repo list
+spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" \
+  location --package-dir "$PACKAGE_NAME"
+spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" python -c \
+'import inspect, os, spack.repo
+cls = spack.repo.PATH.get_pkg_class(os.environ["PACKAGE_NAME"])
+print(inspect.getfile(cls))'
+```
+
+Both paths must identify the intended local recipe. Stop on an unexpected
+repository, import error, or incompatible builder behavior. These checks do
+not update an old lockfile. Do not use an abstract `spack spec` query as a
+recipe-location check; it may solve a new graph. Inspect an upstream recipe
+through its explicitly resolved repository root when comparing the baseline.
+
+Check source patches against a disposable copy of the exact pinned source in
+their intended application order. Retain the original reproducer and verify
+that the corrected case passes, including an unaffected case where applicable.
+Full Spack build and runtime acceptance follow the reviewed lock update below.
+
+#### 7.6.5 Review the affected locks and validate the candidate
+
+Changing recipe files does not update concrete identities already retained in
+`spack.lock`. Identify affected environments and dependent packages; a
+compiler-specific condition alone does not prove other hashes are unchanged.
+Preserve the prior locks and full concrete listings in the release record.
+
+For a new candidate without a lock, continue with Section 8. If the corrected
+candidate already has a lock, recover one affected environment at a time after
+impact review. The following command permits replacing its concrete entries
+and disables installed/build-cache reuse during that solve:
+
+```bash
+spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" \
+  concretize -f --fresh
+spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" \
+  find -c -d -L -N -v
+```
+
+Require a successful solve before continuing. `-f` permits replacing existing
+concrete entries; `--fresh` controls reuse and does not force source compilation
+during installation. This solve can change additional nodes, so compare the
+complete graph with the saved baseline. Confirm the expected recipe namespace,
+corrected package identity, and dependent hashes; resolve every unexplained
+change before building. A narrower reuse policy may be used when its impact is
+reviewed, but must not reuse the defective package or dependent graphs carrying
+it. Never force this operation across accepted releases or delete installed
+prefixes to make a correction appear effective. See
+[Spack concretization options](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/cmd/common/arguments.py).
+
+Repeat Section 8's graph assessment and Section 9's source admission, build,
+and validation for the affected candidate. A changed lock can require sources,
+resources, or patches absent from a restricted system; acquire and transfer
+any missing inputs through Sections 9.1 and 9.2. Retain the failing and passing
+reproducer results, required binary/runtime checks, and independent review.
+Signing and publication follow Section 10.
+
+Retain the validated local repository revision with the release and make it
+available to its authorized builders. On a later planned upstream baseline
+update, check whether upstream provides an equivalent correction. Remove a
+redundant local change only through a new reviewed and validated candidate.
+
 ## 8. Concretize and review
 
 Concretize and retain the generated lockfile:
@@ -837,7 +1018,9 @@ Review at least:
 - the absence of unapproved providers or configuration.
 
 Do not edit `spack.lock`. Correct the environment or selected catalog scopes
-and concretize again.
+and concretize again. For a correction to an already locked candidate, follow
+Section 7.6.5's controlled lock update; plain `concretize --fresh` preserves
+existing concrete entries.
 
 Concretization passes only when `spack.lock` exists, every root matches the
 approved intent, all providers and externals come from approved scopes, and the
@@ -1607,6 +1790,9 @@ Retain:
 - environment source, selected scope paths, and effective scope listing;
 - exact Spack runtime and every package-repository source, commit, and search
   order;
+- when local corrections are used: complete recipe/patch/helper files, local
+  repository revision or digest, rationale, affected conditions, upstream
+  reference or disposition, and before/after graph and validation evidence;
 - deployment record and the install, source-cache, miscellaneous-cache,
   build-cache, view, module, and build-stage locations;
 - approved `spack.lock` and concrete hashes;
