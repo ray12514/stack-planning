@@ -2,6 +2,16 @@
 
 ## Purpose
 
+Use the [shared Spack procedure](software_stack_sop_v1.md) for common operating
+steps and the [CSE SOP](cse_software_stack_sop_v1.md) for CSE policy, review, and
+acceptance choices. This runbook supplies the Initial Conversion Trials tool
+commands, orchestration, and recovery details within those gates. Source
+mirrors and delivery to systems with limited or no external network access use
+the shared procedure's
+[mirror](software_stack_sop_v1.md#procedure-source-mirrors) and
+[transfer](software_stack_sop_v1.md#procedure-disconnected-transfer) sections;
+system notes identify the applicable paths and approved transfer route.
+
 This is the system-neutral operator procedure for moving one reviewed Spack
 1.2 workspace through the complete sequence:
 

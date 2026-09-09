@@ -14,6 +14,8 @@ __pycache__/
 
 # Generated document exports; keep the Markdown sources tracked.
 docs/spack-learnings/*.docx
+docs/word-documents/CSE-Spack-Learnings.docx
+docs/word-documents/CSE-Spack-Learnings-Summary.docx
 docs/spack-learnings/*.pdf
 
 # Local working drafts and generated handoff exports.

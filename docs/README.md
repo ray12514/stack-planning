@@ -9,7 +9,13 @@ Use the following precedence when two documents appear to disagree:
 
 1. `../CONTEXT.md`, the current-model documents below, and `../schemas/` define
    the architecture and data contracts.
-2. `runbook.md` defines the common Initial Conversion Trials procedure.
+2. `software_stack_sop_v1.md` owns the shared Spack operating procedures;
+   `cse_software_stack_sop_v1.md` supplies CSE policy and acceptance choices.
+   `runbook.md` supplies Initial Conversion Trials tooling, orchestration, and
+   recovery details within those gates. The SOPs define enduring requirements
+   independently of that internal implementation material and can be distributed
+   together without the rest of this repository. These SOPs remain working drafts;
+   assigned system/security requirements and recorded approvals still apply.
 3. `../../stack-content/systems/<system>/runbook-notes.md` contains only the
    system-specific delta and recovery commands for that system.
 4. The current tool `--help`, generated workspace `README.md`, and
@@ -23,6 +29,11 @@ stakeholders is the **Initial Conversion Trials**, not a separate production
 mode.
 
 ## Current model: start here
+
+Editable review copies of the CSE SOP and shared procedure, together with the
+Word edition of the response drafting guidance, are in
+[Word documents](word-documents/README.md). Keep the two SOP Word files together
+when sharing them so their companion-document links remain usable.
 
 | File | Purpose |
 |---|---|
@@ -39,8 +50,8 @@ mode.
 | `cse_spack_catalog_to_build_handoff_v1.md` | Self-contained bare-Spack guide with a per-system path/variable handoff sheet, shared-Spack startup, environment selection, scope inspection, concretization, fetching, installation, and build-state inspection. |
 | `initial_conversion_trials_build_findings_v1.md` | Running technical record of trial build failures, causes, recoveries, permanent mitigations, and validation gates. |
 | `cse_spack_customization_and_upstream_inventory_v1.md` | Consolidated inventory of CSE Spack policy, integration controls, provider adapters, active package overlays, and the upstream retirement queue. |
-| `software_stack_sop_v1.md` | Working SOP for an application package manager using the static platform catalog, including shared/private build state and cross-builder permission controls. |
-| `cse_software_stack_sop_v1.md` | Working CSE SOP for restricted shared builds, builder-private state, parallel handoff, signed build-cache promotion, cache-only publication, modules, and release controls. |
+| `software_stack_sop_v1.md` | Shared procedural SOP for CSE and application package managers: runtime/configuration setup, risk-based review, source mirrors, delivery to systems with limited or no external network access, build/validation, signing, catalog and cache publication, and maintenance. |
+| `cse_software_stack_sop_v1.md` | CSE operating policy and acceptance choices, referencing the shared procedure: two-person builder/reviewer audit, security review points, CSE package/provider/module and access policy, delivery to systems with limited or no external network access, and release responsibilities. |
 | `stack_build_handoff_note_v1.md` | Where render stops; build is a co-equal choice (spacktools / spack-build / Ansible / bare Spack); stack-content + config delivery modes. |
 | `stack_generation_orchestration_note_v1.md` | Render across systems: the intersection model, input cadence, re-render/rebuild triggers, tool-agnostic driver contract. |
 | `deployment_inputs_and_ownership_v1.md` | Auto-vs-explicit ownership and the `deployment.yaml` overlay; the install tree is never auto-derived. |
@@ -93,7 +104,7 @@ operator procedures and do not override the current model.
 | File | Purpose |
 |---|---|
 | `cce_aocc_cpu_baseline_research_v1.md` | CPU-baseline research for CCE, AOCC, and GNU on AMD-based Cray EX systems. |
-| `cse_spack_security_assurance_case_v1.md` | ISSM-facing assurance case for controlled Spack use on DoD HPC, including executable-input risk, admission and release gates, recipe-review policy, signed cache-only publication, evidence requirements, compiler-hardening policy, and candidate NIST/DoD traceability. |
+| `cse_spack_security_assurance_case_v1.md` | Supporting assurance rationale for conditional, system-specific acceptance of managed CSE Spack use: designated operators and module users, risk-based input review, controlled builds, signing and publication, evidence, hardening, and candidate NIST/DoD traceability. |
 | `cse_spack_white_paper_response_guidance_v1.md` | Guidance for drafting a constructive, evidence-backed response to the organizational Spack security white paper, with a Word edition, lifecycle schematic, and standalone chatbot prompt in `cse_spack_white_paper_response_prompt_v1.md`. |
 | `hpc_compiler_hardening_security_performance_research_v1.md` | Primary-source assessment of memory-corruption risk on isolated compute nodes, compiler-hardening controls, performance qualification, CCE considerations, and a proposed risk-tiered policy for ISSO review. |
 | `cray_mpich_gcc_compatibility_v1.md` | Evidence for treating Cray MPICH GNU path versions as compiler-family baselines rather than exact lane pins. |
