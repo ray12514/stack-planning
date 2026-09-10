@@ -87,5 +87,10 @@ explicitly user space.
   (`gpu_toolkit_unavailable` / `gpu_arch_unrecognized`); root cause in the
   profile's `gpu_toolkit_modules.cudatoolkit` / `arch_target` is under
   diagnosis.
-- Inspector probe-system speed (cluster-inspector
-  `docs/probe-performance-note-v1.md`).
+- Inspector speed and correctness: the September 2026 local audit implemented
+  bounded parallel verification and measured flat Lmod/Tcl improvements. The
+  follow-up adds hierarchy-aware compiler/MPI discovery, controls, and maintained
+  real-module acceptance. See
+  [Inspector reliability and hierarchy](cluster_inspector_reliability_and_hierarchy_v1.md)
+  and Inspector's audit/work log. Target-system timing and GPU acceptance remain
+  open; the original optimization is no longer an unstarted blocker.

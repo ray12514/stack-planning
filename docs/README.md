@@ -69,6 +69,7 @@ stated scope and must remain aligned with the current-model documents above.
 | File | Purpose |
 |---|---|
 | `compiler_mpi_provider_package_mapping_v1.md` | Mapping from compiler/MPI provider facts to Spack packages, externals, and toolchains. |
+| `cluster_inspector_reliability_and_hierarchy_v1.md` | Shared artifact acceptance, hierarchy discovery, execution controls, and the unchanged-workspace compatibility boundary. |
 | `compiler_provisioning_note_v1.md` | Rules for external and stack-built compiler producers. |
 | `default_selection_policy_v1.md` | Explicit default-selection policy; profiles report candidates and never choose the deployment default. |
 | `environment_granularity_note_v1.md` | Decision to keep one independent Spack environment per lane/surface. |

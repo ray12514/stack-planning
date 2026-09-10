@@ -521,6 +521,14 @@ Runtime rules:
 
 ## Implementation Plan
 
+The original five phases below are implemented and covered by the maintained
+fixture corpus. They are the historical implementation sequence, not a list of
+unstarted features. September 2026 reliability and module-hierarchy acceptance
+is recorded in [the focused refinement](cluster_inspector_reliability_and_hierarchy_v1.md).
+Current CLI syntax and executable tests live in the Inspector repository.
+Real-system and portable-release qualification remain open; fixture completion
+does not establish Cray/GPU runtime correctness or GitLab release readiness.
+
 ### Phase 1: Contract And Skeleton
 
 - Create the new repo and package as `cluster-inspector`.
