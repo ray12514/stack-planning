@@ -1,183 +1,192 @@
-# Spack Build and Publication Procedural SOP
+# Spack Build and Publication Procedure
+
+Use this standard operating procedure (SOP) to prepare, build, test, and publish
+software with Spack. It explains what to do, what to check, and what to keep so
+another team member can review or repeat the work.
 
 | Document control | Value |
 |---|---|
 | Status | Working draft |
-| Review revision | 2026-09-09 |
-| Intended operator | Package manager familiar with Spack concepts but not site-specific commands |
-| Procedure scope | Standard procedures for runtime verification, environment definition, review, mirrors and transfer, build, validation, publication, and retention |
-| Command baseline | Spack 1.2.2; revalidate commands before adopting another version |
+| Review revision | 2026-09-10 |
+| Audience | Package managers and reviewers using Spack on a supported system |
+| Scope | Spack setup, package selection, review, source mirrors, transfer, building, testing, publication, and recovery |
+| Command baseline | Spack 1.2.2; check the commands again before adopting another version |
 
 ## Review priorities
 
-**Baseline to retain.** Keep pinned inputs and local correction records,
-verified source content, nonprivileged builds, controlled access, independent
-technical review, runtime and module tests, and a release record that supports
-recovery. Capture evidence during the work and reuse applicable results for
-unchanged inputs.
+**Keep these practices.** Record exact input versions and local changes, verify
+sources, build without administrator privileges, control access, use an
+independent reviewer, test software and modules, and retain records for recovery.
+Save results as you work. Reuse applicable results when the inputs have not changed.
 
-**Applicability to confirm.** Select the catalog-owner or consumer role,
-transfer branch, supported platform tests, and publication method for the
-actual system. Security involvement follows the triggers in Section 12.
+**Confirm what applies.** Choose the steps for your role, system, transfer needs,
+and publication method. Section 12 explains when to involve security staff.
 
-The following controls need explicit scope, ownership, and resource decisions.
+Reviewers should confirm who will provide and maintain these controls:
 
 | Review topic | Decision for reviewers | Sections |
 |---|---|---|
-| Network enforcement | Required boundary, platform support, and evidence of enforcement | 4.3, 9.3 |
-| Scanning and hardening | Coverage, tools and feeds, findings handling, specialist capacity, and scientific validation | 8.1, 9.3, 12 |
-| Signing operations | Cache backend, key custody, trust distribution, rotation, and recovery | 10.1, 10.3 |
-| Continuing support | Advisory response capacity, retention periods, storage ownership, and recovery checks | 12–14 |
+| Network restrictions | Required restrictions, platform support, and proof that they work | 4.3, 9.3 |
+| Security checks and testing | Scan coverage, tools, advisory updates, handling of findings, and specialist and scientific testing support | 8.1, 9.3, 12 |
+| Package signing | Cache type, key protection, trusted-key distribution, key replacement, and recovery | 10.1, 10.3 |
+| Ongoing support | Staff for security updates, record retention, storage, and recovery checks | 12–14 |
 
-These are review questions, not changes to the requirements below. For each
-proposed revision, record the clause, rationale, owner, and resources; reconcile
-the affected procedures and release evidence before adoption. Applicable site
-requirements still govern. Inclusion in this draft does not certify that a
-control has been implemented.
+These questions do not change the requirements below. For each proposed change,
+record the affected section, reason, owner, and resources. Update the affected
+procedures and required records before adopting it. Site requirements still
+apply. A control listed in this draft still needs to be implemented and verified.
 
 ## 1. Purpose
 
-This SOP defines the standard process for a package manager to build and
-publish software with Spack on a supported system. The package manager supplies
-the package intent. The site-supplied static platform catalog supplies reviewed
-compiler, MPI, target, and external-package configuration.
+The package manager chooses the software to build. The site provides a reviewed
+**platform catalog**: configuration files that describe supported compilers,
+hardware, and system-provided software. This procedure combines those choices
+into a tested release.
 
-This document provides the complete common procedure for sustained operation.
-The operating record in Section 3 supplies the actual system paths, approved
-configuration, toolchain names, Unix groups, scheduler details, security
-requirements, acceptance criteria, retention periods, and support contacts.
-Team-specific policy may supplement those values and requirements. The
-procedure uses native Spack configuration and commands and does not depend on
-a particular workspace preparation or orchestration tool.
+A Spack **environment** holds the package requests and configuration for a build.
+Its `spack.yaml` is a text configuration file.
+A **spec** names a package and its constraints, such as version and build options
+(called **variants**). Spack **concretization** resolves these requests to exact
+packages and dependencies and writes them to `spack.lock`, the **lockfile**.
+Each resolved package has a **hash**, which identifies its build specification.
+A **candidate** is a proposed release being prepared for review. **Pinning** means
+recording and using exact versions or revisions so they do not change during the work.
 
-Figure 1 summarizes the release sequence. The sections below define its
-control points and required evidence.
+Use the operating record in Section 3 for actual paths, configuration, groups,
+scheduler commands, security requirements, test criteria, retention periods,
+and support contacts. Team policy may add requirements. The procedure uses
+Spack's own commands and configuration; it does not require a particular
+workspace preparation tool.
 
-![Release lifecycle from reviewed platform configuration and locked inputs through source preparation, target validation, independent review, publication, user acceptance, and retained release evidence.](word-documents/figures/shared-release-lifecycle.png)
+![Release steps from reviewed configuration and locked inputs through source preparation, building, testing, independent review, publication, user access checks, and record retention.](word-documents/figures/shared-release-lifecycle.png)
 
-Figure 1. Build and release lifecycle. Apply transfer and publication branches to the selected operating baseline; a failed control point holds the affected candidate.
+Figure 1. Build and release steps. Use the transfer and publication options approved for the system. Stop at any failed check and resolve it before continuing.
 
-Every environment must use an explicit supported toolchain. A successful build
-is not sufficient for publication. Runtime and module tests must also pass.
+Each environment must select a supported compiler and its required tools, called
+a **toolchain**. A successful build also needs passing runtime and module tests
+before it can be published.
 
-### 1.1 Procedure use
+### 1.1 How to use this procedure
 
-Complete the applicable sections in order, following the producer/destination
-branch order in Section 9.2.1 for transfers. Each section defines a control
-point. Do not continue past a failed control point. A skipped branch must be
-recorded as not applicable with a reason; it is not a passed test.
+Follow the applicable sections in order. For transfers, follow the source and
+destination sequence in Section 9.2.1. Stop at a failed required check. Record
+unused branches as not applicable, with a reason; do not mark them as passed.
 
 1. Complete the operating record in Section 3.
-2. Start the approved Spack runtime and complete preflight.
-3. Select one released catalog and its documented scopes.
-4. Define and review the environment source.
+2. Start the approved Spack installation and run the setup checks.
+3. Select one approved catalog release and its configuration scopes.
+4. Prepare and review the environment files.
 5. Concretize and review `spack.lock`.
-6. Create source mirrors; use the transfer branch when needed.
-7. Build or install the candidate and test on the destination node types.
-8. Obtain the second-person review and publish only accepted concrete hashes.
-9. Retain the source, lockfile, evidence, and approval record.
+6. Create source mirrors and transfer inputs when needed.
+7. Build or install the candidate and test it on the destination node types.
+8. Obtain independent review and publish only the approved package hashes.
+9. Keep the source files, lockfile, results, and approval record.
 
-Command examples use angle-bracket placeholders for site-supplied values. The
-operator must replace every placeholder before running a command. Shell
-variables shown in the operating record may be used to avoid repeating paths.
-Retain the resolved values in the operating record; session variables alone
-are not a durable deployment record. Publication and transfer examples assume a
-supported Linux shell and the site's approved storage and transfer mechanism.
+Replace every `<placeholder>` with an approved value before running a command.
+Shell variables can shorten commands, but save their actual values in the
+operating record so they survive a lost session. Publication and transfer
+examples assume a supported Linux shell and approved storage and transfer methods.
 
-### 1.2 Evidence format
+### 1.2 What to keep
 
-Retain command output as text files together with the environment source,
-lockfile, manifests, checksums, and test programs. Record the command, node,
-date, exit status, and output for every required test. Screenshots are not
-required and must not be the only evidence for a control point.
+Save command output as text files with the environment files, lockfile, file
+inventories, checksums, and test programs. For each required test, record the
+command, node, date, exit status, and output. Screenshots are optional and cannot
+be the only record of a check.
 
-### 1.3 Static platform catalog orientation
+### 1.3 How the platform catalog works
 
-The static platform catalog is the site's versioned statement of the platform
-configuration supported for Spack builds on one system. It tells the package
-manager which compilers, compatible MPI and GPU providers, targets, externals,
-and common Spack policies are approved, including which combinations may be
-used together. It does not select application packages or deployment paths.
-The catalog includes valid Spack configuration files and a readable inventory
-of their paths, supported combinations, source identities, and approval. The
-package manager selects a supported set of scopes from that inventory and
-includes them in an owned Spack environment. Section 6.1 defines the required
-catalog contents; no particular catalog-generation tool or metadata schema is
-required.
+The **static platform catalog** is a versioned set of approved Spack configuration
+for one system. Its **scopes** are named groups of configuration files that an
+environment includes. It lists supported compilers, processor targets, Message
+Passing Interface (MPI) implementations for parallel programs, graphics
+processing unit (GPU) support, and **externals**: software supplied outside
+the managed Spack installation. A **provider** is the selected implementation of a capability, such
+as MPI. The catalog records which combinations are supported.
+
+The catalog includes valid configuration files and an inventory of their paths,
+sources, supported combinations, and approval. Select scopes from that inventory
+for your environment. Section 6.1 lists the required contents. The site may
+choose its own catalog layout and preparation tools. Package selection and
+installation paths remain the package manager's or site's deployment choices.
 
 ## 2. Responsibilities
 
 | Role | Responsibility |
 |---|---|
-| Package manager | Select packages and catalog scopes, define the environment, build, test, and prepare the release record. |
-| Technical reviewer | Independently review the candidate inputs, change assessment, lockfile, test and scan results, module behavior, and publication evidence. |
-| Release authority | Approve publication under the application team's normal process. |
-| Platform or transfer owner | Provide destination compatibility evidence, enforced network restrictions, approved transfer handling, and system-owned externals. |
-| Security reviewer or responsible security authority | Review escalated security questions and advise on changes outside the agreed operating bounds. Decisions on exceptions follow the authority assigned by the local process. |
+| Package manager | Choose packages and catalog scopes, prepare the environment, build, test, and keep the release record. |
+| Technical reviewer | Independently check inputs and changes, the lockfile, test and scan results, module behavior, and publication records. |
+| Release authority | Approve publication under the team's normal process. |
+| Platform or transfer owner | Confirm destination compatibility, enforce network restrictions, provide approved transfer handling, and manage system externals. |
+| Security reviewer or responsible security authority | Review security questions outside the agreed requirements. Exception decisions follow the local approval process. |
 
-Use two distinct people for each release: one builds and prepares the evidence;
-the other reviews and records the disposition before publication. The reviewer
-may also be the release authority when delegated by the team's policy. Roles
-may alternate across releases, but a builder does not approve their own work.
-If the reviewer is unavailable, hold publication and use a documented alternate
-reviewer. This does not require two people to repeat every build command.
+Use two people: one prepares the build and results; the other reviews and records
+a decision before publication. The reviewer may also approve release when the
+team delegates that authority. Roles may alternate between releases, but builders
+cannot approve their own work. If the reviewer is unavailable, hold publication
+until a named alternate can review. The reviewer need not repeat every build command.
 
-Routine releases within the recorded operating bounds use the team's review
-and release process. Obtain security review or a decision through the local
-process for the escalation triggers in Section 12. A module in a centrally managed
-namespace also requires the namespace owner's approval.
+Routine releases use the team's agreed review process. Involve security staff
+for the triggers in Section 12. Publishing a module in a centrally managed
+module namespace also needs its owner's approval.
 
 ## 3. Required inputs
 
-Record these inputs before concretization:
+Record these before concretization:
 
-- target system and node types used for the build and runtime tests;
-- approved static platform catalog root, release, inventory, approval record,
-  and authorized audience;
-- selected compiler and, when applicable, matching MPI and GPU scopes;
-- root package specs, versions, variants, and dependency constraints;
-- exact Spack version and package-recipe source;
-- install tree, build-stage, cache, view, and module locations;
-- filesystem ownership and access policy; and
-- application-team release identifier.
+- the target system and node types for builds and runtime tests;
+- the approved catalog path, release, inventory, approval, and allowed users;
+- the compiler and any matching MPI and GPU scopes;
+- requested packages (**roots**), versions, variants, and dependency constraints;
+- the exact Spack version and package-recipe source;
+- installation, build-stage, cache, view, and module paths;
+- filesystem ownership and access rules; and
+- the team's release identifier.
 
-The static platform catalog contains configuration. It does not select the
-application packages, install tree, views, module roots, or release lifecycle.
-Those remain package-manager or site deployment decisions.
+A **recipe** is the package's build instructions in `package.py`. The **install
+tree** stores installed packages, each in its own **prefix** directory. A **build
+stage** holds temporary build files. A **view** brings selected installed files
+under one directory. **Environment modules** let users select installed software
+and set the shell environment needed to use it.
 
 ### 3.1 Operating record
 
-Create a release worksheet and fill every actual-value field before preflight.
-The worksheet may be a tracked text file, ticket, or release database record.
+Create a release worksheet as a tracked text file, ticket, or database record.
+Fill every actual-value field before the setup checks in Section 5.
 
 | Item | Shell name used in this SOP | Actual value required |
 |---|---|---|
 | Target system | `STACK_SYSTEM` | System name |
-| Application release | `STACK_RELEASE` | Immutable application release identifier |
+| Application release | `STACK_RELEASE` | Release identifier that will not be reused or changed |
 | Catalog release root | `CATALOG_RELEASE_ROOT` | Absolute path to one approved catalog release |
-| Catalog inventory and usage record | `CATALOG_RECORD` | Absolute path to the record within that release defining its contents, supported selections, and approval; Section 6.1 |
+| Catalog inventory and usage record | `CATALOG_RECORD` | Absolute path to its contents, supported selections, and approval record within the release; Section 6.1 |
 | Environment directory | `ENVIRONMENT_ROOT` | Absolute path containing `spack.yaml` |
 | Approved Spack checkout | `SPACK_ROOT` | Absolute path to the pinned checkout |
 | Spack version | `SPACK_VERSION` | Approved version and commit |
-| Package repositories | Release record | Every approved upstream and local source, commit or digest, namespace, and search order |
-| Per-user Spack state | `SPACK_USER_CACHE_PATH` | Builder-private absolute path |
-| Bootstrap configuration | `BOOTSTRAP_CONFIG_DIR` | Absolute approved scope outside the Spack checkout; Section 4.5 |
-| Build stage | `SPACK_STAGE_ROOT` | Builder-writable absolute path |
-| Install tree | Site configuration | Absolute package store selected by the application team |
-| Source cache | Site configuration | Absolute shared cache populated during the controlled fetch step |
-| Miscellaneous cache | Site configuration | Absolute shared root, partitioned by builder when required |
-| Build cache | Release configuration | Approved private or published mirror URL and trust policy |
+| Package repositories | Release record | Each approved upstream and local source, commit or checksum, namespace, and search order |
+| Per-user Spack state | `SPACK_USER_CACHE_PATH` | Absolute path private to the builder |
+| Bootstrap configuration | `BOOTSTRAP_CONFIG_DIR` | Absolute path to an approved scope outside the Spack checkout; Section 4.5 |
+| Build stage | `SPACK_STAGE_ROOT` | Absolute path the builder can write to |
+| Install tree | Site configuration | Absolute package-store path chosen by the application team |
+| Source cache | Site configuration | Absolute shared-cache path populated during approved source fetching |
+| Miscellaneous cache | Site configuration | Absolute shared root, divided by builder when required |
+| Build cache | Release configuration | Approved private or published mirror address and trust rules |
 | View root | Environment configuration | Absolute view path, or `none` |
 | Module root | Environment configuration | Absolute module path, or `none` |
 | Build group | Deployment record | Approved Unix group |
 | Build and runtime nodes | Deployment record | Login, build, and test node types |
 | Reviewer and release authority | Release record | Named people or approving roles |
-| Connectivity and transfer | Release record | Connected, restricted-internet, or disconnected destination; approved intake node and transfer method when applicable |
-| Mirror and bundle identity | Release record | Source-mirror path, signed binary-cache URL if used, archive digest, and origin/destination acceptance evidence |
-| Security operating bounds | Operating record | Review triggers, approved scanning method, network policy, exception authority, and transfer authorization reference |
-| Acceptance and support | Operating record | Required checks and tolerances, support contacts, retention and notification periods |
+| Connectivity and transfer | Release record | Available network access, approved source-acquisition node, and transfer method when needed |
+| Mirror and bundle identity | Release record | Source-mirror path, signed binary-cache address if used, archive checksum, and source and destination checks |
+| Security requirements | Operating record | Review triggers, approved scans, network policy, exception authority, and transfer authorization |
+| Acceptance and support | Operating record | Required tests and tolerances, support contacts, retention and notification periods |
 
-Start the approved Spack session after filling the record:
+A **source mirror** holds downloaded source files for later builds. A **build
+cache** holds built packages for later installation. A **checksum**, also called
+a digest, lets you check that a file's contents match the recorded value. Keep
+these file checksums distinct from Spack's package hashes.
+
+Start the approved Spack session after completing the record:
 
 ```bash
 export STACK_SYSTEM="<system>"
@@ -202,30 +211,29 @@ source "$SPACK_ROOT/share/spack/setup-env.sh"
 spack --version
 ```
 
-Record the output of `spack --version` and the checkout commit. Stop if they do
-not match the approved Spack identity.
-Prepare the prerequisite configuration in Section 4.5 before any solve or
-operation that may bootstrap a tool. The command examples carry that scope
-explicitly so its source/trust policy persists across the workflow.
+Save the version output and checkout commit. Stop if either differs from the
+approved version and commit. Prepare the tools and configuration in Section 4.5 before
+concretization or any command that may install Spack's supporting tools. Later
+examples explicitly include that configuration so the same trust rules apply.
 
 ## 4. Storage, access, and Spack runtime
 
-Keep the following locations separate:
+Keep these locations separate:
 
-- the pinned Spack tool root;
-- the Spack package install tree;
+- the pinned Spack installation;
+- installed packages;
 - the build workspace;
 - shared source and package-manager metadata caches;
-- per-builder build stages and mutable user state;
+- each builder's stages and temporary state;
 - build caches;
-- views and module roots; and
-- release records and test evidence.
+- views and modules; and
+- release records and test results.
 
-Use a site-approved, pinned Spack installation. Record its exact version,
-source, and commit when applicable. Do not treat the Spack checkout as the
-package install tree or store mutable build artifacts inside it.
+Use an approved, pinned Spack installation and record its version, source, and
+commit where applicable. Do not put packages or changing build files inside the
+Spack checkout.
 
-Use per-user mutable Spack state:
+Give each builder their own temporary Spack state:
 
 ```bash
 export SPACK_DISABLE_LOCAL_CONFIG=true
@@ -233,42 +241,39 @@ export SPACK_USER_CACHE_PATH="<approved-per-user-cache-root>/$USER/spack/<versio
 source "<approved-spack-root>/share/spack/setup-env.sh"
 ```
 
-Keep verification keyrings and any authorized signing keyring in private
-per-user or site-approved locations outside the Spack tool root and package
-install tree. Private release-signing keys do not travel in a workspace or
-transfer bundle; their use follows Section 10.1.
+Keep verification keys and authorized signing keys in private per-user or
+approved site locations outside the Spack installation and package store.
+Never include private release-signing keys in a workspace or transfer bundle.
+Follow Section 10.1 for signing.
 
-The application team's shared workspace must be group-writable while a release
-is assembled. Record the owning Unix group for that independently managed
-software stack in its deployment inputs; different teams or stacks may use
-different approved groups. Keep that group stable for the life of the release.
-Use setgid directories and the site's default ACL or umask policy. Published
-users outside the approved package-manager group receive read and execute
-access, not write access.
+The shared workspace must be writable by the approved build group while the
+release is prepared. Record that Unix group for each stack and keep it unchanged
+for the release. Different stacks may use different groups. Use setgid
+directories, which pass their group to new entries, and the site's default
+access control list (ACL) or `umask` permission rules. Published users outside
+the build group may read and run software, but may not change it.
 
-Record which paths are shared and which are builder-private before work starts:
+Record shared and private paths before starting:
 
 | State class | Normal policy |
 |---|---|
-| Shared build state | Workspace, generated environment files and lockfiles, source cache, package install tree/database/locks, views, modules, file-backed build cache, and release evidence. Restrict write access to the approved build group. |
-| Builder-partitioned shared state | Mutable package-manager metadata may use a persistent `$USER` partition below a shared root when concurrent replacement is unsafe. The partition remains accessible to the build group for handoff and recovery. |
-| Builder-private state | Build stage, `SPACK_USER_CACHE_PATH`, bootstrap state, signing keyring, and other temporary command state. A receiving builder creates its own paths rather than inheriting another user's. |
-| Spack tool root | Shared and read-only, or an identity-equivalent builder-local checkout treated as immutable for the release. Never use it as a cache or package store. |
+| Shared build state | Workspace, generated environments and lockfiles, source cache, package store/database/locks, views, modules, file-backed build cache, and release results. Only the approved build group may write. |
+| Shared state divided by builder | Changing package-manager metadata may use a persistent `$USER` directory when concurrent replacement is unsafe. Keep it accessible to the build group for handoff and recovery. |
+| Builder-private state | Build stage, `SPACK_USER_CACHE_PATH`, bootstrap state, signing keyring, and temporary command files. Each builder creates their own paths. |
+| Spack installation | Shared and read-only, or an unchanged local checkout of the same approved revision. Never use it as a cache or package store. |
 
-Setgid, default ACLs, and a group-friendly umask establish creation defaults,
-but do not override software that explicitly requests `0600` files or `0700`
-directories. The operator or approved build process must normalize owner-created
-content on every shared non-package surface and verify access from another
-group member before handoff. A typical restricted policy uses `2770` for
-directories, `0660` for ordinary files, and `0770` for executables. Spack's
-native package-permission configuration owns installed prefixes; do not use a
-blind recursive chmod around the package database and prefix locks.
+Permission defaults do not override software that creates private `0600` files
+or `0700` directories. Correct permissions on builder-created shared content
+outside installed package directories, and have another group member verify
+access before handoff. A typical restricted policy uses `2770` directories,
+`0660` ordinary files, and `0770` executables. Use Spack's package-permission
+configuration for installed packages; do not apply a blanket recursive `chmod`
+across the package database and prefix locks.
 
-### 4.1 Installed-package permission policy
+### 4.1 Installed package permissions
 
-The package manager must supply the installed-prefix policy as deployment
-configuration. It is not part of the static platform catalog. For a published
-stack managed by a package-manager group, use:
+Set installed-package permissions in deployment configuration, outside the
+platform catalog. For a published stack managed by a package-manager group, use:
 
 ```yaml
 packages:
@@ -279,64 +284,52 @@ packages:
       write: group
 ```
 
-This may be written directly below `spack.packages` in an environment's
-`spack.yaml`, or placed in a separate `packages.yaml` inside a configuration
-scope named by the environment's `spack.include` list. Apply the reviewed
-deployment access policy consistently to every environment that writes to the
-same install tree, and retain the policy file with the release.
+Place this under `spack.packages` in `spack.yaml`, or in a `packages.yaml` scope
+included by the environment. Every environment writing to the same install
+tree must use the reviewed access policy. Keep that policy file with the release.
 
-For the approved Spack runtime, verify the merged configuration before
-installation:
+Check the merged settings before installation:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get packages
 ```
 
-The published filesystem contract is `2775` for directories, `0775` for
-executable files, and `0664` for ordinary files. The owner and approved package
-manager group can write. Users outside the group can traverse directories, run
-executables, and read ordinary files, but cannot write. The leading `2` is the
-setgid bit, which makes new entries inherit the directory's group; it is not
-the sticky bit. Sticky is the leading `1` bit and is not used here.
+Published permissions are `2775` for directories, `0775` for executables, and
+`0664` for ordinary files. The owner and approved group can write; others can
+read and run. The leading `2` sets group inheritance. It is not the sticky bit
+(the leading `1`), which this policy does not use.
 
-For a restricted build tree, change only `read` from `world` to `group` and
-retain `write: group`. Its normal modes are `2770`, `0770`, and `0660`. Keep the
-private build cache in the restricted tree. General users consume the final
-installed prefixes, views, and modules rather than the private cache.
+For restricted builds, change `read: world` to `read: group` and retain
+`write: group`. Normal permissions are then `2770`, `0770`, and `0660`. Keep
+the private build cache restricted. General users access the final installed
+packages, views, and modules, rather than that cache.
 
-### 4.2 Spack configuration ownership
+### 4.2 Where configuration belongs
 
-Record portable package intent separately from system deployment choices. A
-managed stack uses these durable inputs:
+Keep package choices separate from system paths and access rules:
 
-| Information | Authoritative input | Spack output or configuration |
+| Information | Record it in | Spack configuration |
 |---|---|---|
-| Observed compiler, MPI, GPU, operating-system, and external-package facts | Reviewed platform evidence retained with the static catalog | Selected `packages.yaml`, compiler, target, and provider scopes |
-| Package names, versions, variants, dependency constraints, and compiler/provider selection | Package-manager-owned `spack.yaml` | `spack.specs` and explicit compiler or toolchain constraints |
-| Install tree, build stage, source and miscellaneous caches, view and module roots, build-cache destinations, and access policy | Controlled deployment record with the actual values from Section 3 | `config.yaml`, `packages.yaml`, `modules.yaml`, mirror configuration, and view paths |
-| Site-wide provider and selection defaults | Reviewed defaults and catalog policy | Included configuration scopes |
+| Observed compilers, MPI, GPU, operating system, and externals | Reviewed platform records kept with the catalog | Selected package, compiler, target, and provider scopes |
+| Package names, versions, variants, dependencies, and compiler/provider choices | The package manager's `spack.yaml` | `spack.specs` and explicit compiler or toolchain constraints |
+| Installation, stage, cache, view, module, build-cache destination, and access settings | Deployment record with the actual values from Section 3 | `config.yaml`, `packages.yaml`, `modules.yaml`, mirror configuration, and view paths |
+| Site defaults for providers and package selection | Reviewed defaults and catalog policy | Included configuration scopes |
 
-Choose the owning input before making a local correction. Package versions,
-variants, dependency constraints, and compiler/provider selection belong in
-the environment or reviewed `packages.yaml` scopes. Paths, access, mirrors,
-views, and module presentation belong in deployment configuration. Correct
-inaccurate platform facts through the catalog owner and use the resulting
-reviewed catalog revision. Verify the effective values with the commands below.
+Make a correction in the file that owns the setting. Put package constraints
+and compiler/provider selections in the environment or reviewed `packages.yaml`
+scopes. Put paths, access, mirrors, views, and module naming in deployment
+configuration. Ask the catalog owner to correct inaccurate platform facts and
+provide a reviewed revision.
 
-Use a local package recipe or source patch when the pinned recipe or package
-source needs a build correction; follow Section 7.6. This can preserve the
-upstream package-repository pin while separately versioning the local change.
-Do not encode deployment paths or routine package selections in a recipe merely
-to avoid correcting their owning configuration. Every retained configuration
-change still follows Section 12 and the applicable release checks.
+Use a local recipe or source patch only when the recipe or source needs a build
+fix; follow Section 7.6. Version that change separately to keep the upstream
+repository pinned. Do not put deployment paths or routine package choices in a
+recipe to avoid correcting configuration. Retained changes still need the
+Section 12 process and applicable release checks.
 
-Do not use an operator-local shell-variable bundle as the release contract.
-Shell variables may shorten commands during one session, but the retained
-environment source, deployment record, lockfile, and release record must
-contain the reviewed values.
-
-At minimum, the effective Spack configuration must explicitly resolve these
-settings before concretization:
+Shell variables can shorten commands, but save reviewed values in the environment
+files, deployment record, lockfile, and release record. Before concretization,
+check that the merged configuration explicitly sets at least:
 
 ```yaml
 config:
@@ -349,21 +342,16 @@ config:
   locks: true
 ```
 
-Keep `SPACK_USER_CACHE_PATH`, bootstrap state, and the signing keyring outside
-that shared configuration because they are private to the active builder.
-Configure build-cache mirrors separately from the source cache. A source cache
-contains fetched source inputs. A build cache contains installed concrete
-packages and their metadata. They are different trust and promotion
-boundaries.
+Keep `SPACK_USER_CACHE_PATH`, bootstrap state, and signing keys private to the
+active builder, outside shared configuration. Configure build-cache mirrors
+separately from source caches; approving source files does not approve built
+packages for publication.
 
-Module configuration must state whether module generation is enabled, the
-absolute generated-module root, the naming or projection policy, and required
-dependency loads and conflicts. The SOP does not prescribe one complete
-`modules.yaml`; the package manager selects those presentation details and
-retains the generated file with the release.
+For modules, record whether generation is enabled, the absolute output path,
+naming rules, dependencies to load, and conflicts to enforce. The package manager
+chooses these details and keeps the generated `modules.yaml` with the release.
 
-Verify the merged values rather than assuming that the intended file won
-scope precedence:
+Check the merged settings; another scope may override the intended file:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get config
@@ -373,43 +361,37 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get modules
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config scopes -vp
 ```
 
-### 4.3 Supply-chain security boundary
+### 4.3 Review inputs and protect approved releases
 
-Treat the Spack runtime, package repositories, package recipes, patches,
-fetched sources, external packages, and binary caches as separate inputs to
-the release. A checksum proves that fetched bytes match the checksum approved
-by the recipe. It does not prove that the recipe, upstream source, or dependency
-is safe. A lockfile fixes the selected concrete graph; it does not replace
-review of a changed recipe repository or vulnerability assessment.
+Review the Spack installation, repositories, recipes, patches, sources, externals,
+and binary caches as separate inputs. A checksum confirms that downloaded bytes
+match the recipe's recorded checksum. It does not show that the recipe, source,
+or dependency is safe. Likewise, a lockfile records the selected packages but
+does not replace recipe review or vulnerability checks.
 
-Apply the following gates using the later procedures:
-
-| Gate | Required result |
+| Required check | Result needed |
 |---|---|
-| Admit inputs, Section 8.1 | Pinned tool and repository identities, complete inventory, risk-based review and scan dispositions |
-| Acquire and transfer, Sections 9.1–9.2 | Approved source and binary mirrors, complete bundle when required, verified origin and destination bytes |
-| Build and validate, Section 9.3 | Nonprivileged controlled build, approved network restriction, target-system tests and retained evidence |
-| Review and release, Sections 10.1–10.4 | Independent review, approved signing identity, exact accepted hashes, controlled publication and inventories |
-| Maintain, Sections 12–14 | Advisory handling, recorded exceptions, retention, withdrawal and rollback |
+| Approve inputs, Section 8.1 | Exact tool and repository revisions, complete inventory, risk-based review, and decisions on scan findings |
+| Acquire and transfer, Sections 9.1–9.2 | Approved mirrors, a complete bundle when needed, and matching file checks at both systems |
+| Build and test, Section 9.3 | Build without administrator privileges, enforced network restrictions, target-system tests, and saved results |
+| Review and release, Sections 10.1–10.4 | Independent review, approved signing key, exact accepted package hashes, controlled publication, and inventories |
+| Maintain, Sections 12–14 | Security advisory handling, recorded exceptions, retention, withdrawal, and rollback |
 
-Shared working state remains writable by the recorded build group while a
-candidate is assembled. An admitted baseline or accepted release is version
-frozen by the release process: retain its digest and approval evidence, limit
-writes through the site's storage controls, and verify the digests before use
-or handoff. Group ownership alone does not make content immutable. Changed
-admitted bytes return to review and receive a new recorded identity.
+The build group can change working files while preparing a candidate. Once
+inputs or a release are approved, freeze that version: save checksums and
+approval records, restrict writes using site storage controls, and verify
+checksums before use or handoff. Group ownership alone does not prevent changes.
+Changed approved content needs a new recorded identity and review.
 
-The operating record identifies approved scanners, advisory sources, network
-controls, hardening requirements, and exception authority. Retain the actual
-result and applicable acceptance criteria; a planned control is not evidence
-that it ran. An unresolved requirement follows the hold and escalation process
-in Section 12.
+Record approved scanners, advisory sources, network restrictions, hardening
+requirements, and who can approve exceptions. Keep actual results and pass
+criteria. Planned checks do not count as completed checks. Hold and escalate
+unresolved requirements under Section 12.
 
-### 4.4 Verify the pinned runtime and package repositories
+### 4.4 Check the Spack version and repositories
 
-Use either the approved shared checkout or an identity-equivalent builder-local
-checkout. The path may differ, but its version, tag, commit, and clean state may
-not. Run after the session setup in Section 3.1:
+Use the approved shared checkout or a local copy with the same version, tag,
+commit, and clean working tree. After the session setup in Section 3.1, run:
 
 ```bash
 SPACK_VERSION_OUTPUT="$(spack -C "$BOOTSTRAP_CONFIG_DIR" --version)"
@@ -420,15 +402,15 @@ test -z "$(git -C "$SPACK_ROOT" status --porcelain)"
 spack -C "$BOOTSTRAP_CONFIG_DIR" config scopes -vp
 ```
 
-For an approved runtime supplied as an archive without Git metadata, verify its
-digest against the retained release identity instead. Do not pull, switch
-branches, edit checkout-local configuration, or replace the approved tool
-directory during a release. Provision a new version in a sibling directory.
+For an approved archive without Git metadata, compare its checksum with the
+release record instead. Do not pull updates, switch branches, edit checkout-local
+configuration, or replace the tool directory during a release. Install a new
+version in a separate directory.
 
-Admit repository provenance and assess new/changed executable recipe inputs
-using Section 8.1 before the first solve imports those recipes. After the solve,
-complete that assessment against the resolved dependency closure. Inspect every
-effective package repository after the environment is prepared:
+Before concretization imports recipes, review their sources and any new or
+changed executable inputs under Section 8.1. Complete the review against the
+resolved dependencies afterward. Once the environment is prepared, inspect all
+active repositories:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get repos
@@ -436,28 +418,29 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" repo list
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config scopes -vp
 ```
 
-Compare each repository's source, commit or approved archive digest, namespace,
-and effective search order with the release record. Include overlays, helper
-code and patches that recipes import. Verify the corresponding trees are clean
-or match the approved archive digests; an unrecorded overlay is a failed gate.
-`SPACK_DISABLE_LOCAL_CONFIG` disables user and system configuration in the
-command baseline. Use explicit `include::` to select the environment's intended
-configuration and inspect every effective scope, repository order and security
-setting, including approved command-line overrides. Neither this variable nor
-an include list alone proves the complete configuration is approved.
+Compare each repository's source, commit or archive checksum, namespace, and
+search order with the release record. Include local recipes (**overlays**),
+imported helpers, and patches. Confirm each tree is clean or matches its approved
+archive. Stop if an overlay is not recorded.
 
-### 4.5 Prepare admitted bootstrap and runtime prerequisites
+For this Spack version, `SPACK_DISABLE_LOCAL_CONFIG` disables user and system
+configuration. Use `include::` to select the intended environment configuration.
+Inspect all active scopes, repository order, security settings, and approved
+command-line overrides. The variable or include list alone does not prove that
+all settings are approved.
 
-Before concretization, the intake or destination system needs the approved
-Python, solver and other runtime tools. Use pre-provisioned admitted tools, or
-complete a bootstrap-only acquisition and, where needed, the authorized
-transfer steps in Section 9.2 before the first solve. This prerequisite bundle
-does not require an application lockfile. A receiver installing an already
-reviewed lockfile does not need to reconcretize it.
+### 4.5 Prepare Spack supporting tools
 
-Keep the approved bootstrap configuration in `$BOOTSTRAP_CONFIG_DIR` outside
-the pinned checkout, and keep the active builder's mutable bootstrap root
-private. For pre-provisioned tools, its `bootstrap.yaml` is:
+Spack needs approved Python, solver, and other runtime tools before
+concretization. **Bootstrapping** installs these supporting tools when they are
+not already available. Use approved preinstalled tools, or acquire a bundle of
+supporting tools and transfer it under Section 9.2 before the first solve. That
+bundle does not need an application lockfile. Installing from an already
+reviewed lockfile does not require concretizing it again.
+
+Keep approved configuration in `$BOOTSTRAP_CONFIG_DIR` outside the pinned
+checkout. Give each builder a private bootstrap working directory. For
+preinstalled tools, use this `bootstrap.yaml`:
 
 ```yaml
 bootstrap::
@@ -467,8 +450,8 @@ bootstrap::
   trusted: {}
 ```
 
-If an admitted local bootstrap mirror is needed, use this alternative after
-its metadata and artifacts have passed the acquisition/transfer gate:
+For an approved local bootstrap mirror, use this alternative after its metadata
+and files pass the acquisition and transfer checks:
 
 ```yaml
 bootstrap::
@@ -484,11 +467,11 @@ bootstrap::
     local-sources: true
 ```
 
-The `bootstrap::` override replaces the public default sources and trust list.
-List only the admitted metadata actually supplied; omit the binary source if
-its runtime/architecture compatibility has not been accepted. Resolve all
-paths in the retained local configuration. Trusting bootstrap metadata is
-separate from trusting a signed release package.
+`bootstrap::` replaces the default public sources and trust list. List only
+approved metadata actually supplied. Omit binary sources unless their runtime
+and architecture compatibility is accepted. Save actual local paths in the
+configuration. Bootstrap metadata trust and release-package signing trust are
+separate decisions.
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" bootstrap list
@@ -496,47 +479,39 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" bootstrap status
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get bootstrap
 ```
 
-Require successful prerequisite status before the first solve. Run the last
-command after Section 7 has prepared the environment and before concretization.
-Inspect effective bootstrap configuration with the environment active; retain
-the same `-C` scope on later commands. Source acquisition, bootstrap and build
-network restrictions are enforced outside Spack. See the official
+Supporting tools must report ready before the first solve. Run the last command
+after preparing the environment in Section 7, before concretization. Check its merged bootstrap settings
+and keep the same `-C` scope on later commands. Enforce source-acquisition,
+bootstrap, and build network restrictions outside Spack. See the official
 [bootstrap configuration](https://github.com/spack/spack/blob/v1.2.2/etc/spack/defaults/bootstrap.yaml)
 and [read-only command-line scope](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/main.py#L460-L468).
 
 ## 5. Preflight
 
-Complete these checks from the node types that will perform the build and
-runtime tests:
+Before building, check from the node types that will build and test the software:
 
-- the catalog release and selected scopes are readable;
-- the selected compiler and, when applicable, its approved MPI pairing are
-  present in the catalog;
-- the install tree, caches, views, and module root are reachable;
-- shared generated content is readable, writable, and traversable by another
-  member of the approved build group;
-- the selected build stage is writable and has adequate space and inodes;
+- the catalog and selected scopes are readable;
+- the catalog supports the chosen compiler and any MPI pairing;
+- installation, cache, view, and module paths are reachable;
+- another build-group member can read, write, and traverse shared generated files;
+- the build stage is writable with enough space and file entries (inodes);
 - the Spack version matches the approved version;
-- the package-recipe source is available;
-- the expected scheduler, launcher, fabric, and GPU resources are available
-  when required; and
-- the active configuration scopes contain no unexpected user, system, or site
-  policy.
+- package recipes are available;
+- required scheduler, launcher, interconnect (fabric), and GPU resources are available; and
+- active scopes contain no unexpected user, system, or site configuration.
 
-Check the active scopes before using an environment:
+Inspect the scopes:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" config scopes -vp
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config scopes -vp
 ```
 
-Run the global command during initial preflight. Run the environment command
-after `spack.yaml` has been created in Section 7 and before concretization.
+Run the first command during initial setup. Run the environment command after
+Section 7 creates `spack.yaml`, before concretization. Stop and correct the setup
+if an unexpected scope could affect package resolution.
 
-Stop if an unexpected scope can affect the solve. Correct the environment or
-runtime setup before concretization.
-
-Check a build-stage candidate from the intended build node:
+Check the proposed build stage from the intended build node:
 
 ```bash
 export SPACK_STAGE_ROOT="<approved-build-stage>"
@@ -549,9 +524,9 @@ df -Pk "$SPACK_STAGE_ROOT"
 df -Pi "$SPACK_STAGE_ROOT"
 ```
 
-Also confirm the quota, cleanup schedule, retention period, and mount options.
+Confirm its quota, cleanup schedule, retention period, and mount options too.
 
-Confirm the released catalog is readable and complete:
+Check the catalog:
 
 ```bash
 test -d "$CATALOG_RELEASE_ROOT"
@@ -559,85 +534,73 @@ test -r "$CATALOG_RECORD"
 find "$CATALOG_RELEASE_ROOT" -type f -print | sort
 ```
 
-Compare the files and their digests with the approved catalog inventory. Read
-its supported compiler, MPI, GPU, target, module, prefix, and external-package
-selections and compare them with the operating record. Verify every selected
-scope path exists. Stop if a required scope is absent or the catalog records an
-unresolved provider dependency.
+Compare files and checksums with the approved inventory. Check its compiler,
+MPI, GPU, target, module, prefix, and external selections against the operating
+record. Every selected scope must exist. Stop for a missing scope or an unresolved
+provider dependency.
 
-Preflight passes only when the recorded paths and node types are usable, the
-approved Spack identity matches, the catalog is readable, and the global and
-environment scope listings contain no unexpected configuration.
+Preflight passes when the recorded paths and node types work, the Spack version
+matches, the catalog is readable, and both scope listings contain only expected
+configuration.
 
 ## 6. Select platform configuration
 
-### 6.1 Prepare and review a catalog when acting as catalog owner
+### 6.1 Prepare and review a catalog
 
-Catalog consumers proceed to Section 6.2. The designated catalog owner
-assembles a versioned directory containing include-ready native Spack
-configuration, its supporting platform evidence, and a readable catalog record.
-Manual preparation and approved automation must meet the same requirements:
+If you are using an existing catalog, go to Section 6.2. The catalog owner
+prepares a versioned directory of Spack configuration, supporting platform
+records, and a readable catalog record. The same requirements apply whether
+prepared manually or with approved tools:
 
-1. Retain observed platform facts and their provenance: system and node types;
-   compiler versions and identities; available MPI, fabric/launcher and GPU
-   providers; CPU targets; and system-owned external versions, prefixes and
-   required modules. Record how and when the facts were verified.
-2. Prepare valid Spack configuration files in configuration-scope directories.
-   Each scope must be usable from a native Spack environment. Record exact
-   relative paths, file inventories and digests; check any symbolic links and
-   record their targets. File layout is a site choice, not a tool contract.
-3. Include a readable catalog record that identifies the system, catalog
-   release, exact Spack baseline, source identities, preparation date, scope
-   paths and contents, and supported compiler/provider/target combinations.
-   Include instructions for selecting scopes, their required order, any named
-   toolchains and provider constraints, and the platform evidence supporting
-   those choices. Record unsupported combinations and unresolved limitations.
-   The record may be plain text, Markdown, or a documented structured format.
-4. Set `CATALOG_RELEASE_ROOT` and `CATALOG_RECORD` in the operating record.
-   Verify the record resides in that release. Inspect every selected scope
-   through native Spack configuration commands in Sections 4.2 and 7.5, using
-   a representative environment. Compare effective values with the platform
-   evidence; successful parsing alone does not establish compatibility.
-5. Record independent review, reviewer, disposition, date, and exact candidate
-   identity. Every claimed compiler/provider pairing and node type must have
-   supporting evidence; hold unsupported or unresolved selections.
-6. Retain the versioned candidate and its evidence. Publish it through Section
-   10.2 after applicable acceptance gates. Keep the complete reviewed copy when
-   publication uses a separate directory.
+1. Record system and node types, compiler versions and identities, MPI, fabric, launcher, and GPU
+   providers, central processing unit (CPU) targets, and system externals with
+   their versions, prefixes, and required modules. Record the source of these
+   facts and how and when they were verified.
+2. Prepare valid configuration scopes usable by a Spack environment. Record
+   relative paths, file inventories, and checksums. Check symbolic links and record their targets.
+   The site chooses the directory layout.
+3. Include a catalog record with the system, release, exact Spack version and commit,
+   sources, preparation date, scopes and contents, and supported combinations.
+   Explain scope selection and order, toolchain names, provider constraints,
+   and supporting platform results. List unsupported combinations and unresolved
+   limits. Use text, Markdown, or a documented structured format.
+4. Record `CATALOG_RELEASE_ROOT` and `CATALOG_RECORD`; the record must be inside
+   that release. Use a representative environment and the commands in Sections
+   4.2 and 7.5 to inspect selected scopes. Compare merged values with platform
+   results; valid file syntax alone does not show compatibility.
+5. Record the independent reviewer, decision, date, and exact candidate identity.
+   Support every claimed compiler/provider pairing and node type with results.
+   Hold unsupported or unresolved selections.
+6. Keep the candidate version and results. After required checks pass, publish
+   under Section 10.2. Keep the full reviewed copy if publication uses another directory.
 
-The catalog record and its inventory are maintained independently of the
-application package release. A catalog does not contain application package
-selection or silently assign install trees, cache locations, views, module
-roots, or access permissions; those are retained deployment choices.
+Maintain the catalog and inventory separately from the application release.
+Package selection, installation and cache paths, views, module roots, and
+permissions remain recorded deployment choices.
 
-### 6.2 Select released scopes
+### 6.2 Select approved scopes
 
-Read the catalog inventory and usage record and select the exact scope paths
-it lists. A normal environment includes:
+Use the exact scope paths in the catalog record. A normal environment includes:
 
 1. common site configuration;
 2. one compiler scope;
 3. one target or platform scope;
-4. one matching MPI scope for MPI builds; and
-5. one compatible GPU scope for GPU builds.
+4. a matching MPI scope for MPI builds; and
+5. a compatible GPU scope for GPU builds.
 
-Use a version-frozen catalog release path in a reproducible environment. A site may
-publish a `current` pointer for discovery, but the environment source and
-release record must identify the resolved release directory. The published
-catalog must be readable and traversable by its approved consumer audience.
-Consumers outside the approved catalog-manager group must not have write
-access. The approved group retains management access, but no operator edits a
-released version in place. Correct the owning inputs, prepare and review a new
-catalog release, publish a new version with fresh approval metadata
-and checksums, and move the discovery pointer only after acceptance. Retain or
-retire the superseded version through the recorded release policy.
+Use the fixed path to one catalog release. A `current` pointer may help locate
+it, but record and use the actual release directory in the environment. Approved
+users must be able to read and traverse the published catalog. Only the approved
+catalog-manager group may write, and no one edits a released version in place.
 
-Use `include::` to replace inherited include-list entries with the reviewed
-list. This does not remove every other configuration scope; inspect effective
-values and scope precedence as required in Section 4.4. Use absolute paths to
-a version-frozen catalog release in a published environment. The directory
-names below illustrate one valid layout; substitute the actual paths listed
-in the selected catalog record:
+For corrections, update the owning inputs and prepare a new reviewed release.
+Publish it with new approval records and checksums before moving `current`.
+Retain or retire the old version under the recorded release policy.
+
+Use `include::` to replace inherited include-list entries. Other scopes still
+apply; inspect merged settings and precedence under Section 4.4. Published
+environments must use absolute paths to the fixed catalog release. Replace
+these example paths with those in the catalog record:
 
 ```yaml
 spack:
@@ -648,46 +611,36 @@ spack:
     - <absolute-catalog-release-root>/scopes/platform/<platform>
 ```
 
-Use the toolchain name recorded in the selected MPI scope's
-`toolchains.yaml`. A Serial environment omits the MPI scope and constrains each
-root with the selected compiler. Do not retype catalog-owned compiler, MPI,
-external prefix, or module policy in the environment.
+Use the toolchain name in the selected MPI scope's `toolchains.yaml`. A Serial
+environment omits MPI and selects a compiler for each root. Do not duplicate
+catalog-owned compiler, MPI, external-prefix, or module settings in the environment.
 
-Keep the catalog and environment tree together when a controlled workspace uses
-relative includes. Do not copy a single `spack.yaml` without the configuration
-directories it references.
+When using relative includes, keep the catalog and environment tree together;
+copying `spack.yaml` alone leaves out required configuration. Use only documented
+compiler/MPI pairings, not pairings inferred from module names or directories.
 
-Select only documented compiler and MPI pairings. Do not construct a pairing from
-module names or installed directories without catalog support.
-
-Record the exact selected scope paths in the release worksheet. Catalog
-selection passes when every selected path is present in the approved catalog
-inventory and the environment scope listing resolves those paths without an
-unapproved policy override.
+Save selected paths in the worksheet. Catalog selection passes when all paths
+are in the approved inventory and resolve without unapproved overrides.
 
 ## 7. Define the environment
 
-Define root packages in `spack.yaml`. Pin public versions and important
-variants. Use normal Spack spec syntax.
+List root packages in `spack.yaml` using Spack spec syntax. Pin published versions
+and important variants. At minimum:
 
-Minimum requirements:
+- select an explicit compiler for every root built from source;
+- disable MPI for Serial roots;
+- enable MPI and select its provider for MPI roots;
+- select the compiler, MPI provider, and GPU runtime for GPU roots;
+- keep system software external where site policy requires;
+- constrain dependency versions needed for compatibility; and
+- choose unambiguous view and module names when multiple versions are present.
 
-- every source-built root has an explicit compiler;
-- Serial roots explicitly disable MPI;
-- MPI roots explicitly enable MPI and bind the selected provider;
-- GPU roots bind the selected compiler, MPI provider, and GPU runtime;
-- system-provided components remain external when site policy requires them;
-- dependency versions that affect compatibility are constrained; and
-- views and module projections avoid ambiguous multi-version names.
-
-A package manager may use one environment or several independently
-concretized environments. Use separate environments when compiler, MPI, GPU,
-or module-conflict boundaries require them.
+Use one environment or several separately concretized environments. Separate
+them when compiler, MPI, GPU, or module conflicts require it.
 
 ### 7.1 Minimum Serial environment
 
-The following source is the minimum normal Serial pattern. Replace every
-placeholder with values from the operating record and catalog inventory:
+Replace the placeholders with values from the operating record and catalog:
 
 ```yaml
 spack:
@@ -706,13 +659,12 @@ spack:
   view: false
 ```
 
-If the package has no MPI variant, omit `~mpi`. The root must still select the
-approved compiler. Add the application-owned install, view, and module policy
-before concretization.
+Omit `~mpi` if the package has no MPI variant. Still select the approved compiler.
+Add installation, view, and module policy before concretization.
 
 ### 7.2 Minimum MPI environment
 
-The following source is the minimum normal MPI pattern:
+Use this minimum MPI pattern:
 
 ```yaml
 spack:
@@ -732,15 +684,13 @@ spack:
   view: false
 ```
 
-Read `<catalog-toolchain-name>` from the selected MPI scope's
-`toolchains.yaml`. Do not construct the name from the provider or module name.
-Add a GPU scope and the approved GPU variants only for a GPU build.
+Read `<catalog-toolchain-name>` from the MPI scope's `toolchains.yaml`; do not
+infer it from a provider or module name. Add a GPU scope and approved GPU variants
+only for a GPU build.
 
 ### 7.3 Deployment configuration
 
-The package manager or site supplies deployment paths through the reviewed
-deployment record described in Section 4.2. A minimum native Spack environment
-configuration has this form:
+Use paths from the reviewed deployment record in Section 4.2:
 
 ```yaml
 spack:
@@ -754,17 +704,15 @@ spack:
     locks: true
 ```
 
-Add view and module configuration only when the release publishes them. The
-view path and module root must be absolute, owned by the application team, and
-recorded before concretization. Configure the build-cache destination and
-signature policy independently from the source and miscellaneous caches. Do
-not take deployment paths from the static catalog. The catalog provides
-platform configuration only.
+Add views and modules only when the release publishes them. Record their
+absolute, application-owned paths before concretization. Set build-cache
+locations and signature rules separately from source and miscellaneous caches.
+Do not take deployment paths from the platform catalog.
 
-### 7.4 Ordered producer example
+### 7.4 Build dependencies in order
 
-Spack 1.2 groups and `needs` may be used to order producers and consumers in
-one environment:
+Spack 1.2 groups and `needs` can order packages that produce tools and packages
+that use them. This example orders compiler, MPI, and application builds:
 
 ```yaml
 spack:
@@ -798,29 +746,27 @@ spack:
     reuse: false
 ```
 
-The toolchain selects the compiler and MPI providers conditionally for the
-languages and virtuals each root actually uses. `needs` orders the groups and
-makes their producer hashes available; it is not a selector. The soft
-preferences remain useful defaults but are not sufficient enforcement. Resolve
-new lockfiles for this stack-built-compiler surface without concrete-spec reuse,
-then reuse identical hashes between environments through the shared install
-tree, build cache, and normal Spack locking. An external compiler surface may
-retain its established reuse policy because it has no managed producer to
-protect from an installed seed-compiler DAG.
+The toolchain chooses compiler and MPI providers for the languages and virtual
+packages each root uses. `needs` orders groups and makes earlier groups' package
+hashes available; it does not select providers. Preferences alone do not enforce
+those selections.
 
-### 7.5 Inspect the complete prepared workspace
+When the stack builds its own compiler, create new lockfiles without reusing
+existing concrete specs. Then reuse identical package hashes through the shared
+install tree, build cache, and Spack locking. This avoids carrying forward a
+dependency graph built with the initial compiler. When using an external compiler,
+the existing reuse policy may remain because the stack does not manage that compiler build.
 
-Verify the complete environment and configuration before concretization,
-whether the package manager prepared the files directly or received them from
-another authorized operator. A workspace contains one or more `spack.yaml`
-files, any existing reviewed `spack.lock` files, all referenced configuration
-files, and accessible pinned package repositories and overlays. Its retained
-operating record identifies the system, release, approved catalog, package
-intent, deployment choices, file paths and digests, repository identities, and
-operator responsibilities. No special workspace directory layout or metadata
-filename is required.
+### 7.5 Check the prepared workspace
 
-For each environment identified in that record:
+Inspect all environment and configuration files before concretization, including
+files received from another operator. The workspace needs its `spack.yaml` files,
+existing reviewed lockfiles, referenced configuration, and accessible pinned
+repositories and overlays. Its operating record identifies the system, release,
+catalog, package choices, deployment settings, paths and checksums, repository
+versions, and responsible people. No special layout or metadata filename is required.
+
+For each recorded environment, run:
 
 ```bash
 test -r "$ENVIRONMENT_ROOT/spack.yaml"
@@ -832,66 +778,57 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get modules
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get repos
 ```
 
-Every relative `include::` path must resolve inside the retained workspace or
-its associated catalog tree, and the complete referenced tree must accompany
-a transfer. Record and verify external absolute paths on the intended system.
-A lone copied `spack.yaml` is insufficient when it references other files.
-Systems unable to reach required configuration or repositories need reviewed
-local copies; resolve remote includes into reviewed local inputs before
-transfer.
+Relative `include::` paths must resolve within the saved workspace or associated
+catalog tree. Transfer that full tree. Record and verify external absolute paths
+on the destination. If remote configuration or repositories will be unreachable,
+prepare reviewed local copies before transfer.
 
-Compare merged deployment paths, access, compilers, targets, providers and
-module policy with the operating record. Verify each file's recorded identity,
-repeat inspections using the receiving builder's runtime, and confirm shared
-access before transferring responsibility. Correct the owning input and
-prepare a new candidate when configuration must change. Preserve existing
-lockfiles, build output and evidence rather than overwriting their workspace.
+Compare merged paths, access, compilers, targets, providers, and module settings
+with the record. Verify file identities and repeat the checks with the receiving
+builder's Spack installation. Confirm shared access before handoff. If configuration
+must change, correct its owning input and prepare a new candidate. Keep earlier
+lockfiles, build output, and results instead of overwriting the old workspace.
 
 <a id="procedure-local-corrections"></a>
 
 ### 7.6 Maintain local package corrections
 
-A local recipe repository allows a package manager to correct package source
-or build behavior while retaining the approved upstream package-repository
-pin. The local repository has its own recorded revision or archive digest.
-It is a controlled executable input, subject to the same admission, review,
-transfer, and retention requirements as the upstream recipes. Use Section 4.2
-first to determine whether the change belongs in configuration instead.
+A local recipe repository lets you fix build behavior while keeping the upstream
+repository pinned. Record the local repository's own revision or archive checksum.
+Its recipes are executable inputs, so they need the same approval, review,
+transfer, and retention checks as upstream recipes. First use Section 4.2 to
+check whether the fix belongs in configuration.
 
-![Local correction lifecycle showing diagnosis, selection of configuration or recipe changes, separate versioning, affected-lock assessment, candidate validation, and independent acceptance while the upstream repository stays pinned.](word-documents/figures/local-correction-lifecycle.png)
+![Local correction steps from diagnosing the failure and choosing the right configuration or recipe change to reviewing affected lockfiles, testing, and independent approval.](word-documents/figures/local-correction-lifecycle.png)
 
-Figure 2. Local package correction lifecycle. A correction has its own recorded identity; the review follows every environment that consumes it. Sections 7.6.1 through 7.6.5 define the detailed steps.
+Figure 2. Local package corrections. Record each correction's version and check every environment that uses it. Sections 7.6.1 through 7.6.5 give the steps.
 
-For an unqualified package name, Spack selects the recipe from the first
-configured repository that provides it. Spack does not merge `package.py`
-files. A local recipe may explicitly inherit the pinned upstream package class
-and add a scoped patch or override. Inheritance must preserve the recipe's
-existing behavior, including any recipe-specific builder class. A complete
-replacement requires review of the behavior it replaces. See
+For an unqualified package name, Spack uses the first configured repository that
+contains it. It does not merge `package.py` files. A local recipe can explicitly
+inherit the pinned upstream package class and add a limited patch or override.
+Preserve existing behavior, including any recipe-specific builder class. If you
+replace a recipe completely, review the behavior being replaced. See
 [Spack repositories and recipe inheritance](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/repositories.rst).
 
-#### 7.6.1 Record the correction and its scope
+#### 7.6.1 Record the failure and proposed fix
 
-Retain the failing command and log, exact package/compiler versions, variants,
-target, affected environment and concrete hash, pinned upstream recipe and
-repository identity, and existing local recipe/patch files. Identify the
-demonstrated cause before choosing the correction layer. When adapting a newer
-upstream fix, retain its exact revision and check compatibility with the pinned
-recipe and package source; adopting that fix does not require changing the
-whole upstream repository pin.
+Keep the failing command and log, package and compiler versions, variants, target,
+environment, package hash, upstream recipe/repository revision, and existing local
+files. Identify the cause before choosing where to fix it. If adapting an upstream
+fix, record its exact revision and check it against the pinned recipe and source.
+The fix need not change the full upstream repository pin.
 
-Obtain a complete updated local `package.py` and every referenced patch or
-helper file, with a diff and proposed validation. Preserve existing local fixes
-that still apply. Limit the change by package version, compiler/version,
-variant, platform, or target where the evidence supports that condition.
-Record why the selected scope is sufficient. The authoring method does not
-change the required review.
+Prepare the complete updated `package.py`, all referenced patches and helpers,
+a diff, and a test plan. Keep existing local fixes that still apply. Limit the
+new fix to the package and compiler versions, variant, platform, or target supported by the
+failure evidence, and explain that choice. The same review applies regardless
+of how the files were written.
 
 #### 7.6.2 Select or create the local repository
 
-Use an existing approved local repository when one already owns the package
-correction. For a new repository, choose a managed location and namespace,
-record its ownership/access policy under Section 4, and initialize it once:
+Use the approved repository that already holds this package's corrections. For
+a new repository, choose a managed path and namespace, record ownership and
+access under Section 4, and initialize it once:
 
 ```bash
 export LOCAL_REPO_PROJECT="<absolute-new-local-repository-project>"
@@ -901,10 +838,10 @@ export LOCAL_REPO_ROOT="$LOCAL_REPO_PROJECT/spack_repo/local_overlay"
 test -r "$LOCAL_REPO_ROOT/repo.yaml"
 ```
 
-Spack 1.2.2 creates an API v2 repository. Verify the printed path, namespace,
-and API in `repo.yaml`. For an existing repository, set `LOCAL_REPO_ROOT` to
-the directory containing its `repo.yaml` and retain its approved namespace;
-do not run the initialization command over it. The default package layout is:
+Spack 1.2.2 creates a repository using version 2 of its application programming
+interface (API). Verify the reported path, namespace, and API version in
+`repo.yaml`. For an existing repository, set `LOCAL_REPO_ROOT` to the directory
+containing `repo.yaml`, retain its namespace, and skip initialization. The default layout is:
 
 ```text
 <local-repository-root>/
@@ -915,44 +852,38 @@ do not run the initialization command over it. The default package layout is:
       <referenced-local-patch-or-helper-files>
 ```
 
-Use the API v2 Python module spelling from the pinned recipe; for example,
-`netlib-lapack` uses the directory `netlib_lapack`. The repository and the
-environment may be in separately recorded locations. No generator, wrapper,
-or prescribed workspace layout is required.
+Use the pinned recipe's API v2 Python module spelling: for example,
+`netlib-lapack` uses `netlib_lapack`. Record the repository and environment paths;
+they need not share a directory. No generator or wrapper is required.
 
 #### 7.6.3 Place and register the reviewed files
 
-Coordinate with all builders using the affected repository. Preserve the
-original recipe files, effective configuration, and each affected lock before
-changing candidate inputs. Keep accepted release inputs immutable; prepare a
-new candidate repository revision or snapshot for a correction.
+Coordinate with other builders using the repository. Before making changes,
+keep the original recipes, merged configuration, and affected lockfiles. Do not
+change accepted release inputs; create a new repository revision or snapshot.
 
-Review the candidate under Section 8.1, then place the complete local recipe
-and its explicitly listed supporting files in the matching package directory.
-A patch file must be referenced by the recipe. Check file completeness and
-group access before use; do not continue from a partial copy. Record the local
-repository commit or archive digest. Do not edit the cached upstream tree.
+Review under Section 8.1, then copy the complete recipe and listed supporting
+files into its package directory. Recipes must reference their patch files.
+Check completeness and group access before use. Record the commit or archive
+checksum. Do not edit the cached upstream repository.
 
-Select the local repository in the candidate environment's reviewed `repos`
-configuration. For the example namespace above, add this mapping under the
-existing `spack:` section of `spack.yaml`:
+Add the local repository to the candidate environment's reviewed `repos`
+configuration. For the example above, add this under the existing `spack:` section:
 
 ```yaml
   repos:
     local_overlay: <absolute-local-repository-root-containing-repo.yaml>
 ```
 
-Merge this entry into the existing configuration rather than creating a second
-`repos` key. Retain every approved upstream repository entry and its exact pin
-in its owning scope. Verify that the effective order puts the local repository
-before the upstream repository for the affected package. Do not use an
-unrecorded user-level `spack repo add` as a substitute for retained environment
-configuration. The operator records actual paths in Section 3.
+Add to the existing mapping; do not create a second `repos` key. Keep every
+approved upstream entry and exact pin in its owning scope. Verify that the local
+repository comes first for the affected package. Save configuration and actual
+paths under Section 3; an unrecorded user-level `spack repo add` is insufficient.
 
-#### 7.6.4 Verify selection and the proposed correction
+#### 7.6.4 Check recipe selection and the fix
 
-After reviewing the executable recipe inputs, select the actual package and
-inspect repository order and the recipe path without running the solver:
+After reviewing executable recipe inputs, inspect the selected package's
+repository order and recipe path without running the solver:
 
 ```bash
 export PACKAGE_NAME="<affected-spack-package-name>"
@@ -965,28 +896,28 @@ cls = spack.repo.PATH.get_pkg_class(os.environ["PACKAGE_NAME"])
 print(inspect.getfile(cls))'
 ```
 
-Both paths must identify the intended local recipe. Stop on an unexpected
-repository, import error, or incompatible builder behavior. These checks do
-not update an old lockfile. Do not use an abstract `spack spec` query as a
-recipe-location check; it may solve a new graph. Inspect an upstream recipe
-through its explicitly resolved repository root when comparing the baseline.
+Both paths must point to the intended local recipe. Stop for an unexpected
+repository, import error, or incompatible builder behavior. These checks do not
+change existing lockfiles. Do not use an abstract `spack spec` query for this check;
+it may resolve a new dependency graph. Read the upstream recipe from its verified
+repository path when comparing the original version.
 
-Check source patches against a disposable copy of the exact pinned source in
-their intended application order. Retain the original reproducer and verify
-that the corrected case passes, including an unaffected case where applicable.
-Full Spack build and runtime acceptance follow the reviewed lock update below.
+Test patches on a disposable copy of the exact pinned source, in their intended
+order. Keep the original failure test and show that it passes after correction.
+Test an unaffected case where applicable. Full build and runtime tests follow
+the lockfile review below.
 
-#### 7.6.5 Review the affected locks and validate the candidate
+#### 7.6.5 Update affected lockfiles and test
 
-Changing recipe files does not update concrete identities already retained in
-`spack.lock`. Identify affected environments and dependent packages; a
-compiler-specific condition alone does not prove other hashes are unchanged.
-Preserve the prior locks and full concrete listings in the release record.
+Changing a recipe does not update package identities already in `spack.lock`.
+Identify all affected environments and dependent packages. A compiler-specific
+condition does not prove other hashes stay unchanged. Keep prior lockfiles and
+full package listings.
 
-For a new candidate without a lock, continue with Section 8. If the corrected
-candidate already has a lock, recover one affected environment at a time after
-impact review. The following command permits replacing its concrete entries
-and disables installed/build-cache reuse during that solve:
+For a candidate without a lockfile, continue to Section 8. For an existing lockfile,
+review the impact and update one affected environment at a time. This command
+allows replacement of locked entries and disables installed/build-cache reuse
+during concretization:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" \
@@ -995,32 +926,31 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" \
   find -c -d -L -N -v
 ```
 
-Require a successful solve before continuing. `-f` permits replacing existing
-concrete entries; `--fresh` controls reuse and does not force source compilation
-during installation. This solve can change additional nodes, so compare the
-complete graph with the saved baseline. Confirm the expected recipe namespace,
-corrected package identity, and dependent hashes; resolve every unexplained
-change before building. A narrower reuse policy may be used when its impact is
-reviewed, but must not reuse the defective package or dependent graphs carrying
-it. Never force this operation across accepted releases or delete installed
-prefixes to make a correction appear effective. See
+Continue only after a successful solve. `-f` permits replacing existing entries;
+`--fresh` controls reuse during concretization, not whether installation builds
+from source. Compare the entire dependency graph with the saved version because
+other packages may change. Check the recipe namespace, corrected package, and
+dependent hashes. Resolve unexplained changes before building.
+
+A narrower reuse policy is allowed after impact review, but it must not reuse
+the defective package or dependency graphs containing it. Never force this
+operation across accepted releases or delete installed packages to make a fix
+appear effective. See
 [Spack concretization options](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/cmd/common/arguments.py).
 
-Repeat Section 8's graph assessment and Section 9's source admission, build,
-and validation for the affected candidate. A changed lock can require sources,
-resources, or patches absent from a restricted system; acquire and transfer
-any missing inputs through Sections 9.1 and 9.2. Retain the failing and passing
-reproducer results, required binary/runtime checks, and independent review.
-Signing and publication follow Section 10.
+Repeat Section 8's dependency review and Section 9's source approval, build,
+and tests. If a changed lockfile needs missing sources, resources, or patches,
+acquire and transfer them under Sections 9.1 and 9.2. Keep failing and passing
+test results, required binary/runtime checks, and independent review. Sign and
+publish under Section 10.
 
-Retain the validated local repository revision with the release and make it
-available to its authorized builders. On a later planned upstream baseline
-update, check whether upstream provides an equivalent correction. Remove a
-redundant local change only through a new reviewed and validated candidate.
+Keep the tested local repository revision with the release and make it available
+to authorized builders. At a later upstream update, check for an equivalent
+upstream fix. Remove a redundant local fix only through a new reviewed and tested candidate.
 
 ## 8. Concretize and review
 
-Concretize and retain the generated lockfile:
+Resolve the requested packages and keep the resulting lockfile:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" concretize --fresh
@@ -1028,105 +958,92 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" find -c -d -l -v
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" find -c -d -e -l -v
 ```
 
-The first `find` shows the complete concrete DAG, including specs not yet
-installed. The second filters that DAG to externals.
-
-Review at least:
+The first `find` lists all resolved packages and dependencies, including those
+not installed. The second lists only externals. Review:
 
 - root versions and variants;
-- compiler selection;
+- compiler choice;
 - MPI and GPU providers;
-- external package modules and prefixes;
+- external modules and installation prefixes;
 - CPU target;
 - dependency versions and hashes;
-- the absence of MPI from Serial builds; and
-- the absence of unapproved providers or configuration.
+- no MPI in Serial builds; and
+- no unapproved providers or configuration.
 
-Do not edit `spack.lock`. Correct the environment or selected catalog scopes
-and concretize again. For a correction to an already locked candidate, follow
-Section 7.6.5's controlled lock update; plain `concretize --fresh` preserves
-existing concrete entries.
+Do not edit `spack.lock` by hand. Correct the environment or catalog selections
+and concretize again. For an already locked candidate, use Section 7.6.5;
+plain `concretize --fresh` preserves existing locked entries.
 
-Concretization passes only when `spack.lock` exists, every root matches the
-approved intent, all providers and externals come from approved scopes, and the
-complete dependency closure is covered by the admission assessment below.
-Save the two `find` listings with the release evidence. A recorded automated
-assessment with risk-based human review can cover unchanged transitive inputs;
-individual manual approval of each dependency is not required by this SOP.
+This step passes when a lockfile exists, each root matches the approved request,
+providers and externals come from approved scopes, and all dependencies are
+covered by the review below. Save both `find` listings. Recorded automated checks
+with risk-based human review may cover unchanged dependencies; manual approval
+of every package is not required.
 
 <a id="procedure-review"></a>
 
-### 8.1 Assess package changes and record the two-person review
+### 8.1 Review package changes with a second person
 
-1. **Establish the baseline.** Inventory the complete locked dependency
-   closure, including repositories and imported recipe helpers, patches,
-   source resources, bootstrap/build tools and system externals. On the first
-   release, record repository provenance, pinned identities, available upstream
-   assurance, scan coverage and risk criteria. There is no previous baseline
-   to inherit, but this still does not require reading every package line by
-   line.
-2. **Assess later changes.** Compare the candidate against the last accepted
-   lockfiles, recipe-repository commits and external inventory. Retain the
-   added, removed and changed packages and inputs. Record the approved
-   repository baseline supporting unchanged components. Include common helper
-   changes that affect reachable recipes, not only changed package files.
-3. **Focus manual review.** Inspect team-authored or locally modified recipes
-   and patches, changed download locations or checksum/commit rules,
-   custom hooks and undeclared build-time downloads, security-sensitive
-   components, new providers, and material scanner findings. Select newly
-   introduced third-party recipes for manual review by provenance and risk;
-   do not turn repository updates into a blanket manual review of thousands of
-   unchanged packages. Record why deeper review was or was not needed for the
-   assessed change groups.
-4. **Apply the configured checks.** Run the site's approved source, recipe,
-   dependency and binary checks at their appropriate intake/build stages.
-   Record tools, rule or advisory versions, time, scope, result, and any
-   coverage gap. Spack checksums, `spack audit` and SBOM generation are not a
-   substitute for vulnerability matching. Disposition findings or route them
-   to Section 12 before proceeding past the affected gate.
-5. **Have the other person review.** The builder supplies the assessment and
-   locked candidate. The reviewer checks the selected baseline and deltas,
-   manual-review triggers, graph/provider decisions and dispositions. After
-   Section 9, the same review record covers build/test/scan evidence, expected
-   release hashes and publication readiness. A review may be staged, but its
-   final approval must bind the exact candidate and evidence digests.
-6. **Record and enforce the decision.** Retain builder and reviewer names,
-   dates, candidate/lockfile identities, scope checked, findings, disposition
-   (`accepted`, `changes required`, or `held`) and release authority. Evidence
-   changed after review returns to the reviewer. Signing and publication require
-   the completed independent review.
+1. **Record the starting point.** Inventory all locked packages and dependencies, repositories,
+   imported recipe helpers, patches, source resources, bootstrap and build tools,
+   and system externals. For the first release, record repository origins,
+   pinned versions, available upstream checks, scan coverage, and risk criteria.
+   There is no previous approval to reuse, but line-by-line review of every
+   package is still not required.
+2. **Compare later changes.** Compare with the last accepted lockfiles, repository
+   commits, and external inventory. Keep the list of added, removed, and changed
+   inputs. Identify the approved repository version supporting unchanged
+   packages. Include shared helper changes that affect used recipes.
+3. **Focus manual review.** Review local recipes and patches, changed download
+   locations or checksum/commit rules, custom hooks, undeclared downloads during
+   builds, security-sensitive packages, new providers, and significant scan
+   findings. Select new third-party recipes for review based on source and risk.
+   Explain which groups of changes needed deeper review and why. A repository
+   update does not require rereading thousands of unchanged packages.
+4. **Run required checks.** Use the site's source, recipe, dependency, and binary
+   checks at the appropriate acquisition or build step. Record tools, rule or
+   advisory versions, time, coverage, results, and gaps. A **software bill of
+   materials (SBOM)** lists software components and dependencies. Producing an
+   SBOM, checking Spack checksums, or running `spack audit` does not replace
+   matching components against known vulnerabilities. Resolve findings or
+   escalate them under Section 12 before continuing past the affected check.
+5. **Obtain independent review.** The builder supplies the assessment and locked
+   candidate. The reviewer checks the starting point, changes, manual-review
+   choices, dependencies, providers, and decisions on findings. After Section 9,
+   add build, test, and scan results, expected release hashes, and readiness to
+   publish to the same review record. Review may happen in stages; final approval
+   must identify the exact candidate and the checksums of both its files and the reviewed records.
+6. **Save and follow the decision.** Record builder and reviewer names, dates,
+   candidate and lockfile identities, scope, findings, decision (`accepted`,
+   `changes required`, or `held`), and release authority. Return any changed review evidence
+   to the reviewer. Complete independent review before signing and publication.
 
-This is one auditable release assessment covering the complete inventory, with
-deeper manual inspection driven by change and risk. The team's approved policy
-may require additional review for named components or system conditions.
+Use one release assessment for the full inventory, with deeper review based on
+change and risk. Team policy may require extra review for particular components
+or system conditions.
 
 ## 9. Build and validate
 
 <a id="procedure-source-mirrors"></a>
 
-### 9.1 Create and verify source mirrors at controlled intake
+### 9.1 Create and check source mirrors
 
-Use an approved intake system with the necessary network access to acquire the
-reviewed inputs. This serves systems that cannot directly retrieve every
-required source archive or supporting input, whether external access is partly
-restricted or absent. Prepare the destination's reviewed platform configuration
-and lockfiles before acquisition; the intake host does not silently substitute its
-own compiler, target or external package choices.
+Use an approved system with enough network access to collect the reviewed
+inputs. First prepare the destination's reviewed platform configuration and
+lockfiles. The collection system must not silently substitute its compiler, target
+or external packages.
 
-For login and compute nodes sharing the same source cache, fetch the complete
-locked dependency closure:
+For login and compute nodes sharing a source cache, fetch all locked packages
+and dependencies:
 
 ```bash
 test -f "$ENVIRONMENT_ROOT/spack.lock"
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" fetch -D
 ```
 
-The later install may run on a different node when it uses the same workspace,
-source cache, install tree, Spack version, and lockfile. A populated local
-source cache alone is not the transfer artifact for another network.
-
-Create a dedicated transportable source mirror for every locked environment
-that the destination will use:
+Installation may run on another node using the same workspace, source cache,
+install tree, Spack version and lockfile. To move sources to another network,
+create a separate source mirror for every locked destination environment:
 
 ```bash
 export SOURCE_MIRROR_ROOT="<absolute-release-source-mirror>"
@@ -1137,24 +1054,24 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" mirror create \
   --all --directory "$SOURCE_MIRROR_ROOT"
 ```
 
-In Spack 1.2.2, `--all` with an active concrete environment selects that
-environment's concrete roots and dependencies; it does not mirror every recipe
-in the repository. Repeat for all release environments into the same reviewed
-release mirror. Inspect the mirror command's missing/failed-fetch report and
-record completeness against all retained lockfiles. Externals are not fetched.
+In Spack 1.2.2, `--all` in an active concrete environment selects its roots and
+dependencies, not every repository recipe. Repeat for all release environments
+in the same reviewed mirror. Check the report for missing sources or failed downloads against every
+retained lockfile and record whether the mirror is complete. Externals are not
+fetched.
 ([Spack mirror procedure](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/mirrors.rst#L142-L195))
 
-Retain source archives, package resources and patches with their acquisition
-locations, recipe identities and checksums. Use full immutable commits for VCS
-inputs. For a VCS source converted to a mirror archive, independently record
-how the archive was produced from the reviewed commit and retain its digest:
-Spack 1.2.2 cannot apply an ordinary recipe archive checksum to that generated
-tar file. Stop for unrecorded downloads or checksum failures; do not suppress
-verification to complete the mirror.
-([Spack VCS mirror verification](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/stage.py#L669-L685))
+Retain archives, resources and patches with their download locations, recipe
+identities and checksums. Pin sources from version control to full, immutable
+commits. For a mirror archive made from such a source, separately record how it
+was produced from the reviewed commit and retain its digest. Spack 1.2.2 cannot
+check that generated tar file against an ordinary recipe archive checksum.
+Stop for unrecorded downloads or checksum failures; never disable verification
+to finish the mirror.
+([Spack version-control mirror verification](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/stage.py#L669-L685))
 
-Run the approved intake checks and record their disposition before admitting
-the mirror. Register an admitted source mirror in the owned environment:
+Complete the approved intake checks and record the decision before approving
+the mirror. Register it in the environment you manage:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" mirror add \
@@ -1164,101 +1081,93 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" mirror list
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get mirrors
 ```
 
-This changes the environment's mirror configuration; retain and review that
-configuration with the candidate before use. If the name is already configured,
-verify its value and use the reviewed configuration update process instead of
-adding a duplicate. A source mirror is not a binary build cache. Registration
-also does not prevent fallback to original URLs: enforce the required network
-restriction outside Spack and treat an attempted fallback as a failed gate.
+Retain and review this mirror configuration with the candidate before use. If
+the name already exists, check its value and use the reviewed update process.
+A source mirror contains sources, not binary packages. Adding it does not stop
+Spack from trying the original download locations. Enforce network restrictions
+outside Spack; an attempted fallback fails this check.
 
 <a id="procedure-disconnected-transfer"></a>
 
 ### 9.2 Transfer to a system with limited or no external network access
 
-Use this sequence when the destination cannot directly obtain all required
-source tarballs or other build inputs. It applies even when the system can
-reach some Internet or internal-network resources, and also covers fully
-air-gapped systems. Where a classified or other controlled boundary is involved,
-the site's authorized transfer process supplies handling, scanning, release and
-import permission. This SOP does not authorize a transfer or select removable
-media or a cross-domain mechanism. Record the applicable authorization and
-destination owner before assembling the bundle.
+Follow this sequence when the destination cannot obtain all sources or build
+inputs directly, including partially connected and fully air-gapped systems.
+For classified or other controlled boundaries, follow the site's authorized
+handling, scanning, release and import process. This SOP does not grant transfer
+permission or choose media or a method for crossing that boundary. Record the
+authorization and destination owner before assembling the bundle.
 
 ![Restricted-network transfer from destination requirements to controlled acquisition and approved transfer, followed by destination verification and either source building or compatible signed-cache installation.](word-documents/figures/restricted-network-transfer.png)
 
-Figure 3. Transfer and destination acceptance. The destination defines the required inputs and retains its own acceptance evidence. Missing inputs return to controlled acquisition; signed binary delivery requires prior producer validation, review, and signing.
+Figure 3. Transfer and destination checks. The destination defines its inputs and keeps its own acceptance results. Collect missing inputs through the approved process. Binary packages must pass producer validation, review and signing before transfer.
 
-#### 9.2.1 Select the destination execution mode
+#### 9.2.1 Choose source building or binary installation
 
 | Mode | Required destination evidence | Next action |
 |---|---|---|
-| Build from admitted sources | Destination-specific catalog, locked graph, approved compilers/providers/externals and complete sources/tools | Build a restricted destination candidate from the local source mirror, then validate, review, sign and publish through the normal gates |
-| Install approved signed binaries | Approved release hashes and keys, compatible target/OS/ABI/providers/externals, supported relocation paths and complete signed cache | Install cache-only into a controlled destination candidate store, run local acceptance, then approve destination publication |
+| Build from approved sources | Use the destination catalog and lockfile, approved compilers, providers and externals, and a complete set of sources and tools. | Build from the local mirror under network restrictions. Then validate, review, sign and publish. |
+| Install approved signed binaries | Confirm hardware, operating system, binary interfaces, providers and externals are compatible. Retain approved hashes and keys, supported relocation paths and the complete signed cache. | Install from cache only into a controlled candidate store. Run local checks, then approve destination publication. |
 
-For source delivery, complete source intake in Section 9.1, transfer and receive
-under Sections 9.2.2–9.2.3, then finish destination validation in Section 9.3
-and publication in Section 10. For binary delivery, the producer first completes
-Section 9.3 build/validation, independent review and Section 10.1 signing. An
-existing accepted cache may supply that producer record. Only then assemble and
-receive the signed-cache bundle under Sections 9.2.2–9.2.3. The destination
-verifies and retains the producer's signatures and signing record, completes
-local acceptance, and follows the remaining applicable Section 10 publication
-gates. Record separate producer and destination dispositions.
+For sources, complete Section 9.1, transfer under Sections 9.2.2–9.2.3, validate
+under Section 9.3 and publish under Section 10. For binaries, the producer must
+first complete Section 9.3, independent review and Section 10.1 signing; an
+existing accepted cache may supply this record. Only then assemble and transfer
+the signed cache under Sections 9.2.2–9.2.3.
+The destination verifies and retains the producer's signatures and signing
+record, completes local checks and follows the remaining Section 10 publication
+requirements. Record separate producer and destination decisions.
 
-Sister systems are a useful starting point for comparison, not evidence of
-binary compatibility. Compare CPU target/features, OS and libc/runtime ABI,
-compiler runtime, MPI/fabric/launcher and GPU identities, external versions and
-prefixes, and install-prefix relocation limits. Have the platform owner record
-the result. A compatible name or identical Spack hash alone is insufficient.
-An incompatible or uncertain binary goes to the source-build branch, with a
-new destination candidate and any revised lockfile reviewed before transfer.
-Neither a rebuild nor a transferred binary bypasses destination acceptance.
+Similar systems still need a compatibility check. Compare processor targets and features,
+operating system, system C library and application binary interface (ABI),
+compiler runtime, MPI, network fabric, launcher and GPU identities, external versions and
+paths, and limits on moving installation paths. The platform owner records the
+result. A matching name or Spack hash alone does not prove compatibility. If
+compatibility fails or is uncertain, use source building with a new destination
+candidate; review it and any revised lockfile before transfer. Both modes require
+destination acceptance.
 
-#### 9.2.2 Assemble and verify the complete bundle at origin
+#### 9.2.2 Assemble and check the bundle before transfer
 
-1. Populate a dedicated release bundle for the selected execution mode: the
-   admitted source mirror for destination source builds, the approved signed
-   build cache for binary-only installs, or both when the delivery deliberately
-   supports both modes. Section 10.1 creates the signed cache. Preserve its
-   entire mirror root, index/manifests, signatures and content blobs. Do not
-   copy only package archives or only the index.
+1. Use a dedicated release bundle. Include the approved source mirror for source
+   builds, the signed cache from Section 10.1 for binary-only installs, or both
+   if both modes are intended. Copy the whole binary mirror: root, index,
+   manifests, signatures and content blobs, not just archives or the index.
 2. Include the complete destination workspace, catalog snapshot and relative
-   configuration tree; all `spack.yaml` and unedited `spack.lock` files;
-   pinned Spack runtime and package repositories/overlays; patches/resources;
-   release records; and approval, scan, inventory and test evidence.
-3. Include or separately pre-provision the exact admitted Python, bootstrap
-   prerequisites, compilers, build tools and other runtime requirements.
-   Package mirrors exclude system externals; retain their separate inventory
-   and verify destination availability. A source mirror is not a complete
-   Spack/bootstrap installation.
-4. When bootstrap acquisition is needed, prepare a dedicated mirror on a
-   compatible connected system:
+   configuration tree; every `spack.yaml` and unchanged `spack.lock`; pinned
+   Spack, package repositories and overlays; patches and resources; release records;
+   and approval, scan, inventory and test evidence.
+3. Include or preinstall at destination the exact approved Python, bootstrap tools,
+   compilers, build tools and runtime requirements. Mirrors exclude system
+   externals: retain their inventory and verify destination availability. A
+   source mirror does not supply the complete installation of Spack and its supporting tools.
+4. If bootstrap tools must be collected, create their mirror on a compatible
+   connected system:
 
 ```bash
 export BOOTSTRAP_ROOT="<absolute-release-bootstrap-bundle>"
 spack -C "$BOOTSTRAP_CONFIG_DIR" bootstrap mirror --binary-packages "$BOOTSTRAP_ROOT"
 ```
 
-Retain the generated source/binary metadata, bootstrap cache and emitted setup
-instructions. Review and admit their provenance/digests and destination
-architecture/runtime compatibility separately from the ordinary signed package
-cache. Bootstrap metadata trust is a separate decision; it does not inherit
-approval from a normal build-cache signature. Destination bootstrap
-configuration follows Section 4.5; do not modify the pinned Spack checkout or rely
-on an ambient user configuration disabled by this SOP.
+Retain its source and binary metadata, bootstrap cache and setup instructions.
+Separately review and approve their origins, digests and destination
+architecture and runtime compatibility. Bootstrap metadata needs its own trust
+decision; an ordinary build-cache signature does not approve it. Follow Section
+4.5 for destination bootstrap configuration. Do not change the pinned Spack
+checkout or rely on user configuration disabled by this SOP.
 ([Spack bootstrap mirrors](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/bootstrapping.rst#L148-L173))
 
-5. Retain a bundle manifest listing origin/destination, release IDs, workspace
-   and lockfile identities, repository/runtime identities, source and binary
-   inventories, source-archive digests, expected signing fingerprints, bootstrap
-   inputs, external requirements, execution mode and transfer authorization.
-   Keep private keys, credentials and another builder's mutable state out.
-6. Check that relative includes and mirror symlinks remain inside the bundle,
-   no required link refers to an origin-only absolute path, and the archive will
-   extract without replacing unrelated destination files. Preserve the complete
-   directory structure and links. Freeze the assembled input before packaging.
-7. Create and verify a digest for the transfer archive. For example, after the
-   site-approved assembly has populated a dedicated bundle directory:
+5. Retain a bundle manifest: origin and destination, release identifiers, workspace
+   and lockfile identities, repository and runtime identities, source and binary
+   inventories, source-archive digests, expected signing fingerprints, bootstrap inputs,
+   external requirements, selected mode and transfer authorization. Exclude
+   private keys, credentials and another builder's working state.
+6. Keep relative includes and mirror links inside the bundle. No required link
+   may point to an absolute path available only at origin. Ensure extraction
+   will not replace unrelated destination files. Preserve the directory
+   structure and links, and freeze the inputs before packaging.
+7. Create and verify the archive digest. After the approved assembly process
+   fills a dedicated bundle directory, for example:
 
 ```bash
 export TRANSFER_BUNDLE_ROOT="<absolute-complete-transfer-bundle>"
@@ -1273,18 +1182,17 @@ export TRANSFER_OUTPUT_ROOT="<absolute-transfer-output-parent>"
 )
 ```
 
-Use a fresh output directory outside the bundle tree for each transfer. Bind
-that digest and manifest to the reviewed transfer record through the site's
-authenticated record or signature mechanism. A checksum file accompanying
-arbitrary bytes alone does
-not establish origin approval. The reviewer checks completeness, findings and
-the exact bundle digest before the authorized transfer process begins.
+Use a fresh output directory outside the bundle for each transfer. Connect the
+digest and manifest to the reviewed transfer record through the site's
+authenticated record or signature process. An accompanying checksum alone does
+not prove who approved the files. Before transfer, the reviewer checks
+completeness, findings and the exact bundle digest.
 
-#### 9.2.3 Verify, configure and accept at destination
+#### 9.2.3 Receive, check and configure the bundle
 
-1. Receive into the approved intake area. Complete local import checks and
-   compare the archive digest to the independently authenticated origin record
-   before extracting. Retain both origin and destination results:
+1. Receive the archive in the approved intake area. Complete import checks and
+   compare its digest with the independently authenticated origin record before
+   extraction. Retain both sites' results:
 
 ```bash
 export RECEIVED_ARCHIVE_ROOT="<absolute-received-archive-parent>"
@@ -1300,16 +1208,15 @@ export RECEIVE_ROOT="<absolute-new-destination-bundle-directory>"
 )
 ```
 
-2. Check the extracted bundle against its manifest and provision the approved
-   destination-local bootstrap configuration from Section 4.5. Repeat runtime,
-   repository, configuration, local external and scope checks from Sections
-   4–7. Keep the complete workspace and relative `include::` paths intact.
-   Configure approved local repository and deployment paths before use and
-   retain the reviewed destination configuration delta. If the dependency or
-   platform identity must change, stop and create a new candidate; do not
+2. Check the extracted files against the manifest. Set up the approved local
+   bootstrap configuration from Section 4.5 and repeat the runtime, repository,
+   configuration, external and scope checks in Sections 4–7. Keep the workspace
+   and relative `include::` paths intact. Configure approved local repository
+   and deployment paths before use; retain the reviewed changes. If a dependency
+   or platform identity must change, stop and create a new candidate. Do not
    silently reconcretize during import.
-3. Configure only admitted destination-local mirrors in the effective
-   environment. A reviewed inline replacement has this shape:
+3. Configure only approved destination-local mirrors in the effective
+   environment. A reviewed inline replacement looks like this:
 
 ```yaml
 spack:
@@ -1325,31 +1232,27 @@ spack:
       signed: true
 ```
 
-Omit either mirror entry when that mirror is not part of the admitted delivery.
-Retain the rest of the reviewed environment unchanged; this is a configuration
-fragment, not a new
-environment source. Inspect local repositories and bootstrap configuration,
-and verify the effective settings:
+Omit a mirror entry if it is not part of the approved delivery. This fragment
+changes only the mirrors; retain the rest of the reviewed environment. Inspect
+local repositories and bootstrap configuration, then verify effective settings:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get mirrors
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config scopes -vp
 ```
 
-Import only a public release key whose full fingerprint matches the
-independently approved record, using Section 10.1. A key found in the transfer
-bundle or mirror does not establish trust by its presence.
+Import a public release key only after its full fingerprint matches the
+independently approved record, following Section 10.1. Finding a key in the
+bundle or mirror does not establish trust.
 
-4. Have the platform owner enforce and record denial of outbound access to
-   nonapproved networks for fetch, bootstrap, build and installation. Verify
-   that restriction with the site's approved test. Mirrors alone do not disable
-   Spack's origin fallback or downloads initiated by package build scripts.
-   Missing sources, tools, cache objects or keys stop the run and return to
-   controlled intake for a reviewed supplemental bundle; do not temporarily
-   restore Internet access or bypass integrity/signature checks.
-5. For the source-build mode, fetch from the local mirror into the approved
-   destination source cache and install the existing concrete graph in the
-   restricted candidate area:
+4. The platform owner must enforce and record blocked outbound access to unapproved
+   networks during fetch, bootstrap, build and installation, then verify it with
+   the site's approved test. Mirrors do not prevent fallback downloads or
+   downloads started by build scripts. Missing sources, tools, cache objects or
+   keys stop the run. Collect a reviewed supplemental bundle through controlled
+   intake; do not restore Internet access or bypass integrity or signature checks.
+5. For source builds, fetch into the approved local source cache and install the
+   locked packages in the restricted candidate area:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" fetch -D
@@ -1357,15 +1260,14 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" install \
   --only-concrete --use-buildcache=never --fail-fast
 ```
 
-`--use-buildcache=never` disables binary-cache use; it can still reuse existing
-or upstream installations and declared externals. Use a clean or dedicated
-controlled store with no unapproved upstream store and separately admitted
-externals. Record and accept any intentionally reused installations. Record
-which packages were actually rebuilt; claim source reconstruction only for
-those outputs.
+`--use-buildcache=never` blocks binary-cache use but can reuse existing or upstream
+installations and declared externals. Use a clean or dedicated controlled store,
+no unapproved upstream store, and separately approved externals. Record and
+accept intended reuse. Record which packages were rebuilt; claim source
+reconstruction only for those outputs.
 
-For the binary mode, verify mirror consistency and install the approved hashes
-cache-only into the controlled destination candidate environment/store:
+For binaries, check mirror consistency and install approved hashes from cache
+only into the controlled candidate environment and store at destination:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" buildcache check-index --verify all <local-approved-binary-mirror>
@@ -1373,40 +1275,37 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" install \
   --only-concrete --use-buildcache=only --fail-fast
 ```
 
-The binary mode uses the same clean/controlled store, signature and external
-admission requirements as Section 10.3. A cache miss or relocation failure is a
-held candidate, not permission to build from source in that store.
+Apply Section 10.3's requirements for clean or controlled stores, signatures
+and external approvals. A cache miss or relocation failure holds the candidate; it does
+not permit source building in that store.
 
-6. Run Section 9.3 on destination login and compute nodes, including scheduler,
-   MPI/fabric, GPU and module tests when applicable. Retain local SBOM and
-   external evidence and obtain independent review. A destination source build
-   produces a new candidate artifact even when concrete hashes match the
-   origin; sign its accepted outputs through the authorized destination release
-   process. Complete Section 10 before user exposure.
+6. Run Section 9.3 on destination login and compute nodes, including applicable
+   scheduler, MPI, network fabric, GPU and module tests. Retain local SBOM and external
+   evidence and obtain independent review. A destination source build creates
+   new outputs even if its concrete hashes match the origin. Sign accepted
+   outputs through the authorized destination release process. Complete Section
+   10 before making the release available to users.
 
-The transfer gate passes only when authenticated origin identity, received
-digests, intake disposition, complete local inputs, enforced connectivity
-bounds and destination compatibility are recorded. The release gate additionally
-requires destination acceptance and review.
+Transfer passes only after recording the authenticated origin, received
+digests, intake decision, complete local inputs, enforced network restrictions
+and compatibility. Release also requires destination acceptance and review.
 
 <a id="procedure-build-validation"></a>
 
-### 9.3 Build and validate the candidate on the target system
+### 9.3 Build and test on the target system
 
-Run as a nonprivileged build identity in the restricted candidate area. Record
-the approved network restriction and enter the required compute allocation.
-Section 9.1 must have completed controlled source intake. When inputs arrive
-by transfer, Section 9.2 must also have passed transfer and configuration checks.
+Use an account without elevated privileges in the restricted candidate area.
+Record the approved network restriction and enter the required compute
+allocation. Complete Section 9.1 source intake first, plus Section 9.2 transfer
+and configuration checks when applicable.
 
-When several environments install in parallel, verify the complete lock set
-first, give every process a distinct mutable user cache, never run the same
-environment twice, and assign view/module refresh to that environment's one
-owning process. After parallel work stops, run the shared-output permission gate
-before transferring responsibility to another builder.
+For parallel installs, first check every lockfile. Give each process its own
+writable user cache; never run the same environment twice. One process owns
+each environment's view and module refresh. After parallel work stops, check shared
+output permissions before handing work to another builder.
 
-Install the reviewed concrete graph, then refresh the environment-owned
-presentation. If Section 9.2 already installed the candidate, continue with
-presentation and validation without repeating the install:
+Install the reviewed locked packages and refresh their views and modules. If Section
+9.2 already installed them, skip installation and continue with refresh and tests:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" install --only-concrete --fail-fast
@@ -1414,99 +1313,92 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" env view regenerate
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" module tcl refresh --delete-tree -y
 ```
 
-Run view regeneration only when the environment defines a view. Run module
-refresh only when the environment defines module generation. A build that does
-not publish a view or modules records those checks as not applicable.
+Regenerate views and modules only if the environment defines them. Otherwise
+record those checks as not applicable.
 
-Run the checks that apply:
+Run the applicable checks:
 
 - compile and run representative C, C++, and Fortran programs;
-- confirm headers, libraries, RPATHs, and package metadata;
-- test Serial packages without MPI loaded;
+- check headers, libraries, embedded runtime library search paths and package
+  metadata;
+- test Serial packages with no MPI loaded;
 - run scheduler-launched, multi-node MPI tests;
-- confirm the intended launcher, fabric, and MPI provider;
-- run GPU and GPU-aware MPI tests when applicable;
-- verify views and package modules after regeneration; and
-- test from clean login-node and compute-node sessions.
+- confirm the launcher, network fabric and MPI provider;
+- run GPU and GPU-aware MPI tests;
+- check regenerated views and modules; and
+- test clean login-node and compute-node sessions.
 
-Select numerical-correctness and representative performance checks according
-to package purpose, platform, candidate changes, and risk. Record the cases,
-tolerances, comparison baseline, and acceptance results. Evidence for an
-unchanged package may be reused when the inputs, platform, and test assumptions
-remain applicable. Record that basis and the reason for any check marked not
-applicable; a required missing result holds the candidate.
+Choose numerical-correctness and representative performance tests for the
+package's purpose, platform, changes and risk. Record cases, tolerances,
+comparison baseline and results. Reuse unchanged-package evidence only when its
+inputs, platform and test assumptions still apply; record why. Explain any
+not-applicable check. A missing required result holds the candidate.
 
-Also retain the configured security-check results, approved compiler-hardening
-settings and any scoped exceptions. Verify installed-file integrity and linkage
-where the platform supports those checks. These checks do not replace the
-organization's vulnerability scanner. Complete the required functional,
-numerical and performance acceptance before approving a hardening change that
-can affect scientific results or runtime behavior.
+Retain configured security-check results, approved compiler-hardening settings
+and scoped exceptions. Check installed-file integrity and linkage where
+supported. These checks do not replace the vulnerability scanner. Before
+approving hardening that may affect scientific results or runtime behavior,
+complete required functional, numerical and performance tests.
 
-When the environment defines additional named module sets, refresh each
-configured set separately. Substitute a set name from the reviewed
-`modules.yaml`; do not create an additional namespace merely to run this
-example:
+Refresh each additional named module set using its reviewed `modules.yaml` name.
+Do not create another namespace just for this example:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" module tcl -n <configured-module-set> refresh --delete-tree -y
 ```
 
 Record `module avail`, `module show`, load, conflict and runtime results from
-clean login and batch sessions. Compare selected prefixes and concrete hashes.
-When two module names expose the same package, they must resolve to the same
-accepted prefix and conflict as the team's presentation policy requires.
-Check required direct-dependency loads and version conflicts; do not expose
-every private transitive dependency as a user module.
+clean login and batch sessions. Compare selected paths and hashes. Two module
+names for the same package must use the same accepted installation and conflict
+as team policy requires. Check direct-dependency loads and version conflicts;
+do not make every private indirect dependency a user module.
 
-After parallel work stops, verify the recorded group and modes on shared
-outputs. A second package manager must be able to traverse/read the required
-inputs and create, replace and remove a controlled test artifact in each
-shared working root. Do not use package prefixes or database files as the test
-artifact. Preserve private keyrings, bootstrap state and per-builder temporary
-state. Retain the results with the reviewer handoff.
+After parallel work stops, check shared outputs against the recorded groups and
+permissions. A second
+package manager must be able to reach and read required inputs and create, replace
+and remove a controlled test file in each shared working root. Do not test on
+package installations or database files. Preserve private keyrings, bootstrap
+state and each builder's temporary state. Retain results for the reviewer.
 
-Record the result as `built`, `runtime-passed`, or `held`. Publish only a
-`runtime-passed` environment.
-
-Validation passes only when the required compile, runtime, scheduler, MPI,
-GPU, view, module, clean-session, and permission tests have recorded successful
-exit status. Mark the release `held` when a required resource was unavailable
-or a required result was not obtained.
+Record `built`, `runtime-passed`, or `held`. Only `runtime-passed` environments
+may be published. Every required compile, runtime, scheduler, MPI, GPU, view,
+module, clean-session and permission test must record a successful exit status.
+Unavailable required resources or missing results mean `held`.
 
 ## 10. Publish
 
-Use the application team's approved publication method. Preserve the reviewed
-lockfile and concrete hashes. Final independent review of the exact candidate
-and evidence must pass before signing or publication. Record whether the
-accepted installation is published directly or installed from an approved
-signed cache. Both methods complete the same acceptance, authenticated release
-record, and access gates; Section 10.1 applies whenever a binary cache is used.
+Use the team's approved publication method and preserve the reviewed lockfile
+and hashes. Final independent review of the exact candidate and evidence must pass
+before signing or publication. Record whether you publish the accepted
+installation directly or install it from a signed cache. Both require the same
+acceptance and access checks, plus an authenticated release record whose source
+and integrity have been verified. Apply Section 10.1
+whenever using a binary cache.
 
 <a id="procedure-signing"></a>
 
-### 10.1 Sign and populate the approved binary cache
+### 10.1 Sign packages and fill the approved binary cache
 
-Use the release identity and authorized key custodian named in the operating
-record. Keep the private key in the restricted signing process. Obtain the
-approved public key and full fingerprint through an authenticated record;
-compare the key fingerprint before deliberately trusting it. Verification uses
-a dedicated keyring containing approved public keys only. Keep its directory
-private to the operator:
+Use the release identity and authorized key custodian in the operating record.
+Keep the private key in the restricted signing process. Obtain the approved
+public key and full fingerprint through an authenticated record and compare
+fingerprints before trusting the key. Verification uses a separate keyring of
+approved public keys only, in a directory private to the operator:
 
 ```bash
 export SPACK_GNUPGHOME="<absolute-verification-only-spack-keyring>"
 spack -C "$BOOTSTRAP_CONFIG_DIR" gpg trust <verified-release-public-key-file>
 ```
 
-Do not infer trust from a key arriving with a mirror. Avoid
-`spack buildcache keys --install --trust` unless every key in that controlled
-mirror is explicitly approved. Retain old approved public keys while retained
-releases require them; follow Section 12 for rotation, revocation or exposure.
+A key arriving with a mirror is not automatically trusted. Avoid
+`spack buildcache keys --install --trust` unless every mirror key is explicitly
+approved. Keep old approved public keys while retained releases need them;
+follow Section 12 for rotation, revocation or exposure.
 
-Use a URL/filesystem build-cache backend supporting native Spack package
-signing. In Spack 1.2.2, an OCI cache does not meet this native-signature
-procedure. Configure the binary mirror separately from source mirrors:
+Use a cache with a network address or filesystem path that supports native
+Spack package signing. Spack 1.2.2 Open Container Initiative (OCI) caches do not
+meet this signature procedure.
+Configure the binary mirror separately from source mirrors:
 
 ```bash
 export BINARY_MIRROR_ROOT="<approved-build-cache-path-or-url>"
@@ -1517,11 +1409,10 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" mirror add \
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get mirrors
 ```
 
-Configure and review that endpoint before the candidate is frozen; if it
-already exists, inspect its exact value instead of adding it again. The signer
-checks that every package selected for the push belongs to the accepted
-release set. Push by full concrete hash, repeating for the complete approved
-non-external closure:
+Review this location before freezing the candidate; check its exact value if
+already configured. The signer checks that every package to push belongs to
+the accepted release. Push each approved non-external package and dependency
+using its full concrete hash:
 
 ```bash
 export SPACK_GNUPGHOME="<absolute-restricted-signing-keyring>"
@@ -1532,52 +1423,46 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" buildcache update-index --keys "$BINARY_MIRROR_
 spack -C "$BOOTSTRAP_CONFIG_DIR" buildcache check-index --verify all "$BINARY_MIRROR_ROOT"
 ```
 
-Run that signing block only in the authorized signing context with the
-provisioned private key. End that context before build or publication work;
-the verification-only keyring is used again by destination and publication
-installation. The private key is not copied into that keyring.
+Run this block only in the authorized signing context with its private key.
+End that context before build or publication work. Destination and publication
+installs return to the verification-only keyring; never copy the private key
+there.
 
-No unsigned push or signature-verification bypass belongs in the normal path.
-Retain signing identity, approved hashes, push results and cache-index digest.
-Finalize the index before checksumming a transfer bundle. Preserve the entire
-mirror when moving it: package manifests/signatures and content blobs must
-travel together. `check-index` checks consistency; installation performs
-package signature verification. The Spack 1.2.2 index itself is not signed, so
-the separately authenticated release record must bind the permitted hash set
-and transferred mirror digest. Compare that permitted set before installation.
+Do not use unsigned pushes or bypass signature verification in the normal
+procedure. Retain signing identity, approved hashes, push results and index
+digest. Finish the index before checksumming a transfer bundle. Transfer the
+whole mirror, including manifests, signatures and content blobs. `check-index`
+checks consistency; installation verifies package signatures. Spack 1.2.2 does
+not sign the index itself. The separately authenticated release record must
+therefore identify the permitted hashes and transferred mirror digest. Compare
+that permitted set before installation.
 ([Spack signing and cache layout](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/binary_caches.rst#L598-L704))
 
 <a id="procedure-catalog-publication"></a>
 
 ### 10.2 Publish the reviewed static catalog
 
-This branch is for the catalog owner. The operating record sets its place in
-the release sequence and its authorized audience; the catalog remains a
-separate configuration product from package binaries.
+The catalog owner follows this procedure. The operating record defines when to
+publish and who may use it. The catalog is configuration, separate from binaries.
 
-1. Confirm Section 6.1 review of the catalog record, supporting platform
-   evidence, scope files and usage instructions. Verify paths and instructions
-   from the intended final location; no consumer path may depend on inaccessible
-   restricted storage.
-2. Reserve a new versioned destination and a staging directory in the same
-   dedicated publication parent. Serialize publication through the site's
-   approved ownership/locking method. Never overwrite an existing version.
-3. Copy the complete reviewed bytes without regenerating them. Retain a
-   publication record identifying the catalog release, source identities,
-   candidate digest, reviewer, approval, date, intended audience and final
-   destination. Use an auditable text or structured record; its format and
-   filename are site choices. Keep its content and the released file inventory
-   bound to the authenticated approval record.
-4. Create `SHA256SUMS` over every released regular file, including the
-   publication record and excluding `SHA256SUMS` itself. Confirm any links are
-   reviewed and resolve within the released tree; record their targets in the
-   publication inventory. Apply the approved group and public modes in this
-   dedicated tree: directories `2775`, executables `0775`, ordinary files `0664`.
+1. Confirm Section 6.1 review of the catalog record, platform evidence, scopes
+   and instructions. Check paths and instructions at the final location; users
+   must not depend on inaccessible restricted storage.
+2. Reserve a new versioned destination and staging directory under the same
+   dedicated publication parent. Use the site's approved ownership or locking
+   method to prevent simultaneous publication. Never overwrite a version.
+3. Copy all reviewed files unchanged. Retain an auditable publication record of
+   the catalog release, source identities, candidate digest, reviewer, approval,
+   date, audience and destination. The site chooses its format and filename.
+   Link the record and released-file inventory to the authenticated approval.
+4. Create `SHA256SUMS` for every released regular file, including the publication
+   record but excluding `SHA256SUMS`. Review links, ensure they resolve inside
+   the release and record their targets. Apply the approved group and permissions:
+   directories `2775`, executables `0775`, other files `0664`.
 
-The following example uses a `SHA256SUMS` inventory produced by the system's
-SHA-256 utility. The publication record is included in the staged tree at the
-path selected by the operator; it is not a Spack configuration file. Prepare
-that record and the required modes before running:
+Prepare the publication record within the staging tree and set permissions
+before running this example. The record is not Spack configuration. The system's
+checksum utility using the 256-bit Secure Hash Algorithm (SHA-256) creates the inventory:
 
 ```bash
 export CATALOG_STAGE="<absolute-new-catalog-staging-directory>"
@@ -1594,8 +1479,8 @@ export CATALOG_PUBLICATION_RECORD="<absolute-publication-record-within-staged-tr
 )
 ```
 
-5. Recheck the staging tree, including the inventory file's ownership/mode.
-   Expose the directory as one same-filesystem rename only after approval:
+5. Recheck the staged files, including inventory ownership and permissions. Only
+   after approval, publish the directory with one rename on the same filesystem:
 
 ```bash
 (
@@ -1614,42 +1499,31 @@ test -z "$(find "$PUBLISHED_CATALOG" -perm -0002 -print -quit)"
 test -z "$(find "$PUBLISHED_CATALOG" ! -group "$BUILD_GROUP" -print -quit)"
 ```
 
-6. Verify read/traverse and denied write using a consumer account outside the
-   management group, and controlled management access using another group
-   member. Retain checksum, mode, ownership and access results. Move an optional
-   `current` discovery pointer only after acceptance; consumers pin the exact
-   versioned path. Corrections create a new reviewed catalog release.
+6. Test read and directory access, and denied writes with a user outside the management
+   group. Test controlled management access with another group member. Retain
+   checksum, permission, ownership and access results. Update any `current`
+   discovery pointer only after acceptance; users pin the exact versioned path.
+   Corrections require a new reviewed catalog release.
 
 <a id="procedure-cache-publication"></a>
 
 ### 10.3 Install and accept the release from the cache only
 
-When a build cache is used:
-
-1. push only validated concrete packages;
-2. create a separate publication workspace;
-3. copy the approved lockfile;
-4. install the locked packages from the approved cache;
-5. stop on a cache miss rather than building unreviewed source in the
-   publication workspace; and
-6. compare the published hashes with the validated build hashes.
-
-Prepare a separate matching publication workspace from the same reviewed
-package/platform inputs, repositories and release identity, applying the
-approved publication deployment record and access audience. Keep referenced
-scopes intact. Do not copy a mutable working tree wholesale. Before install,
-verify effective configuration, approved source and signed binary mirrors,
-bootstrap policy, expected release hashes, and the world-read/group-write
-package policy from Section 4.1.
+Use validated packages from the approved cache in a separate publication
+workspace. Prepare it from the same reviewed package and platform inputs,
+repositories and release identity, with the approved publication deployment
+record and audience. Keep referenced scopes intact; do not copy an entire
+active working tree. Before installation, check effective configuration,
+approved source and signed binary mirrors, bootstrap policy, expected hashes
+and Section 4.1's package permissions: users can read; the approved group can write.
 
 Use a clean or dedicated controlled publication store with no unapproved
-upstream store. Cache-only options do not retroactively verify packages already
-installed in a store, and externals are not supplied by the binary cache.
-Separately accept those external identities and retain their inventory. Run
-publication installation with a verification-only keyring in a context without
-access to the signing private key. Confirm the public key's full fingerprint
-against the authenticated approved record before the trust command. After the validated hashes are
-available in the approved cache:
+upstream store. Cache-only options do not verify packages already installed;
+externals are not supplied by the cache. Separately approve external identities
+and retain their inventory. Install using the verification-only keyring with
+no access to the signing private key. Check the public key's full fingerprint
+against the authenticated approval before trusting it. Once validated packages
+are in the approved cache, copy the approved lockfile and install:
 
 ```bash
 export PUBLICATION_ENVIRONMENT_ROOT="<absolute-publication-environment>"
@@ -1663,12 +1537,12 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$PUBLICATION_ENVIRONMENT_ROOT" install \
   --only-concrete --use-buildcache=only --fail-fast
 ```
 
-Do not concretize the publication environment. A cache miss is a failed
-publication control point. Return to the validated build, supply the missing
-approved hash, and repeat the cache-only install. If the correction changes a
-hash, create a new release record.
+Do not concretize this environment. A cache miss stops publication. Return to
+the validated build, supply the missing approved hash and repeat the cache-only
+install; never build unreviewed source here. A changed hash needs a new release
+record.
 
-Record and compare hashes before approval:
+Record and compare validated and published hashes before approval:
 
 ```bash
 export EVIDENCE_ROOT="<absolute-evidence-path>"
@@ -1682,215 +1556,205 @@ diff -u \
   "$EVIDENCE_ROOT/published-hashes.txt"
 ```
 
-When the validated install tree is published directly, freeze the accepted
-release after view, module, permission, and clean-session tests pass. Do not
-change an accepted release in place.
+For direct publication of the validated install tree, freeze it after view,
+module, permission and clean-session tests pass. Never change an accepted
+release in place.
 
-Generate or refresh views and modules only after installation. Use
-version-sensitive module names, dependencies, and conflicts when more than one
-public package version is available.
+Generate or refresh views and modules only after installation. When publishing
+multiple versions, use version-sensitive module names, dependencies and
+conflicts. If a package's public build or runtime interface includes a direct
+dependency, its module must load that exact compatible dependency module. Do
+not automatically load private indirect dependencies. Use package-family
+conflicts to prevent users from replacing the dependency with another published
+version in the same session. At minimum, test the data-file libraries NetCDF-C
+and HDF5 when both are included.
 
-When a package exposes a direct dependency as part of its public build or
-runtime interface, configure its module to load the exact compatible dependency
-module. Do not automatically load private transitive dependencies. Apply a
-package-family conflict so a user cannot replace that dependency with another
-published version in the same session. NetCDF-C and HDF5 are the minimum
-acceptance case when both are in the release.
+Compare the listings with the authenticated approved release inventory. Also
+retain installed-package listings proving every required non-external hash is
+installed: copied lockfiles alone do not prove installation. Before making
+module defaults available, complete all applicable Section 9.3 destination and
+cross-user access checks. Publication requires matching validated and published
+hashes, passing runtime and module tests in clean sessions, user read and execute access,
+no writes from outside the approved package-manager group, a successful
+controlled write test by a second group member, and recorded release-authority
+approval.
 
-Publication passes only when the validated and published hashes match, the
-required clean-session runtime and module checks pass, users have read and
-execute access, consumers outside the approved package-manager group have no
-write access, a second package manager in the group can perform a controlled
-write test, and the release authority has recorded approval.
+### 10.4 Keep SBOMs and a separate external-package inventory
 
-Compare the concrete listings above to the authenticated approved release
-inventory, and retain separate installed-package listings showing that every
-required non-external hash is installed. Matching copied lockfiles alone does
-not prove an installation completed. Run all applicable destination validation
-and cross-user access checks from Section 9.3 before exposing module defaults.
-
-### 10.4 Retain SBOMs and the separate external inventory
-
-Spack 1.2.2 writes a per-installation SPDX 2.3 SBOM for a non-external package:
+For each non-external package installation, Spack 1.2.2 writes an SBOM in
+Software Package Data Exchange (SPDX) 2.3 format:
 
 ```text
 <package-prefix>/.spack/sbom/spdx-2.3.json
 ```
 
-Locate an accepted package and retain its producer SBOM with a checksum:
+Locate an accepted package and retain the producer's SBOM and checksum:
 
 ```bash
 spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" location -i /<approved-full-concrete-hash>
 sha256sum <approved-package-prefix>/.spack/sbom/spdx-2.3.json
 ```
 
-Record package name/version, full hash, prefix, SBOM location and digest. Retain
-the producer SBOM and approved scan result as release evidence separately from
-the published prefix. Binary installation runs hooks and may regenerate local
-SBOM metadata, so producer and consumer SBOM files need not have equal bytes
-for the same concrete hash. Record the consumer copy separately and compare
-component identity and dependency relationships against the approved release;
-investigate substantive discrepancies. Inventory and assess system externals
-separately because Spack does not generate their SBOMs. SBOM presence is an
-inventory check, not a vulnerability assessment.
+Record name and version, full hash, installation path, SBOM location and digest.
+Keep the producer SBOM and approved scan result as release evidence outside the
+published installation. Binary installation can regenerate SBOM metadata, so
+producer and consumer files may differ for the same hash. Record the consumer
+copy separately; compare component identities and dependencies with the approved
+release and investigate substantive differences. Inventory and assess externals
+separately because Spack does not generate their SBOMs. An SBOM lists components;
+it does not assess vulnerabilities.
 ([Spack SBOM generation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/hooks/sbom_generate.py),
 [binary installation hooks](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/binary_distribution.py#L2163-L2174))
 
 ## 11. User access
 
-Publish package modules under the application's established module root. The
-normal module root should already be on users' `MODULEPATH`. A user normally
-loads the package directly:
+Publish modules under the application's established module root, which should
+already be on users' `MODULEPATH`. Users normally load a package directly:
 
 ```bash
 module load <package>/<version>
 ```
 
-Use `module use` only for a private, test, or newly introduced module root.
-Document that path with the release.
+Use `module use` only for a private, test or newly introduced module root;
+document that path with the release.
 
-Verify that users can traverse the module tree, views, external runtime paths,
-and package prefixes from login and compute nodes. Users outside the approved
-package-manager group must not have write access to an accepted release.
-Authorized package-manager writes remain subject to the release procedure; use
-a new release for unrecorded package or configuration changes.
+Check user access through module trees, views, external runtime paths and package
+installations from login and compute nodes. Users outside the approved
+package-manager group must not have write access. Authorized manager writes
+still follow the release procedure; unrecorded package or configuration changes
+require a new release.
 
 ## 12. Changes, security events, and platform updates
 
-A change to a root spec, version, variant, recipe, patch, package-repository
-revision or order, compiler, MPI, GPU provider, catalog scope, Spack version,
-external-package identity, or lockfile requires a new release record. Rebuild
-and retest the affected dependency closure. Reuse unchanged concrete packages
-only when their hashes are unchanged.
+Create a new release record when changing a root spec, version, variant, recipe,
+patch, repository revision or order, compiler, MPI, GPU provider, catalog scope,
+Spack version, external identity or lockfile. Rebuild and retest affected
+packages and dependencies. Reuse concrete packages only if unchanged, with
+unchanged hashes.
 
 For a security advisory:
 
 1. record the advisory and affected versions;
-2. inspect lockfiles, package inventories, SBOMs, and the separate external
-   inventory;
+2. inspect lockfiles, package inventories, SBOMs and the external inventory;
 3. select an approved fix or mitigation;
 4. rebuild and retest affected packages; and
-5. withdraw or replace exposed modules according to local policy.
+5. withdraw or replace user modules under local policy.
 
-Spack SBOMs provide package and dependency inventory. They do not perform CVE
-matching. Use the organization's approved vulnerability source or scanner.
+Spack SBOMs do not match packages to vulnerability reports. Use the
+organization's approved vulnerability source or scanner.
 
-Routine releases inside the team's agreed source, build, signing and transfer
-bounds stay with the builder, reviewer and release authority. Obtain security
-review or a decision through the local process at these points:
+Routine releases within agreed source, build, signing and transfer limits stay
+with the builder, reviewer and release authority. Seek security input through
+the local process for these cases:
 
 | Trigger | Action and retained decision |
 |---|---|
-| First use on a new authorization/network boundary, or material change to intake, transfer, egress, signing/trust or publication access | Obtain the platform/security owners' assessment and applicable approval before enabling that changed path |
-| Exception to required integrity/signature checks, isolation, hardening or scan coverage; unresolved finding beyond the team's risk authority | Hold the affected gate; record scope, justification, compensating controls, owner, expiry and approving authority |
-| Suspected compromise, unapproved artifact change, or exposed/revoked signing key | Follow the site's incident process, hold affected releases and coordinate withdrawal, key handling and recovery |
-| Unclear applicability or a proposed control change with useful security input | Request a focused interpretation/recommendation and retain the resulting operating-boundary update |
+| First use across a new authorization or network boundary, or a significant change to intake, transfer, outbound access, signing, trust or publication access | Obtain platform and security owners' assessment and required approval before enabling the change |
+| Exception to required integrity or signature checks, isolation, hardening or scan coverage; unresolved finding outside the team's risk authority | Hold the affected step; record scope, reason, safeguards that address the exception, owner, expiry and approving authority |
+| Suspected compromise, unapproved release change or exposed or revoked signing key | Follow the incident process, hold affected releases and coordinate withdrawal, key handling and recovery |
+| Unclear applicability or a proposed control change that would benefit from security input | Request a focused recommendation and retain the resulting update to operating limits |
 
-Security review is not a routine per-package approval gate. The local process
-identifies the responsible reviewer and any required approval authority. A
-discussion does not itself approve an exception. Record the decision or keep
-the affected release held.
+Routine releases do not need security approval for each package. The local process
+names the reviewer and required approval authority. Discussion alone does not
+approve an exception: record the decision or keep the release held.
 
-For an operating-system or platform-runtime change, compare the previous and
-current compiler, MPI, fabric, launcher, GPU, and external-package identities.
-Revalidate when identities and ABIs remain unchanged. Rebuild when a required
-provider, prefix, ABI, or supported pairing changes. Hold publication when the
-compatibility result is unknown.
+After an operating-system or platform-runtime change, compare old and new
+compiler, MPI, fabric, launcher, GPU and external identities. Revalidate if
+identities and ABIs are unchanged. Rebuild if a required provider, installation
+path, ABI or supported pairing changes. Hold publication if compatibility is
+unknown.
 
 ## 13. Retention, recovery, and rollback
 
-Set and record the application's retention and user-notification periods.
-Keep at least the current accepted release and one working previous release
-when storage permits it. Do not remove a cache object while a retained lockfile
-refers to its hash.
+Record retention and user-notification periods. Keep the current accepted
+release and at least one working previous release when storage permits. Never
+remove a cache object referenced by a retained lockfile.
 
-Resume an interrupted release only when its inputs and hashes are unchanged and
-the failure was operational. Create a new release when a build-defining input
-or hash changes.
+Resume interrupted work only if inputs and hashes are unchanged and the failure
+was operational. A changed build input or hash requires a new release.
 
-Rollback changes the supported module default or release pointer to a previous
-accepted release. It does not modify either release.
+Rollback points the supported module default or release pointer to a previous
+accepted release. It changes neither release.
 
 ## 14. Required release record
 
-Retain:
+Keep these records:
 
-- system, resolved catalog release path, and catalog approval record;
-- environment source, selected scope paths, and effective scope listing;
-- exact Spack runtime and every package-repository source, commit, and search
+- system, resolved catalog release path and catalog approval;
+- environment source, selected scope paths and effective scope listing;
+- exact Spack runtime and each package repository's source, commit and search
   order;
-- when local corrections are used: complete recipe/patch/helper files, local
-  repository revision or digest, rationale, affected conditions, upstream
-  reference or disposition, and before/after graph and validation evidence;
-- deployment record and the install, source-cache, miscellaneous-cache,
-  build-cache, view, module, and build-stage locations;
+- local corrections, when used: complete recipes, patches and helpers, repository
+  revision or digest, reason, affected conditions, upstream reference or
+  decision, dependency graphs before and after the change and validation evidence;
+- deployment record and install, source-cache, miscellaneous-cache, build-cache,
+  view, module and build-stage locations;
 - approved `spack.lock` and concrete hashes;
-- source/mirror inventory, baseline and recipe-delta assessment, manual-review
-  selection, build-cache signing identity, and actual scan results/dispositions;
-- prerequisite/bootstrap identity, approved source/trust configuration, enforced
-  network-control evidence and configuration digests;
-- when transferred: authorized route/reference, complete bundle manifest,
+- inventory of sources and mirrors, baseline and recipe-change assessment, items selected
+  for manual review, cache signing identity, scan results and decisions;
+- identities of prerequisites and bootstrap tools, approved source and trust configuration,
+  enforced network-control evidence and configuration digests;
+- transfers, when used: authorized route and reference, complete manifest,
   authenticated origin digest, received digest and import results, destination
-  configuration delta, compatibility assessment and source-build/binary mode;
-- build, runtime, view, module, and permission test results;
-- package inventory, SBOM locations, and external inventory;
-- change or security assessment when applicable;
+  configuration changes, compatibility assessment and whether the transfer used sources or binaries;
+- build, runtime, view, module and permission test results;
+- package inventory, SBOM locations and external inventory;
+- applicable change or security assessment;
 - builder, independent reviewer, release authority, review scope, candidate and
-  evidence identities, disposition and dates; and
+  evidence identities, decision and dates; and
 - user instructions and support contact.
 
 ## Appendix A. Terms
 
 **Static platform catalog**
-: Versioned, include-ready native Spack configuration for one system, with a
-  readable inventory, supported selections, platform evidence, and approval
-  record as defined in Section 6.1.
+: Versioned native Spack configuration for one system, ready to include in an
+  environment. It includes a readable inventory, supported choices, platform evidence
+  and approval record (Section 6.1).
 
 **Scope**
-: A directory containing valid Spack configuration YAML selected through an
-  environment's `include::` list.
+: A directory of valid Spack text configuration files, selected by an environment's
+  `include::` list.
 
 **Environment**
-: A `spack.yaml`, its selected configuration, and the concrete package graph
-  recorded in `spack.lock`.
+: A `spack.yaml`, its selected configuration and the exact package dependency
+  graph in `spack.lock`.
 
 **Toolchain**
-: An explicit compiler or a supported compiler and MPI pairing, with a compatible
-  GPU runtime when required.
+: A chosen compiler or supported compiler and MPI pairing, with a compatible GPU
+  runtime when needed.
 
 **Lockfile**
-: The exact package graph generated by Spack in `spack.lock`.
+: Spack's exact package dependency graph, saved in `spack.lock`.
 
 **Source mirror**
-: A retained collection of source archives, resources, and patches from which
-  Spack can fetch reviewed build inputs. A source mirror is distinct from both
-  a source cache used during a build and a binary build cache.
+: Retained source archives, resources and patches for fetching reviewed build
+  inputs. It is separate from a build's source cache and from a binary cache.
 
 **Build cache**
-: A repository of concrete Spack binaries and metadata.
+: Stored concrete Spack binaries and their metadata.
 
 **Bootstrap prerequisites**
-: Tools needed to run Spack or solve/install an environment, such as the
-  approved Python and solver. Their source and trust configuration is admitted
-  separately under Section 4.5.
+: Tools Spack needs to run, solve or install an environment, such as approved
+  Python and a solver. Their sources and trust settings need separate approval
+  under Section 4.5.
 
 **External package**
-: A component supplied outside the managed Spack installation, with its
-  version, prefix or modules, provider identity, and compatibility separately
-  recorded and accepted.
+: Software supplied outside the managed Spack installation. Its version,
+  installation path or modules, provider identity and compatibility are
+  separately recorded and accepted.
 
 **Release record**
-: The retained inputs, evidence, exact accepted candidate identities, and
-  authenticated review and publication decisions required by Section 14. It
-  may be a set of controlled files or an auditable record system; no particular
-  metadata schema is required.
+: The inputs, evidence, exact accepted candidate identities and authenticated
+  review and publication decisions required by Section 14. Use controlled files or
+  an auditable record system; no particular metadata schema is required.
 
 **View**
-: A combined filesystem presentation of selected installed packages.
+: One directory tree presenting selected installed packages together.
 
 **Module**
-: A user-facing environment file loaded through the site module command.
+: A file that sets a user's environment when loaded with the site's module
+  command.
 
 **Published release**
-: An accepted installation, views, modules, and release record exposed to
-  users.
+: An accepted installation, views, modules and release record made available
+  to users.

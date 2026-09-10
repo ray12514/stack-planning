@@ -7,26 +7,26 @@
 <tspan x="74" dy="0">1</tspan>
 </text>
 <text x="105" y="170" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20384F" text-anchor="start">
-<tspan x="105" dy="0">Diagnose the failure</tspan>
+<tspan x="105" dy="0">Find the cause</tspan>
 </text>
 <text x="57" y="217" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="57" dy="0">Record failure and cause.</tspan>
-<tspan x="57" dy="39">Choose the owning layer.</tspan>
+<tspan x="57" dy="0">Record the cause and log.</tspan>
+<tspan x="57" dy="39">Choose the correct file.</tspan>
 </text>
 <rect x="515" y="35" width="410" height="148" rx="12" fill="#EFF7F6" stroke="#B9C7D0" stroke-width="2"/>
 <text x="537" y="77" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20384F" text-anchor="start">
 <tspan x="537" dy="0">Configuration change</tspan>
 </text>
 <text x="537" y="124" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="537" dy="0">Version the owning input.</tspan>
+<tspan x="537" dy="0">Record its new version.</tspan>
 </text>
 <rect x="515" y="256" width="410" height="177" rx="12" fill="#EFF7F6" stroke="#B9C7D0" stroke-width="2"/>
 <text x="537" y="298" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20384F" text-anchor="start">
-<tspan x="537" dy="0">Local recipe correction</tspan>
+<tspan x="537" dy="0">Local recipe fix</tspan>
 </text>
 <text x="537" y="345" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="537" dy="0">Version all correction files.</tspan>
-<tspan x="537" dy="39">Keep the upstream pin.</tspan>
+<tspan x="537" dy="0">Save a version of the fix.</tspan>
+<tspan x="537" dy="39">Keep the upstream version</tspan>
 </text>
 <polyline points="435,233 475,233 475,109 506,109" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
 <polyline points="475,233 475,344 506,344" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
@@ -39,9 +39,9 @@
 <tspan x="1075" dy="0">Review the impact</tspan>
 </text>
 <text x="1027" y="217" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="1027" dy="0">Find affected consumers.</tspan>
-<tspan x="1027" dy="39">Check every affected lock.</tspan>
-<tspan x="1027" dy="39">Explain graph changes.</tspan>
+<tspan x="1027" dy="0">Review every environment</tspan>
+<tspan x="1027" dy="39">using the fix: lockfiles and</tspan>
+<tspan x="1027" dy="39">dependency changes.</tspan>
 </text>
 <polyline points="925,109 965,109 965,233 996,233" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
 <polyline points="925,344 965,344 965,233" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
@@ -52,10 +52,11 @@
 <tspan x="1044" dy="0">3</tspan>
 </text>
 <text x="1075" y="538" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20384F" text-anchor="start">
-<tspan x="1075" dy="0">Validate candidate</tspan>
+<tspan x="1075" dy="0">Build and test</tspan>
 </text>
 <text x="1027" y="585" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="1027" dy="0">Acquire inputs; build/test.</tspan>
+<tspan x="1027" dy="0">Collect inputs, then build</tspan>
+<tspan x="1027" dy="39">and test the proposed fix.</tspan>
 </text>
 <rect x="515" y="496" width="410" height="162" rx="12" fill="#F5F8FA" stroke="#B9C7D0" stroke-width="2"/>
 <circle cx="554" cy="527" r="18" fill="#20384F"/>
@@ -66,8 +67,8 @@
 <tspan x="585" dy="0">Independent review</tspan>
 </text>
 <text x="537" y="585" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="537" dy="0">Approve exact revision</tspan>
-<tspan x="537" dy="39">and supporting evidence.</tspan>
+<tspan x="537" dy="0">Approve the exact version</tspan>
+<tspan x="537" dy="39">and its supporting records.</tspan>
 </text>
 <rect x="35" y="496" width="400" height="162" rx="12" fill="#F5F8FA" stroke="#B9C7D0" stroke-width="2"/>
 <circle cx="74" cy="527" r="18" fill="#20384F"/>
@@ -75,15 +76,15 @@
 <tspan x="74" dy="0">5</tspan>
 </text>
 <text x="105" y="538" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20384F" text-anchor="start">
-<tspan x="105" dy="0">Retain the release</tspan>
+<tspan x="105" dy="0">Keep the release</tspan>
 </text>
 <text x="57" y="585" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="57" dy="0">Keep approved correction.</tspan>
+<tspan x="57" dy="0">Keep the reviewed fix.</tspan>
 </text>
 <polyline points="1005,577 934,577" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
 <polyline points="515,577 444,577" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
 <text x="35" y="699" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#526372" text-anchor="start">
-<tspan x="35" dy="0">Spack selects a recipe by repository order. Inheritance must be explicit; package files are not merged.</tspan>
+<tspan x="35" dy="0">Spack picks the first matching recipe. Inherit upstream code explicitly; recipe files are not merged.</tspan>
 </text>
 <g transform="translate(377 286) scale(1.5)" fill="none" stroke="#2B6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="6"/><path d="m13.5 13.5 7 7"/></g>
 <g transform="translate(867 387) scale(1.5)" fill="none" stroke="#2B6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6V3h8l3 3h9v14H2Z M2 10h20"/></g>

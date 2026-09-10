@@ -7,11 +7,12 @@
 <tspan x="74" dy="0">1</tspan>
 </text>
 <text x="105" y="87" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20384F" text-anchor="start">
-<tspan x="105" dy="0">Define candidate</tspan>
+<tspan x="105" dy="0">Prepare release</tspan>
 </text>
 <text x="57" y="134" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="57" dy="0">Pin platform and inputs.</tspan>
-<tspan x="57" dy="39">Concretize; review locks.</tspan>
+<tspan x="57" dy="0">Fix the input versions.</tspan>
+<tspan x="57" dy="39">Resolve packages;</tspan>
+<tspan x="57" dy="39">review lockfiles.</tspan>
 </text>
 <rect x="515" y="45" width="410" height="195" rx="12" fill="#F5F8FA" stroke="#B9C7D0" stroke-width="2"/>
 <circle cx="554" cy="76" r="18" fill="#20384F"/>
@@ -19,10 +20,10 @@
 <tspan x="554" dy="0">2</tspan>
 </text>
 <text x="585" y="87" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20384F" text-anchor="start">
-<tspan x="585" dy="0">Admit inputs</tspan>
+<tspan x="585" dy="0">Approve inputs</tspan>
 </text>
 <text x="537" y="134" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="537" dy="0">Verify sources and tools.</tspan>
+<tspan x="537" dy="0">Check sources and tools.</tspan>
 <tspan x="537" dy="39">Transfer when required.</tspan>
 </text>
 <rect x="995" y="45" width="410" height="195" rx="12" fill="#F5F8FA" stroke="#B9C7D0" stroke-width="2"/>
@@ -31,11 +32,11 @@
 <tspan x="1034" dy="0">3</tspan>
 </text>
 <text x="1065" y="87" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20384F" text-anchor="start">
-<tspan x="1065" dy="0">Build and validate</tspan>
+<tspan x="1065" dy="0">Build and test</tspan>
 </text>
 <text x="1017" y="134" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
 <tspan x="1017" dy="0">Build on the target system.</tspan>
-<tspan x="1017" dy="39">Retain tests and evidence.</tspan>
+<tspan x="1017" dy="39">Keep tests and results.</tspan>
 </text>
 <polyline points="445,143 506,143" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
 <polyline points="925,143 986,143" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
@@ -49,8 +50,8 @@
 <tspan x="1065" dy="0">Independent review</tspan>
 </text>
 <text x="1017" y="444" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="1017" dy="0">Approve exact candidate.</tspan>
-<tspan x="1017" dy="39">Return needed corrections.</tspan>
+<tspan x="1017" dy="0">Approve the exact files.</tspan>
+<tspan x="1017" dy="39">Return any needed fixes.</tspan>
 </text>
 <rect x="515" y="355" width="410" height="195" rx="12" fill="#F5F8FA" stroke="#B9C7D0" stroke-width="2"/>
 <circle cx="554" cy="386" r="18" fill="#20384F"/>
@@ -58,11 +59,12 @@
 <tspan x="554" dy="0">5</tspan>
 </text>
 <text x="585" y="397" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20384F" text-anchor="start">
-<tspan x="585" dy="0">Publish and accept</tspan>
+<tspan x="585" dy="0">Publish and check</tspan>
 </text>
 <text x="537" y="444" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
 <tspan x="537" dy="0">Use the approved method.</tspan>
-<tspan x="537" dy="39">Check destination access.</tspan>
+<tspan x="537" dy="39">Test destination software</tspan>
+<tspan x="537" dy="39">and user access.</tspan>
 </text>
 <rect x="35" y="355" width="410" height="195" rx="12" fill="#F5F8FA" stroke="#B9C7D0" stroke-width="2"/>
 <circle cx="74" cy="386" r="18" fill="#20384F"/>
@@ -70,27 +72,28 @@
 <tspan x="74" dy="0">6</tspan>
 </text>
 <text x="105" y="397" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20384F" text-anchor="start">
-<tspan x="105" dy="0">Expose and support</tspan>
+<tspan x="105" dy="0">User access</tspan>
+<tspan x="105" dy="39">and support</tspan>
 </text>
-<text x="57" y="444" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
-<tspan x="57" dy="0">Provide accepted modules.</tspan>
-<tspan x="57" dy="39">Monitor, retain and recover.</tspan>
+<text x="57" y="483" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#263746" text-anchor="start">
+<tspan x="57" dy="0">Monitor approved software.</tspan>
+<tspan x="57" dy="39">Keep records and backups.</tspan>
 </text>
 <polyline points="995,452 934,452" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
 <polyline points="515,452 454,452" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
 <polyline points="240,355 240,250" fill="none" stroke="#5E7585" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" stroke-dasharray="9 8"/>
 <text x="270" y="291" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#526372" text-anchor="start">
 <tspan x="270" dy="0">Changed inputs</tspan>
-<tspan x="270" dy="35">start a new candidate</tspan>
+<tspan x="270" dy="35">start a new release for review</tspan>
 </text>
 <line x1="35" y1="588" x2="1405" y2="588" stroke="#B9C7D0" stroke-width="2"/>
 <text x="35" y="631" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#526372" text-anchor="start">
-<tspan x="35" dy="0">One release record links exact inputs, decisions, artifacts and destination results.</tspan>
+<tspan x="35" dy="0">One release record links the exact inputs, decisions, files and results from each destination.</tspan>
 </text>
 <g transform="translate(387 63) scale(1.5)" fill="none" stroke="#2B6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7 12 2 21 7 12 12Z M3 7v10l9 5 9-5V7 M12 12v10 M7.5 4.5l9 5"/></g>
 <g transform="translate(867 63) scale(1.5)" fill="none" stroke="#2B6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="1.5"/><rect x="2" y="3" width="20" height="4" rx=".8"/><path d="M9 12h6"/></g>
 <g transform="translate(1347 191) scale(1.5)" fill="none" stroke="#2B6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22.00,12.00 21.88,13.56 21.51,15.09 18.95,15.54 18.31,16.58 19.07,19.07 17.88,20.09 16.54,20.91 14.41,19.42 13.22,19.70 12.00,22.00 10.44,21.88 8.91,21.51 8.46,18.95 7.42,18.31 4.93,19.07 3.91,17.88 3.09,16.54 4.58,14.41 4.30,13.22 2.00,12.00 2.12,10.44 2.49,8.91 5.05,8.46 5.69,7.42 4.93,4.93 6.12,3.91 7.46,3.09 9.59,4.58 10.78,4.30 12.00,2.00 13.56,2.12 15.09,2.49 15.54,5.05 16.58,5.69 19.07,4.93 20.09,6.12 20.91,7.46 19.42,9.59 19.70,10.78"/><circle cx="12" cy="12" r="3.5"/></g>
 <g transform="translate(1347 498) scale(1.5)" fill="none" stroke="#2B6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="2" width="18" height="20" rx="2"/><path d="m6 7 1.4 1.4L10 5.7 M12 7h5 m-11 6 1.4 1.4 2.6-2.7 M12 13h5 M6 19h3 m3 0h5"/></g>
 <g transform="translate(867 498) scale(1.5)" fill="none" stroke="#2B6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3" width="19" height="7" rx="1.5"/><rect x="2.5" y="14" width="19" height="7" rx="1.5"/><path d="M11 6.5h7 M11 17.5h7"/><circle cx="6" cy="6.5" r=".8"/><circle cx="6" cy="17.5" r=".8"/></g>
-<g transform="translate(387 498) scale(1.5)" fill="none" stroke="#2B6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="1.5"/><rect x="2" y="3" width="20" height="4" rx=".8"/><path d="M9 12h6"/></g>
+<g transform="translate(387 374) scale(1.5)" fill="none" stroke="#2B6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="1.5"/><rect x="2" y="3" width="20" height="4" rx=".8"/><path d="M9 12h6"/></g>
 </svg>
