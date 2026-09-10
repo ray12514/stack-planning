@@ -249,8 +249,8 @@ configuration scopes, and resulting Spack configuration.
 The public catalog is a separate configuration release for package managers
 outside CSE. Include reviewed Spack configuration, a contents and identity
 inventory, supported platform and provider combinations, instructions, and approval.
-Exclude restricted workspaces, package installation paths, private caches, and
-signing material. Consumers pin its versioned path; `current` helps them find
+Exclude restricted workspaces, CSE-managed package installation paths, private
+caches, and signing material. Consumers pin its versioned path; `current` helps them find
 releases. Publishing it does not replace CSE's restricted catalog of record.
 
 Select compiler, MPI, and GPU combinations from reviewed provider evidence. Cray
@@ -581,8 +581,9 @@ With CSE-built compilers and external Cray MPICH, test and accept the compiler
 wrappers users will run separately. Successful Spack builds alone do not verify
 that user interface.
 Expose `mpicc`, `mpicxx`, `mpifort`, `mpif90`, and `mpif77` from the exact approved
-installation, set `MPICH_*` compiler overrides to the CSE compiler-entry module,
-and avoid compiler-selecting `PrgEnv-*` modules. Require a native multi-node
+installation, set the `MPICH_*` compiler overrides in the CSE compiler-entry
+module to the accepted CSE compiler executables, and avoid compiler-selecting
+`PrgEnv-*` modules. Require a native multi-node
 launch through the approved scheduler and launcher before making this selector
 available to users.
 

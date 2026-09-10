@@ -259,7 +259,8 @@ Record shared and private paths before starting:
 |---|---|
 | Shared build state | Workspace, generated environments and lockfiles, source cache, package store/database/locks, views, modules, file-backed build cache, and release results. Only the approved build group may write. |
 | Shared state divided by builder | Changing package-manager metadata may use a persistent `$USER` directory when concurrent replacement is unsafe. Keep it accessible to the build group for handoff and recovery. |
-| Builder-private state | Build stage, `SPACK_USER_CACHE_PATH`, bootstrap state, signing keyring, and temporary command files. Each builder creates their own paths. |
+| Builder-private state | Build stage, `SPACK_USER_CACHE_PATH`, bootstrap state, and temporary command files. Each builder creates their own paths. |
+| Signing state | Private keyring reserved for the authorized signing role, outside build workspaces. Build and publication processes receive no private signing key; Section 10.1 defines the separate verification keyring. |
 | Spack installation | Shared and read-only, or an unchanged local checkout of the same approved revision. Never use it as a cache or package store. |
 
 Permission defaults do not override software that creates private `0600` files
@@ -1609,7 +1610,8 @@ it does not assess vulnerabilities.
 ## 11. User access
 
 Publish modules under the application's established module root, which should
-already be on users' `MODULEPATH`. Users normally load a package directly:
+already be on users' `MODULEPATH`. Users load any documented compiler or lane
+entry modules first, then select a package:
 
 ```bash
 module load <package>/<version>
@@ -1674,7 +1676,8 @@ Resume interrupted work only if inputs and hashes are unchanged and the failure
 was operational. A changed build input or hash requires a new release.
 
 Rollback points the supported module default or release pointer to a previous
-accepted release. It changes neither release.
+accepted release that remains acceptable under current security findings.
+It changes neither release.
 
 ## 14. Required release record
 

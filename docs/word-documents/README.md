@@ -6,10 +6,9 @@ sources before preparing the next review revision.
 
 ## SOP review pair
 
-These Word copies contain the 2026-09-10 wording revision. Further edits are
-being reviewed in Markdown; refresh the Word copies after that review is
-complete. Distribute both files together in one folder; the CSE SOP links to
-the shared procedure.
+These Word copies match the 2026-09-10 Markdown revision after the final
+consistency review. Distribute both files together in one folder; the CSE SOP
+links to the shared procedure.
 Neither document requires the internal runbook or other planning documents.
 
 Each SOP opens with compact review priorities and a table of decisions about
