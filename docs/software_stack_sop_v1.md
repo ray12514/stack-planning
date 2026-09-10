@@ -8,31 +8,32 @@
 | Procedure scope | Standard procedures for runtime verification, environment definition, review, mirrors and transfer, build, validation, publication, and retention |
 | Command baseline | Spack 1.2.2; revalidate commands before adopting another version |
 
-## Reviewer guide
+## Review priorities
 
-The colored labels identify review recommendations about applicability and
-operating effort. Their text carries the same meaning in black-and-white
-copies. A note applies only to the controls it names; a section can contain
-more than one category.
+**Baseline to retain.** Keep pinned inputs and local correction records,
+verified source content, nonprivileged builds, controlled access, independent
+technical review, runtime and module tests, and a release record that supports
+recovery. Capture evidence during the work and reuse applicable results for
+unchanged inputs.
 
-| Review label | Color | Meaning for reviewers |
+**Applicability to confirm.** Select the catalog-owner or consumer role,
+transfer branch, supported platform tests, and publication method for the
+actual system. Security involvement follows the triggers in Section 12.
+
+The following controls need explicit scope, ownership, and resource decisions.
+
+| Review topic | Decision for reviewers | Sections |
 |---|---|---|
-| CORE PRACTICE: retain | Blue | Recommend retaining as the routine build and release baseline, including reproducibility, basic security, technical review, validation, and recovery. |
-| APPLICABILITY: confirm the trigger | Amber | Apply the named branch when its system, role, transfer, or software condition holds; record when it does not apply. This is not an effort rating. |
-| ADDED EFFORT: decide scope and ownership | Purple | Examine the named control's infrastructure, specialist support, recurring work, and evidence needs; propose retaining it or revising its scope. |
+| Network enforcement | Required boundary, platform support, and evidence of enforcement | 4.3, 9.3 |
+| Scanning and hardening | Coverage, tools and feeds, findings handling, specialist capacity, and scientific validation | 8.1, 9.3, 12 |
+| Signing operations | Cache backend, key custody, trust distribution, rotation, and recovery | 10.1, 10.3 |
+| Continuing support | Advisory response capacity, retention periods, storage ownership, and recovery checks | 12–14 |
 
-These labels do not certify that a control is implemented or approved, change
-the requirements below, or authorize skipping a required step. Core practices
-still take staff time; added effort does not mean lower importance. Actual
-workload depends on available infrastructure, automation, and required coverage.
-
-For a proposed change, record the exact clause, retain/revise/omit recommendation,
-applicable circumstances, reason, responsible owner, and needed resources.
-Resolve mandatory site requirements with the responsible authority. Before
-adopting a changed process, reconcile its requirements, gates, commands, and
-release records across the shared procedure and applicable team policy. Keep
-the review decision with the operating baseline; do not leave color as the only
-record of what was agreed.
+These are review questions, not changes to the requirements below. For each
+proposed revision, record the clause, rationale, owner, and resources; reconcile
+the affected procedures and release evidence before adoption. Applicable site
+requirements still govern. Inclusion in this draft does not certify that a
+control has been implemented.
 
 ## 1. Purpose
 
@@ -49,18 +50,12 @@ Team-specific policy may supplement those values and requirements. The
 procedure uses native Spack configuration and commands and does not depend on
 a particular workspace preparation or orchestration tool.
 
-The required sequence is:
+Figure 1 summarizes the release sequence. The sections below define its
+control points and required evidence.
 
-```text
-select reviewed platform configuration
-  -> define the Spack environment
-  -> concretize and review the lockfile
-  -> admit sources and prepare approved mirrors
-  -> transfer and verify the bundle when the destination cannot obtain all required inputs directly
-  -> build and test on the target system
-  -> obtain independent review and publish the approved artifacts
-  -> retain the source, lockfile, and validation record
-```
+![Release lifecycle from reviewed platform configuration and locked inputs through source preparation, target validation, independent review, publication, user acceptance, and retained release evidence.](word-documents/figures/shared-release-lifecycle.png)
+
+Figure 1. Build and release lifecycle. Apply transfer and publication branches to the selected operating baseline; a failed control point holds the affected candidate.
 
 Every environment must use an explicit supported toolchain. A successful build
 is not sufficient for publication. Runtime and module tests must also pass.
@@ -112,8 +107,6 @@ required.
 
 ## 2. Responsibilities
 
-**Review note - CORE PRACTICE:** Retain one accountable builder and an independent technical reviewer for the candidate. Plan review time and alternate coverage; this does not require repeating every build or reviewing every dependency manually.
-
 | Role | Responsibility |
 |---|---|
 | Package manager | Select packages and catalog scopes, define the environment, build, test, and prepare the release record. |
@@ -135,8 +128,6 @@ process for the escalation triggers in Section 12. A module in a centrally manag
 namespace also requires the namespace owner's approval.
 
 ## 3. Required inputs
-
-**Review note - CORE PRACTICE:** Retain exact inputs, actual paths, ownership, and release identity so another operator can reproduce and support the build. Capture available facts automatically and complete the remaining decisions in one operating record.
 
 Record these inputs before concretization:
 
@@ -218,8 +209,6 @@ operation that may bootstrap a tool. The command examples carry that scope
 explicitly so its source/trust policy persists across the workflow.
 
 ## 4. Storage, access, and Spack runtime
-
-**Review note - CORE PRACTICE:** Retain nonprivileged operation, controlled shared writes, private mutable state, and protection of accepted releases. These protect both build reliability and the integrity of the retained record.
 
 Keep the following locations separate:
 
@@ -386,8 +375,6 @@ spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config scopes -vp
 
 ### 4.3 Supply-chain security boundary
 
-**Review note - ADDED EFFORT:** Confirm which network, scanning, hardening, and signing controls the operating baseline will require, who supplies them, and how enforcement is demonstrated. Input identity and integrity checks remain core.
-
 Treat the Spack runtime, package repositories, package recipes, patches,
 fetched sources, external packages, and binary caches as separate inputs to
 the release. A checksum proves that fetched bytes match the checksum approved
@@ -419,8 +406,6 @@ that it ran. An unresolved requirement follows the hold and escalation process
 in Section 12.
 
 ### 4.4 Verify the pinned runtime and package repositories
-
-**Review note - CORE PRACTICE:** Retain pinned runtime/repository identities, search order, and verification of local corrections. These checks establish which executable inputs produced the candidate.
 
 Use either the approved shared checkout or an identity-equivalent builder-local
 checkout. The path may differ, but its version, tag, commit, and clean state may
@@ -587,8 +572,6 @@ environment scope listings contain no unexpected configuration.
 ## 6. Select platform configuration
 
 ### 6.1 Prepare and review a catalog when acting as catalog owner
-
-**Review note - APPLICABILITY:** This preparation branch belongs to the catalog owner. A package manager consuming an existing approved catalog follows the selection and verification steps in Section 6.2.
 
 Catalog consumers proceed to Section 6.2. The designated catalog owner
 assembles a versioned directory containing include-ready native Spack
@@ -868,14 +851,16 @@ lockfiles, build output and evidence rather than overwriting their workspace.
 
 ### 7.6 Maintain local package corrections
 
-**Review note - CORE PRACTICE:** When a local correction is needed, retain its scope, complete files, separate repository revision, affected-lock review, and validation. The upstream baseline can remain pinned.
-
 A local recipe repository allows a package manager to correct package source
 or build behavior while retaining the approved upstream package-repository
 pin. The local repository has its own recorded revision or archive digest.
 It is a controlled executable input, subject to the same admission, review,
 transfer, and retention requirements as the upstream recipes. Use Section 4.2
 first to determine whether the change belongs in configuration instead.
+
+![Local correction lifecycle showing diagnosis, selection of configuration or recipe changes, separate versioning, affected-lock assessment, candidate validation, and independent acceptance while the upstream repository stays pinned.](word-documents/figures/local-correction-lifecycle.png)
+
+Figure 2. Local package correction lifecycle. A correction has its own recorded identity; the review follows every environment that consumes it. Sections 7.6.1 through 7.6.5 define the detailed steps.
 
 For an unqualified package name, Spack selects the recipe from the first
 configured repository that provides it. Spack does not merge `package.py`
@@ -1073,10 +1058,6 @@ individual manual approval of each dependency is not required by this SOP.
 
 ### 8.1 Assess package changes and record the two-person review
 
-**Review note - CORE PRACTICE:** Retain the inventory, change assessment, focused review of local corrections, and independent candidate decision. Reuse applicable baseline evidence and bind the review to exact inputs and results.
-
-**Review note - ADDED EFFORT:** Decide scan coverage, approved tools and advisory feeds, update frequency, findings triage, and specialist escalation. Size that work separately from the technical inventory and candidate review.
-
 1. **Establish the baseline.** Inventory the complete locked dependency
    closure, including repositories and imported recipe helpers, patches,
    source resources, bootstrap/build tools and system externals. On the first
@@ -1124,8 +1105,6 @@ may require additional review for named components or system conditions.
 <a id="procedure-source-mirrors"></a>
 
 ### 9.1 Create and verify source mirrors at controlled intake
-
-**Review note - CORE PRACTICE:** Retain source identity, integrity, completeness, and a usable acquisition record. Reuse verified source content rather than repeating acquisition or transfer for unchanged inputs.
 
 Use an approved intake system with the necessary network access to acquire the
 reviewed inputs. This serves systems that cannot directly retrieve every
@@ -1196,8 +1175,6 @@ restriction outside Spack and treat an attempted fallback as a failed gate.
 
 ### 9.2 Transfer to a system with limited or no external network access
 
-**Review note - APPLICABILITY:** Use this branch when the destination cannot obtain all required inputs directly. Apply the authorized route and destination checks; connected builds without a transfer do not perform this branch.
-
 Use this sequence when the destination cannot directly obtain all required
 source tarballs or other build inputs. It applies even when the system can
 reach some Internet or internal-network resources, and also covers fully
@@ -1206,6 +1183,10 @@ the site's authorized transfer process supplies handling, scanning, release and
 import permission. This SOP does not authorize a transfer or select removable
 media or a cross-domain mechanism. Record the applicable authorization and
 destination owner before assembling the bundle.
+
+![Restricted-network transfer from destination requirements to controlled acquisition and approved transfer, followed by destination verification and either source building or compatible signed-cache installation.](word-documents/figures/restricted-network-transfer.png)
+
+Figure 3. Transfer and destination acceptance. The destination defines the required inputs and retains its own acceptance evidence. Missing inputs return to controlled acquisition; signed binary delivery requires prior producer validation, review, and signing.
 
 #### 9.2.1 Select the destination execution mode
 
@@ -1412,10 +1393,6 @@ requires destination acceptance and review.
 
 ### 9.3 Build and validate the candidate on the target system
 
-**Review note - CORE PRACTICE:** Retain nonprivileged builds of the reviewed graph, controlled concurrency, functional/runtime validation, and the required module and access checks. Successful compilation alone does not establish usability.
-
-**Review note - ADDED EFFORT:** Confirm platform support for enforced network restrictions and retained enforcement evidence. This decision concerns network control; nonprivileged operation and build validation remain core.
-
 Run as a nonprivileged build identity in the restricted candidate area. Record
 the approved network restriction and enter the required compute allocation.
 Section 9.1 must have completed controlled source intake. When inputs arrive
@@ -1441,8 +1418,6 @@ Run view regeneration only when the environment defines a view. Run module
 refresh only when the environment defines module generation. A build that does
 not publish a view or modules records those checks as not applicable.
 
-**Review note - APPLICABILITY:** Select tests for the languages, MPI/GPU providers, node types, views, and modules actually supported. Required platform tests need the relevant allocation or hardware; unavailable resources are not a passing result.
-
 Run the checks that apply:
 
 - compile and run representative C, C++, and Fortran programs;
@@ -1460,8 +1435,6 @@ tolerances, comparison baseline, and acceptance results. Evidence for an
 unchanged package may be reused when the inputs, platform, and test assumptions
 remain applicable. Record that basis and the reason for any check marked not
 applicable; a required missing result holds the candidate.
-
-**Review note - ADDED EFFORT:** Confirm the required scans, hardening settings, coverage limits, and disposition process. Include numerical and performance testing when hardening can affect scientific behavior.
 
 Also retain the configured security-check results, approved compiler-hardening
 settings and any scoped exceptions. Verify installed-file integrity and linkage
@@ -1503,8 +1476,6 @@ or a required result was not obtained.
 
 ## 10. Publish
 
-**Review note - CORE PRACTICE:** Retain independent acceptance of the exact candidate, controlled user exposure, and an identifiable release that can be withdrawn or replaced. The publication method has its own applicability and resource decisions below.
-
 Use the application team's approved publication method. Preserve the reviewed
 lockfile and concrete hashes. Final independent review of the exact candidate
 and evidence must pass before signing or publication. Record whether the
@@ -1515,10 +1486,6 @@ record, and access gates; Section 10.1 applies whenever a binary cache is used.
 <a id="procedure-signing"></a>
 
 ### 10.1 Sign and populate the approved binary cache
-
-**Review note - ADDED EFFORT:** Confirm the required signing backend, key custodian, trust distribution, rotation, and recovery support. Revising signed-cache requirements also requires reconciling publication, transfer, verification, and evidence steps.
-
-**Review note - CORE PRACTICE:** When signing is used, retain private-key protection, authenticated public-key fingerprints, and exact artifact verification. A workload review does not justify weakening an adopted trust mechanism.
 
 Use the release identity and authorized key custodian named in the operating
 record. Keep the private key in the restricted signing process. Obtain the
@@ -1583,8 +1550,6 @@ and transferred mirror digest. Compare that permitted set before installation.
 <a id="procedure-catalog-publication"></a>
 
 ### 10.2 Publish the reviewed static catalog
-
-**Review note - APPLICABILITY:** Use this branch when publishing a configuration catalog to its approved audience. Consuming an existing catalog does not make an application package manager its publisher.
 
 This branch is for the catalog owner. The operating record sets its place in
 the release sequence and its authorized audience; the catalog remains a
@@ -1658,8 +1623,6 @@ test -z "$(find "$PUBLISHED_CATALOG" ! -group "$BUILD_GROUP" -print -quit)"
 <a id="procedure-cache-publication"></a>
 
 ### 10.3 Install and accept the release from the cache only
-
-**Review note - APPLICABILITY:** This branch applies when the selected publication method installs from a binary cache. Its signature, exact-hash, and destination checks remain part of that branch; direct publication follows Section 10.
 
 When a build cache is used:
 
@@ -1748,8 +1711,6 @@ and cross-user access checks from Section 9.3 before exposing module defaults.
 
 ### 10.4 Retain SBOMs and the separate external inventory
 
-**Review note - CORE PRACTICE:** Retain the package/dependency inventory and the separately recorded system externals. Reuse generated SBOMs as evidence; operating a vulnerability analysis program is a separate workload decision.
-
 Spack 1.2.2 writes a per-installation SPDX 2.3 SBOM for a non-external package:
 
 ```text
@@ -1777,8 +1738,6 @@ inventory check, not a vulnerability assessment.
 
 ## 11. User access
 
-**Review note - CORE PRACTICE:** Retain tests of the actual user entrance, selected compiler/provider environment, package access, and denied unauthorized writes. Record the supported load sequence and release identity.
-
 Publish package modules under the application's established module root. The
 normal module root should already be on users' `MODULEPATH`. A user normally
 loads the package directly:
@@ -1798,8 +1757,6 @@ a new release for unrecorded package or configuration changes.
 
 ## 12. Changes, security events, and platform updates
 
-**Review note - CORE PRACTICE:** Retain change tracking, impact assessment, platform-drift checks, and the ability to replace affected releases. Match retesting to the changed inputs and supported runtime combinations.
-
 A change to a root spec, version, variant, recipe, patch, package-repository
 revision or order, compiler, MPI, GPU provider, catalog scope, Spack version,
 external-package identity, or lockfile requires a new release record. Rebuild
@@ -1817,8 +1774,6 @@ For a security advisory:
 
 Spack SBOMs provide package and dependency inventory. They do not perform CVE
 matching. Use the organization's approved vulnerability source or scanner.
-
-**Review note - APPLICABILITY:** Security involvement follows the listed boundary, exception, finding, and incident triggers. These are focused decisions; routine technical review remains part of every candidate release.
 
 Routine releases inside the team's agreed source, build, signing and transfer
 bounds stay with the builder, reviewer and release authority. Obtain security
@@ -1844,8 +1799,6 @@ compatibility result is unknown.
 
 ## 13. Retention, recovery, and rollback
 
-**Review note - CORE PRACTICE:** Retain sufficient inputs, evidence, and prior artifacts to reconstruct or restore a supported release. Agree retention periods and storage ownership; verify recovery rather than assuming a saved directory is sufficient.
-
 Set and record the application's retention and user-notification periods.
 Keep at least the current accepted release and one working previous release
 when storage permits it. Do not remove a cache object while a retained lockfile
@@ -1859,8 +1812,6 @@ Rollback changes the supported module default or release pointer to a previous
 accepted release. It does not modify either release.
 
 ## 14. Required release record
-
-**Review note - CORE PRACTICE:** Keep one auditable record of inputs, changes, build/test results, review, and release identity. Automate capture where practical; retain the security-specific fields required by the selected operating baseline.
 
 Retain:
 

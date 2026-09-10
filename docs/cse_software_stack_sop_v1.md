@@ -8,31 +8,33 @@
 | Scope | CSE operating policy, supported software surfaces, security responsibilities, and release acceptance |
 | Shared procedure | [Spack build and publication procedure](software_stack_sop_v1.md) |
 
-## Reviewer guide
+## Review priorities
 
-The colored labels identify review recommendations about applicability and
-operating effort. Their text carries the same meaning in black-and-white
-copies. A note applies only to the controls it names; a section can contain
-more than one category.
+**Baseline to retain.** Keep exact CSE input and change records, separately
+versioned local corrections, verified sources, controlled access, and tested
+software and modules. Retain the two-person release review and evidence needed
+for support, rebuilding, and recovery. Review can reuse unchanged baseline
+evidence without repeating the full build or manually inspecting every package.
 
-| Review label | Color | Meaning for reviewers |
+**Applicability to confirm.** Match transfer procedures and platform tests to
+the supported systems. Confirm the catalog audience and supported selections;
+CSE catalog publication remains required. Security involvement follows Section
+2.2.
+
+The following controls need explicit scope, ownership, and resource decisions.
+
+| Review topic | Decision for reviewers | CSE sections |
 |---|---|---|
-| CORE PRACTICE: retain | Blue | Recommend retaining as the routine build and release baseline, including reproducibility, basic security, technical review, validation, and recovery. |
-| APPLICABILITY: confirm the trigger | Amber | Apply the named branch when its system, role, transfer, or software condition holds; record when it does not apply. This is not an effort rating. |
-| ADDED EFFORT: decide scope and ownership | Purple | Examine the named control's infrastructure, specialist support, recurring work, and evidence needs; propose retaining it or revising its scope. |
+| Build network boundary | Platform enforcement, responsible owner, and verification of outbound-network denial | 9.3 |
+| Scanning and hardening | Tools and feeds, coverage, findings handling, and numerical and performance testing capacity | 8.1, 9.3 |
+| Signing and cache publication | Key custody, signing context, trust distribution, rotation, and recovery support | 10.1–10.3 |
+| Continuing support | Staffing for response targets, advisory updates, retention, and recovery | 12–14 |
 
-These labels do not certify that a control is implemented or approved, change
-the requirements below, or authorize skipping a required step. Core practices
-still take staff time; added effort does not mean lower importance. Actual
-workload depends on available infrastructure, automation, and required coverage.
-
-For a proposed change, record the exact clause, retain/revise/omit recommendation,
-applicable circumstances, reason, responsible owner, and needed resources.
-Resolve mandatory site requirements with the responsible authority. Before
-adopting a changed process, reconcile its requirements, gates, commands, and
-release records across the shared procedure and applicable team policy. Keep
-the review decision with the operating baseline; do not leave color as the only
-record of what was agreed.
+The current draft requires restricted builds and signed, cache-only publication.
+For a proposed change, record the clause, rationale, owner, and resources, then
+align this SOP and the shared procedure before adoption. Applicable site
+requirements still govern. Inclusion in this draft does not certify that a
+control has been implemented.
 
 ## 1. Purpose
 
@@ -103,7 +105,9 @@ system/security contacts; role names alone do not prove that review occurred.
 
 ### 2.1 Two-person review and audit trail
 
-**Review note - CORE PRACTICE:** Retain the builder/reviewer handoff and exact candidate evidence. Allocate review time within the two-person team and name alternate coverage; review need not duplicate the full build.
+![CSE release ownership from a builder preparing and validating a candidate to independent review, controlled signing, catalog publication, cache-only installation, destination acceptance, and authorized user exposure.](word-documents/figures/cse-release-ownership.png)
+
+Figure 1. CSE review and release handoff. The technical reviewer may also act as delegated release authority and perform signing in its separate controlled context. Sections 9 and 10 define the validation and publication requirements.
 
 The builder submits the candidate identity, input and change inventory, review
 scope and rationale, test and scan results, unresolved items, and proposed
@@ -129,8 +133,6 @@ do not replace a previous decision with an edited description of the outcome.
 
 ### 2.2 Security review and decisions
 
-**Review note - APPLICABILITY:** Involve the responsible security or platform authority for the triggers below. Confirm each trigger and owner without adding a routine security approval for every unchanged package.
-
 Routine releases within the agreed baseline stay with the CSE builder,
 reviewer, and delegated release authority. Obtain security review or a decision
 at the following points. The local process identifies the responsible reviewer
@@ -149,8 +151,6 @@ where it can resolve a security question. CSE technical sign-off does not grant
 authority to waive a system security requirement.
 
 ## 3. Required inputs
-
-**Review note - CORE PRACTICE:** Retain the actual CSE package, platform, repository, deployment, and release selections. Record security control choices explicitly so the review pair describes the operating baseline consistently.
 
 Complete the common operating record in shared procedure Section 3 for each
 system and release. CSE additionally binds the following selections:
@@ -172,8 +172,6 @@ controls supported configuration, and the installer records deployment paths;
 CSE does not infer those paths from system discovery.
 
 ## 4. Storage, access, and Spack runtime
-
-**Review note - CORE PRACTICE:** Retain controlled shared access, private builder state, pinned tools, and protection of accepted releases. Signing infrastructure has a separate resource decision in Section 10.1.
 
 Follow shared procedure Section 4 to configure and verify the selected paths,
 runtime, permissions, and effective configuration. CSE uses separate restricted
@@ -276,8 +274,6 @@ platform facts do not replace those of the destination system.
 
 ## 7. Define the environment
 
-**Review note - CORE PRACTICE:** Retain complete environment/configuration inputs and exact locks, including compiler, provider, and deployment choices. Another authorized builder must be able to inspect and use the retained inputs.
-
 Use shared procedure Section 7 to prepare and inspect the complete Spack
 environment and its approved inputs. Retain the release record, environment
 sources and lockfiles, configuration scopes, overlays, module definitions, and
@@ -329,8 +325,6 @@ compatibility.
 
 ### 7.3 CSE local package corrections
 
-**Review note - CORE PRACTICE:** Retain targeted correction records, separately versioned overlays, affected-environment review, and validation. Keeping the upstream pin does not remove the need to record local input changes.
-
 CSE may maintain a local recipe or source correction when the approved package
 and platform combination needs behavior that the pinned upstream recipe set
 does not provide correctly. Keep the upstream repository at its approved pin;
@@ -375,10 +369,6 @@ builds start.
 
 ### 8.1 Scalable package review
 
-**Review note - CORE PRACTICE:** Retain the dependency inventory, baseline comparison, local recipe review, and independent candidate decision. Keep manual effort focused on changed or risk-relevant inputs.
-
-**Review note - ADDED EFFORT:** Decide scanner/feed ownership, required coverage, findings triage, and any specialist review capacity. These decisions do not replace the technical baseline and change review.
-
 CSE inventories the full concrete dependency closure and applies the required
 automated checks across the available source/artifact inventory. It does not
 require manual inspection of every package recipe or every line of every
@@ -410,8 +400,6 @@ in the operating baseline and followed within its actual scope.
 
 ### 9.1 CSE source and mirror preparation
 
-**Review note - CORE PRACTICE:** Retain verified source inputs and their identity so a build can be repeated or handed off. Reuse unchanged content and acquire only missing or changed inputs.
-
 Follow the shared [source mirror procedure](software_stack_sop_v1.md#procedure-source-mirrors).
 CSE prepares an identifiable source-mirror snapshot for the approved concrete
 environments on a system with the required approved network access. Include
@@ -428,8 +416,6 @@ build uses destination-approved configuration and local mirrors. Missing
 content returns to controlled acquisition as a recorded supplemental delivery.
 
 ### 9.2 Systems with limited or no external network access
-
-**Review note - APPLICABILITY:** Use the transfer procedure when the destination cannot retrieve the full input set directly, including partially connected systems. Destination restrictions and any applicable handling rules still govern that transfer.
 
 Apply the shared [transfer procedure](software_stack_sop_v1.md#procedure-disconnected-transfer)
 when a destination cannot directly obtain all required inputs, even if it can
@@ -476,10 +462,6 @@ build, test, review, and signing records.
 
 ### 9.3 Restricted build and acceptance
 
-**Review note - CORE PRACTICE:** Retain nonprivileged builds, exact candidate inputs, safe concurrency, and software/module/runtime acceptance. The network and security-tool resource decisions below concern specific controls within this section.
-
-**Review note - ADDED EFFORT:** Confirm whether enforced outbound-network denial remains the selected production control, how the system owner implements it, and who verifies it. The current draft requires it until that baseline is revised.
-
 Use the shared [build and validation procedure](software_stack_sop_v1.md#procedure-build-validation).
 Separate approved acquisition from build execution. CSE's intended production
 baseline uses a nonprivileged restricted build, approved local inputs, enforced
@@ -493,15 +475,11 @@ and one owner for each environment's views/modules. Coordinate total CPU and
 memory budgets. The two-person review remains required after parallel work;
 concurrency does not supply independent approval.
 
-**Review note - APPLICABILITY:** Run the tests for each supported language, lane, MPI/fabric/launcher, and GPU combination. Plan native multi-node access when required; omit a branch only when the supported release does not include it.
-
 CSE acceptance covers applicable C/C++/Fortran compile/link/run checks, package
 runtime behavior, headers/libraries/linkage, numerical correctness and
 representative performance, clean Serial execution, native multi-node MPI and
 fabric/launcher behavior, and GPU tests when approved. Select checks and any
 reused baseline evidence under shared procedure Section 9.3.
-
-**Review note - ADDED EFFORT:** Confirm the scan and hardening scope, test resources, and authority to disposition findings. Functional, numerical, performance, and module evidence remain part of technical acceptance.
 
 Apply the recorded security scans and qualified compiler-hardening settings;
 record failures and exceptions together with functional and performance evidence
@@ -525,10 +503,6 @@ evidence.
 
 ### 10.1 CSE signing and release decision
 
-**Review note - ADDED EFFORT:** CSE currently selects signed-cache publication. Confirm key custody, signing infrastructure, trust distribution, rotation/recovery, and staff ownership. Any proposed change needs corresponding edits to Sections 9, 10, 12, and 14 and the shared procedure.
-
-**Review note - CORE PRACTICE:** For the adopted signing method, retain protected private keys, verified public-key fingerprints, and binding of approval to the exact artifacts. Preserve those protections while reviewing infrastructure cost.
-
 Follow the shared [signing procedure](software_stack_sop_v1.md#procedure-signing).
 Use the dedicated approved CSE signing identity and distribute its complete
 public-key fingerprint through a controlled channel. The reviewer/release
@@ -551,8 +525,6 @@ exposure receives a recorded security/release disposition under Section 12.
 
 ### 10.2 CSE static catalog publication
 
-**Review note - APPLICABILITY:** CSE currently requires catalog publication. Confirm which audience, supported selections, and accessible input locations apply; changing the required release sequence needs a policy revision.
-
 Follow the shared [catalog publication procedure](software_stack_sop_v1.md#procedure-catalog-publication).
 Publish the accepted restricted catalog after restricted validation and the
 build-cache gate. The catalog remains an independent configuration product;
@@ -566,8 +538,6 @@ the restricted original. CSE's own workspaces continue to use the restricted
 catalog identity; external package managers pin the public versioned catalog.
 
 ### 10.3 CSE stack publication
-
-**Review note - CORE PRACTICE:** Retain exact accepted package identities, a protected publication area, destination validation, and controlled user exposure. The current cache-only method depends on the signing decision in Section 10.1; this note does not change that method.
 
 Follow the shared [cache publication procedure](software_stack_sop_v1.md#procedure-cache-publication).
 CSE prepares a separate publication workspace from the same approved package
@@ -594,8 +564,6 @@ only after acceptance; do not repair an accepted release in place.
 
 ### 10.4 CSE inventory
 
-**Review note - CORE PRACTICE:** Retain package/dependency and external-component records for support, change impact, and recovery. Distinguish inventory capture from scanner operation and vulnerability findings triage.
-
 Use shared procedure Section 10.4 for SBOM and external-inventory handling.
 Bind the retained producer SBOMs and their digests to the accepted release.
 Record any destination-generated SBOM separately; installation hooks can
@@ -606,8 +574,6 @@ than interpreting an SBOM as a scan result.
 
 ## 11. User access
 
-**Review note - CORE PRACTICE:** Retain acceptance of the actual compiler, vendor/MPI, lane, and package environment users load. Test supported combinations, conflicts, clean-session behavior, and access from the intended node types.
-
 Use shared procedure Section 11 for clean-session module, runtime, and access
 checks. CSE's public entrance is:
 
@@ -616,6 +582,10 @@ module load cse/<compiler-surface>
 module load <Serial|MPI>
 module load <package>/<version>
 ```
+
+![CSE user module sequence showing compiler selection, Serial or MPI lane selection, and package loading, with ambient Foundation libraries and user-loadable Core tools.](word-documents/figures/cse-user-module-flow.png)
+
+Figure 2. User access to the accepted CSE stack. The compiler and lane select the tested environment. Foundation libraries remain available through the selected view; Core tools and approved packages are exposed through modules.
 
 The CSE gateway lives in the site's established module namespace, directly or
 through an approved symlink. It selects the accepted compiler surface and adds
@@ -664,8 +634,6 @@ presentation as the documented entrance.
 
 ## 12. Changes, security events, and platform updates
 
-**Review note - CORE PRACTICE:** Retain versioned changes, advisory ownership, platform-update impact checks, and replacement/withdrawal capability. Keep the release record current as work happens.
-
 Follow shared procedure Section 12 for change handling, advisory assessment,
 platform revalidation, withdrawal, and replacement. A build-defining root,
 version, variant, recipe, patch, repository revision/order, compiler, MPI/GPU
@@ -679,8 +647,6 @@ and remediation evidence. Include transferred destination releases and their
 local contacts. Refresh vulnerability/scan intelligence on systems with limited
 or no external access through the approved update route and record its currency.
 A missed update or newly discovered finding requires a recorded disposition.
-
-**Review note - ADDED EFFORT:** Review staffing and coverage for the stated response times, recurring advisory/scan updates, and remediation workload. Confirm achievable commitments and applicable site deadlines before adopting revised service targets.
 
 Use these CSE response targets unless an applicable stricter policy is recorded:
 
@@ -702,8 +668,6 @@ rebuild, or hold. A changed default module alone proves neither compatibility
 nor incompatibility.
 
 ## 13. Retention, recovery, and rollback
-
-**Review note - CORE PRACTICE:** Retain recoverable inputs, reviewed evidence, and a usable prior release. Confirm that the stated retention periods, storage capacity, and notification responsibilities are sustainable and meet site requirements.
 
 Apply shared procedure Section 13 with these CSE retention requirements, unless
 a documented applicable site/security decision supersedes them:
@@ -731,8 +695,6 @@ editing either release. Do not restore an exposed release merely because it
 was previously approved.
 
 ## 14. Required release record
-
-**Review note - CORE PRACTICE:** Retain one auditable CSE release record with exact inputs, corrections, tests, reviewer decision, and published identity. Capture available outputs automatically and keep baseline-specific security evidence with the same record.
 
 Use the common release record in shared procedure Section 14. CSE adds the
 controlled roster and cross-environment checks, restricted/public catalog

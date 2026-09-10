@@ -10,6 +10,14 @@ These working drafts are aligned to the 2026-09-09 review revision. Distribute
 both files together in one folder; the CSE SOP links to the shared procedure.
 Neither document requires the internal runbook or other planning documents.
 
+Each SOP opens with compact review priorities and a table of decisions about
+scope, ownership, and resources. Process figures sit beside the procedures they
+explain. The requirements remain in the main text.
+
+Figures are embedded in the Word files, so reviewers only need the two Word
+documents. The `figures/` folder retains editable SVG masters and matching PNGs
+for maintaining the Word and Markdown versions together.
+
 | Word document | Markdown source |
 |---|---|
 | [CSE Spack Build and Publication SOP](cse_software_stack_sop_v1.docx) | [CSE SOP](../cse_software_stack_sop_v1.md) |
