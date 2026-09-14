@@ -12,6 +12,23 @@ the shared procedure's
 [transfer](software_stack_sop_v1.md#procedure-disconnected-transfer) sections;
 system notes identify the applicable paths and approved transfer route.
 
+For a manual package correction during an unfinished trial, start with the
+[offline overlay quickstart in Stack Content](../../stack-content/pilots/cse-pilot/templates/PACKAGE-OVERLAY-QUICKSTART.md).
+It covers finding the pinned original `package.py`, the deployed overlay,
+inputs for an on-site agent or human, a direct Spack retry, and copying a
+validated correction to another workspace without Git. The
+[detailed overlay workflow](../../stack-content/pilots/cse-pilot/PACKAGE-OVERLAY-WORKFLOW.md)
+also gives commands for bringing only the guide into an existing workspace.
+These links assume sibling `stack-planning` and `stack-content` checkouts.
+The generated workspace carries its own `PACKAGE-OVERLAY-QUICKSTART.md` for
+offline use; a healthy existing workspace can receive that file by manual copy.
+
+Stack Planning owns this overall process and its release boundaries. The
+operational recipe guide lives in Stack Content beside the recipes and
+workspace templates it describes. The guide separates manual commands from
+optional helpers; changing a package does not require running the full
+`cse-build` installation loop.
+
 This is the system-neutral operator procedure for moving one reviewed Spack
 1.2 workspace through the complete sequence:
 
