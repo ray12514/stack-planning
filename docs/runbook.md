@@ -22,6 +22,12 @@ also gives commands for bringing only the guide into an existing workspace.
 These links assume sibling `stack-planning` and `stack-content` checkouts.
 The generated workspace carries its own `PACKAGE-OVERLAY-QUICKSTART.md` for
 offline use; a healthy existing workspace can receive that file by manual copy.
+The guide's common procedure is package- and system-independent; Blueback CCE
+netlib-lapack is a worked example. Its opening update table identifies the
+destination for documentation, a package overlay, or generated controls.
+Copying an overlay also requires checking recipe selection, recovering affected
+candidate locks, and testing on the receiving system; a source-repository pull
+alone does not update a generated workspace.
 
 Stack Planning owns this overall process and its release boundaries. The
 operational recipe guide lives in Stack Content beside the recipes and
