@@ -1,6 +1,6 @@
 # Guidance for drafting the Spack security white paper response
 
-September 8 2026
+September 16 2026
 
 ## Purpose and use
 
@@ -66,6 +66,35 @@ These are reference-backed starting points for the pinned Spack 1.2.2 context of
 For Spack 1.2.2, verify the selected cache backend: native signing does not cover the build-cache index, and OCI pushes do not support that native signing path. [R3] Do not describe every cache or registry as providing the same signing behavior. Also avoid calling Spack's structural audit a vulnerability scanner or treating signature success as proof of organizational cryptographic compliance.
 
 Include Spack's opt-in Linux build sandbox where relevant as an existing supplementary capability. Its kernel requirements and build-phase scope matter: recipes can execute before the sandbox applies, so it does not establish isolation for the complete preparation and build workflow. [R7]
+
+### Proposed snapshot delay and review outside CSE
+
+Include these proposals when responding to intake or independent-review concerns.
+The [security assurance case](cse_spack_security_assurance_case_v1.md) provides
+the rationale and evidence requirements; the SOP drafts state the corresponding
+operating choices. Do not describe either proposal as an already enforced
+control without system evidence.
+
+For routine repository updates, propose a supported upstream snapshot with at
+least 90 elapsed days of verified publication age, pinned to its full commit
+with the tag retained as a reference. The newest snapshot may qualify; otherwise
+assess an older one and check its actual age. Do not assume quarterly releases
+or equate one release behind with three months. Explain the intended reduction
+in exposure to recent changes without promising prevention or a measured risk
+reduction. Current vulnerability review, ongoing monitoring, separate admission
+of new overlays/source changes, and expedited security-fix exceptions remain
+necessary. This is an input-adoption delay, not an automatic hold on every built
+binary or automatic release from quarantine. See the
+[Spack snapshot research note](spack_repository_snapshot_admission_research_v1.md)
+for upstream facts and the limits of the proposal.
+
+Permit a qualified independent reviewer outside CSE when the release, system,
+or security authority deems it useful. The review may replace the routine
+technical-review assignment or supplement it. Record qualifications,
+organizational affiliation, independence from candidate preparation, scope,
+evidence, findings, and disposition. Provide approved evidence access and keep
+build, signing, publication, and risk-acceptance authority explicitly assigned.
+The objective is broader scrutiny, not a requirement to outsource every review.
 
 If package-manager comparisons are relevant to an actual white paper claim, compare equivalent operating modes: source production, repository governance, binary delivery, installation behavior, and ongoing maintenance. Do not claim that Spack, RPM/DNF, or Conda have equal risk merely because each has an executable supply-chain surface.
 

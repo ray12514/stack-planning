@@ -3,7 +3,7 @@
 | Document control | Value |
 |---|---|
 | Date | 2026-09-03 |
-| Alignment review | 2026-09-08; reconciled with the current CSE policy and shared procedural SOP drafts |
+| Alignment review | 2026-09-16; proposed repository snapshot waiting period and optional review outside CSE, aligned with the SOP drafts |
 | Status | Research-backed proposed policy basis; not an authorization decision or operator procedure |
 | Audience | CSE package managers, security reviewers, assessors, system owners, and responsible authorizing roles |
 | Primary scope | Spack 1.2.2 used to build and publish software for unclassified DoD HPC systems |
@@ -44,6 +44,13 @@ chain. The acceptable operating model is:
 > egress-denied unprivileged build, security and functional validation,
 > independent approval and signing, frozen versioned publication, managed
 > cache-only installation, module-based user access, and continuous monitoring.
+
+The proposed intake policy uses an aged, pinned package-repository snapshot
+to delay routine adoption of recent recipe changes. A proposed 90-day minimum
+implements the intended approximately three-month observation period.
+Independent review may be assigned to a qualified person outside CSE when
+additional expertise or organizational distance is needed. These are proposed
+local controls, not Spack guarantees or evidence of implementation on a system.
 
 This model aligns the security outcomes with controls and evidence at each
 stage. Where package-manager comparisons help explain a control, compare
@@ -220,6 +227,62 @@ due diligence rather than a single undifferentiated review depth
 ([NIST SP 800-161 Rev. 1 Update 1](https://doi.org/10.6028/NIST.SP.800-161r1-upd1),
 [NIST SP 1326](https://doi.org/10.6028/NIST.SP.1326)).
 
+### Repository snapshot waiting period
+
+Use the age of the admitted upstream package-repository snapshot as a routine
+intake criterion. This gives upstream users and security monitoring time to
+surface defects or compromise before CSE adopts recent changes. It is a delay
+before adoption, not a claim that time makes code safe. Spack supports fixing
+a Git-backed package repository to a tag or commit; retain the tag as a human
+reference and bind admission to its resolved full commit and retained content
+([Spack repository pinning](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/repositories.rst),
+[snapshot research and limits](spack_repository_snapshot_admission_research_v1.md)).
+
+The proposed default is **at least 90 elapsed days since the verified upstream
+publication of the selected snapshot**, subject to local approval. Do not
+assume a quarterly upstream cadence or derive age from the tag's name or Git
+author date. Record the publication evidence, observation date, resolved
+commit, assessment date, elapsed age, and adopted waiting rule. If publication
+age cannot be established, the snapshot does not satisfy the normal rule
+without a documented exception. A moved tag or altered content must return to
+admission review; it cannot retain approval by keeping the same label.
+
+| Selection case | Proposed disposition |
+|---|---|
+| Newest snapshot has been published for at least 90 days | Eligible for normal admission review, subject to supported tooling, current findings, and all other checks |
+| Newest snapshot is younger than 90 days | Normally assess the preceding supported snapshot; verify its actual age and findings too |
+| Preceding snapshot is also too young, unsupported, or unacceptable under current findings | Assess an earlier supported eligible snapshot, hold affected adoption, or request a scoped exception; being one release behind is not enough |
+| Urgent security remediation needs a newer snapshot, source version, or local backport | Use expedited review and an authorized exception to the waiting period; do not postpone remediation merely to reach the age threshold |
+
+Select the most recent supported snapshot that satisfies the adopted rule and
+the security assessment. Here, supported means compatible with the approved
+Spack core/package APIs and within the locally approved maintenance scope,
+including a viable path to required fixes; a published tag alone does not
+establish continuing upstream maintenance. At admission and again before promotion, check current
+advisories and available compromise information against the selected recipes,
+sources, dependencies, and externals; retain findings and their dispositions.
+Continue monitoring accepted releases. An older snapshot may retain known
+vulnerabilities, and a newer one may contain the needed fix. Passage of time
+does not resolve an open finding or justify indefinite use of a stale baseline.
+
+The snapshot age applies only to that exact upstream recipe content. A newly
+added CSE overlay, backport, patch, source selection, bootstrap component, or
+external does not inherit that age. Inventory and review those inputs
+separately and record the basis for admitting them. Where a change bypasses the
+waiting rule, record the exact delta, reason, evidence, approver, compensating
+controls, expiration or follow-up date, and revalidation requirements. Retain
+the unchanged baseline evidence without treating it as approval of the change.
+
+This policy supplies the observation period for eligible upstream recipe
+inputs; it does not add a second automatic 90-day hold after every build.
+Candidate binaries still require the normal build, scan, test, independent
+review, and publication gates. **Quarantine for suspected compromise, failed
+integrity, or unresolved findings remains a separate containment decision** and
+does not expire automatically when the waiting period ends. A separately
+mandated artifact hold remains in force until the responsible authority changes
+it. The 90-day proposal is a local risk-management choice, not an upstream or
+NIST requirement, and does not change currently recorded trial pins by itself.
+
 ### Later release admission
 
 A later release may use delta review when the prior approved baseline and its
@@ -249,12 +312,13 @@ input identity and effective context are demonstrably unchanged.
 |---|---|
 | Candidate identity | Release ID, root specification, environment, lane, platform, and build ID |
 | Effective recipe input | Repository, commit, namespace, package file digest, patches, resources, and override status |
+| Snapshot admission | Upstream tag and resolved full commit, verified publication evidence and date, observation and assessment dates, elapsed age, waiting rule, current advisory review, and any exception |
 | Change | New, changed, removed, or unchanged relative to the approved baseline |
 | Executable behavior | Phases, hooks, commands, environment changes, downloads, write locations, tests, and install actions |
 | Source provenance | Origin, immutable identifier, digest, upstream signature status, acquisition time, and mirror object |
 | Dependency and external impact | Changed DAG nodes, providers, compiler, MPI, Cray PE, system libraries, and bootstrap inputs |
 | Automated evidence | Spack audit results, malware result, vulnerability result, source analysis, secrets result where applicable |
-| Human decision | Reviewer, date, disposition, rationale, required controls, and second reviewer when required |
+| Human decision | Reviewer, organization, qualifications and independence from candidate preparation, review scope, evidence revision, date, disposition, rationale, required controls, and additional reviewer when required |
 | Exceptions | Scope, unmitigated risk, compensating controls, approver, expiration, and retest triggers |
 
 `spack audit` is useful structural lint. It is not a malicious-code review or a
@@ -267,7 +331,7 @@ The release should move forward only when every applicable gate passes.
 
 | Gate | Decision | Mandatory evidence | Failure response | Candidate NIST alignment |
 |---|---|---|---|---|
-| G0 Governance and baseline | Are policy, roles, package criticality, exact tool and repository revisions, and configuration authority approved? | C-SCRM plan; owners; review and exception policy; exact commits; repository order; approved launcher and configuration baseline | Do not resolve or fetch | SR-1, SR-2, SR-3, RA-3, RA-9, CM-2, CM-5; SP 800-161; SP 1326 |
+| G0 Governance and baseline | Are policy, roles, package criticality, exact tool and repository revisions, and configuration authority approved? | C-SCRM plan; owners; independent-review assignments; snapshot publication/age evidence and waiting-rule decision; review and exception policy; exact commits; repository order; approved launcher and configuration baseline | Do not resolve or fetch | SR-1, SR-2, SR-3, RA-3, RA-9, CM-2, CM-5; SP 800-161; SP 1326 |
 | G1 Resolve and review | Is the complete concrete closure and executable input delta understood and approved? | `spack.yaml`; `spack.lock`; evaluated roots, DAGs and hashes; recipe and patch snapshots; change report; review decisions | Reject, revise, or return to review | SR-5, SR-6, SR-10, SR-11, SA-11; SSDF PW.4. SA-9 applies only if CSE relies on an externally operated repository, mirror, scanner, signer, or build service |
 | G2 Source intake | Did controlled intake acquire immutable, verified, scanned, and complete source and bootstrap content? | Origins; commits and digests; VCS-commit-to-mirror-archive bindings; separate bootstrap admission; mirror inventory; TLS/checksum results; scanner engine, policy, signature database date and result; acquisition log | Quarantine or reject | SI-3, SI-7, SC-7, AC-6; SSDF PO.5; SP 800-204D by analogy |
 | G3 Controlled build | Did a nonprivileged builder use only approved, read-only inputs with no outbound network and no release-key access? | builder identity and baseline; effective scopes; config blame; security environment variables; compiler/module/external inventory; egress-denial evidence; full logs | Destroy candidate output and rebuild | AC-6, CM-2, CM-3, CM-4, CM-5, CM-6, CM-7, SA-10, SA-15; SSDF PO.3, PO.5, PW.6 |
@@ -362,10 +426,37 @@ Scan the staged source and the installed candidate. Reevaluate retained release
 inventory when scanner intelligence or vulnerability data changes. One intake
 scan is not a continuing assurance claim.
 
+## Independent review, including reviewers outside CSE
+
+The normal two-person process can use qualified CSE personnel. The CSE release
+authority, system owner, or responsible security authority may designate or
+request a qualified reviewer outside CSE when independent organizational
+scrutiny, specialist knowledge, a significant finding, or a conflict of
+interest warrants it. That reviewer may fill the independent technical-review
+role or provide an additional assessment with a recorded scope. No blanket
+requirement for an outside reviewer on every release is introduced.
+
+Give the reviewer the exact candidate identity and the applicable input,
+change, scan, test, and exception records, with a way to ask for evidence and
+record findings and their disposition. Independence requires freedom from
+preparing or modifying the candidate being approved; outside affiliation alone
+does not establish it. Record the reviewer's organization, relevant
+qualifications, scope, independence, findings, and decision. If a reviewer also
+changes candidate inputs or outputs, obtain an independent review of the
+revised candidate before release.
+
+Use approved read-only evidence access or an authorized evidence transfer;
+outside review does not require membership in the CSE build-write group or
+access to release keys. Role assignment does not automatically grant build,
+signing, publication, or risk-acceptance authority. Those authorities remain
+explicitly assigned under the local process. An unresolved required review
+holds affected publication until its findings receive an authorized disposition.
+
 ## Controlled build requirements
 
 The designated build owner uses a nonprivileged identity. A second qualified
-person independently reviews the exact candidate and may also perform the
+person, within or outside CSE as assigned above, independently reviews the exact
+candidate and may also perform the
 delegated release/signing role in a separate controlled context. This does not
 require a third routine team member. Build execution has read-only access to
 approved inputs,
@@ -780,7 +871,8 @@ attestation workflow is mandatory.
 | Evidence group | Minimum contents |
 |---|---|
 | Release control | release ID, status, timestamps, owners, reviewers, approvers, versioned path, retained digests, write authority, predecessor, replacement, and withdrawal state |
-| Tool and recipe provenance | Spack core and package-repository commits, origins, verification, overlay commits and diffs, repository namespaces and order, controlled launcher version |
+| Tool and recipe provenance | Spack core and package-repository commits, origins, verification, snapshot publication and age evidence, waiting-rule decision and exceptions, overlay commits and diffs, repository namespaces and order, controlled launcher version |
+| Independent review | Reviewer identity and organization, qualifications, independence, assigned scope, exact evidence revision, findings and dispositions, approval or hold; outside-CSE participation when assigned |
 | Environment identity | `spack.yaml`, `spack.lock`, evaluated root specs, full DAGs and hashes, variants, providers, architecture, lane, view and module configuration |
 | Effective configuration | `spack config scopes -p`, config-blame evidence, approved scope digests, repositories, mirrors, bootstrap configuration, compilers, externals, and security-relevant environment variables |
 | Source intake | source, patch, resource, submodule, VCS and bootstrap inventory; URL or origin; immutable identifier; digest; VCS-commit-to-mirror-archive binding; upstream signature status; acquisition log; mirror location; scan evidence |
@@ -906,8 +998,9 @@ and replacement procedures.
    overlays, CCIs, assignment values, and AO-specific conditions.
 2. Confirm whether DoDI 5200.44 applies and identify designated critical
    components.
-3. Approve package criticality tiers, recipe-review depth, second-reviewer
-   triggers, and exception authority.
+3. Approve package criticality tiers, recipe-review depth, the proposed 90-day
+   snapshot waiting rule and urgent-update exceptions, reviewer qualifications,
+   outside-CSE review assignment, and exception authority.
 4. Name the approved source and binary scanners, update cadence, evidence
    fields, false-positive process, quarantine rule, rescan cadence, and
    remediation timing.
@@ -945,8 +1038,15 @@ and replacement procedures.
 > linkage, multi-node, and performance validation; and separates builders from
 > the approval and release-signing role.
 >
+> Routine intake uses a supported pinned repository snapshot with a proposed
+> minimum publication age of 90 days, verified against current findings. This
+> delays adoption of recent changes without treating age as proof of safety or
+> delaying urgent remediation; scoped exceptions receive explicit review.
+>
 > A second qualified person reviews the exact candidate and evidence before
-> signing and publication. Accepted artifacts enter a versioned, write-controlled
+> signing and publication. A qualified reviewer outside CSE may be assigned
+> where independent scrutiny or expertise is needed, with explicit scope and
+> authority. Accepted artifacts enter a versioned, write-controlled
 > CSE build cache using a backend that satisfies the selected signing policy.
 > Designated installers verify the approved CSE key and release-set membership,
 > use a clean or dedicated controlled store with separately admitted externals, and use

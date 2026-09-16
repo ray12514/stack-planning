@@ -7,7 +7,7 @@ who does each step, what to record, and when the software is ready for users.
 | Document control | Value |
 |---|---|
 | Status | Working draft |
-| Review revision | 2026-09-10 |
+| Review revision | 2026-09-16 |
 | Audience | CSE builders, reviewers, release authority, and supporting system and security staff |
 | Scope | CSE software choices, responsibilities, access, and release requirements |
 | Shared procedure | [Spack build and publication procedure](software_stack_sop_v1.md) |
@@ -91,6 +91,11 @@ step whose acceptance checks fail.
 Assign a builder and a separate qualified technical reviewer to each proposed
 release. Two CSE team members can perform the process and exchange roles
 between releases. Each person's decisions must be recorded under their own name.
+The release authority, system owner, or responsible security authority may
+designate a qualified reviewer outside CSE when independent scrutiny,
+specialist expertise, or a conflict of interest warrants it. The person may
+serve as the technical reviewer or provide an additional scoped assessment.
+Outside review is supported, not mandatory for every routine release.
 
 | Role | CSE responsibility |
 |---|---|
@@ -112,8 +117,9 @@ Figure 1. CSE review and release handoff. The reviewer may also be the delegated
 
 The builder submits the release identity, inputs and changes, review scope and
 reasoning, test and scan results, unresolved items, and recommended decision.
-The reviewer records their name, date, evidence revision or checksum, decision,
-and conditions. Keep corrections and the reviewer's recheck of the revised
+The reviewer records their name, organization, relevant qualifications,
+independence, scope, date, evidence revision or checksum, decision, and
+conditions. Keep corrections and the reviewer's recheck of the revised
 release. Approval of earlier files does not approve later changes.
 
 The reviewer checks that the procedure ran, assesses the package-review plan
@@ -124,6 +130,11 @@ corrections return to the builder. If both people make changes affecting the rel
 the release or obtain another qualified independent reviewer through the
 existing management process. Reviewing each other's separate changes does not
 replace independent review of the whole release.
+
+Provide an outside reviewer approved read-only access or an authorized evidence
+copy. Review assignment does not itself grant CSE build-write membership,
+signing credentials, publication authority, or authority to accept security
+risk. Record any such delegation separately through the responsible authority.
 
 Keep these decisions in one controlled ticket, review record, or release
 database entry. Preserve its history and reviewed snapshots; do not rewrite an
@@ -354,6 +365,27 @@ in Serial, and matching producer hashes for reuse. All required lockfiles and
 cross-environment checks must pass before production builds start.
 
 ### 8.1 Review package changes
+
+Record the adopted repository-snapshot waiting rule before admitting the
+baseline. The proposed CSE default for routine updates is at least **90 elapsed
+days from verified upstream snapshot publication**. The newest snapshot may
+qualify if it is old enough; otherwise assess the preceding supported snapshot
+and verify its actual age. A release label or being one release behind does
+not establish eligibility. Retain the tag, resolved full commit, publication
+evidence/date, assessment date, calculated age, and current advisory findings.
+Keep the selected bytes fixed and review tag/content changes as new inputs.
+
+Use a supported snapshot acceptable under current findings; age does not make
+known-vulnerable content acceptable. Supported means compatible with the approved
+Spack runtime/package APIs and within the local maintenance scope, including
+the ability to obtain required fixes. Newly changed overlays, patches, sources,
+bootstrap inputs, and externals require their own assessment and do not inherit
+the upstream snapshot's age. Record any exception for younger content, including
+urgent remediation, with scope, evidence, authority, expiration or follow-up,
+and retest conditions under Section 2.2. Do not delay a needed security fix to
+meet the waiting rule. This proposal needs local adoption and does not change
+existing trial pins automatically. It adds no automatic post-build waiting
+period; holds for suspect content or unresolved findings remain separate.
 
 Inventory all resolved packages and dependencies. Run required automated checks
 across available sources and build outputs. Manual review of every recipe or

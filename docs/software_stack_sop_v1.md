@@ -7,7 +7,7 @@ another team member can review or repeat the work.
 | Document control | Value |
 |---|---|
 | Status | Working draft |
-| Review revision | 2026-09-10 |
+| Review revision | 2026-09-16 |
 | Audience | Package managers and reviewers using Spack on a supported system |
 | Scope | Spack setup, package selection, review, source mirrors, transfer, building, testing, publication, and recovery |
 | Command baseline | Spack 1.2.2; check the commands again before adopting another version |
@@ -125,6 +125,14 @@ a decision before publication. The reviewer may also approve release when the
 team delegates that authority. Roles may alternate between releases, but builders
 cannot approve their own work. If the reviewer is unavailable, hold publication
 until a named alternate can review. The reviewer need not repeat every build command.
+
+The responsible release, system, or security authority may designate a
+qualified reviewer from outside the producing team for independent scrutiny
+or specialist expertise. Record organization, qualifications, independence,
+scope, evidence reviewed, and disposition. Use authorized evidence access;
+review assignment alone confers no build-write, signing, publication, or
+risk-acceptance authority. A reviewer must remain independent of changes to
+the candidate, regardless of team membership.
 
 Routine releases use the team's agreed review process. Involve security staff
 for the triggers in Section 12. Publishing a module in a centrally managed
@@ -984,6 +992,17 @@ of every package is not required.
 <a id="procedure-review"></a>
 
 ### 8.1 Review package changes with a second person
+
+Apply the team's recorded snapshot-admission rule, if one is adopted. Record
+the upstream tag and full resolved commit, verified publication date and its
+evidence, assessment date, calculated age, and decision. Compare actual age
+with the required interval instead of assuming a release cadence or that the
+preceding tag qualifies. A tag that moves or changed input returns to review.
+Check current findings for the selected closure and assess new local changes
+separately; they do not inherit an older upstream snapshot's age. Use authorized
+exceptions for urgent remediation rather than waiting to fix a known problem.
+Time-based eligibility never releases quarantined findings by itself or
+replaces the source, build, scan, test, and review checks below.
 
 1. **Record the starting point.** Inventory all locked packages and dependencies, repositories,
    imported recipe helpers, patches, source resources, bootstrap and build tools,

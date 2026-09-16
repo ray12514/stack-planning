@@ -6,8 +6,11 @@ sources before preparing the next review revision.
 
 ## SOP review pair
 
-These Word copies match the 2026-09-10 Markdown revision after the final
-consistency review. Distribute both files together in one folder; the CSE SOP
+These Word copies retain the 2026-09-10 review revision. The Markdown sources
+advanced on 2026-09-16 with proposed repository-snapshot admission timing and
+optional independent review outside CSE. Those additions are not yet in these
+Word review snapshots; use the dated Markdown sources for the current proposal.
+Distribute both Word files together in one folder; the CSE SOP
 links to the shared procedure.
 Neither document requires the internal runbook or other planning documents.
 
@@ -29,7 +32,8 @@ for maintaining the Word and Markdown versions together.
 The [white paper response guidance](cse_spack_white_paper_response_guidance_v1.docx)
 is a separate drafting aid, not part of the SOP review pair. Its
 [Markdown source](../cse_spack_white_paper_response_guidance_v1.md) remains in
-the parent folder.
+the parent folder. The 2026-09-16 Markdown guidance and companion prompt include
+the snapshot and outside-review proposals; this Word snapshot predates them.
 
 ## Local learning exports
 
