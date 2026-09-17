@@ -116,11 +116,23 @@ system-library dependencies. These are integrity and linkage checks, not
 vulnerability scans. See Spack's [installation verification
 documentation](https://github.com/spack/spack/blob/v1.2.0/lib/spack/docs/advanced_topics.rst#L53-L104).
 
-The SOP should therefore require an organization-approved vulnerability source
-or scanner to analyze both:
+The SOP requires an organization-approved vulnerability source or scanner to
+assess the complete inventory:
 
-1. the SPDX files produced for Spack-installed packages; and
-2. a separately maintained inventory of system externals.
+1. the SPDX files produced for Spack-installed application packages;
+2. a separately maintained inventory of system externals; and
+3. the pinned Spack checkout and vendored libraries, its starting Python and host
+   prerequisites, and bootstrap tools and their dependencies, including tools
+   used for signing and managed installation.
+
+The application lockfile and package SPDX files do not automatically cover the
+third category. Follow [shared SOP Sections 4.4–4.5](software_stack_sop_v1.md#44-check-the-spack-version-and-repositories)
+for intake assessment before execution, controlled provisioning, installed-tool
+inventory and scanning, and independent acceptance before production use.
+`spack bootstrap status` checks readiness; it does not assess vulnerabilities.
+Record scanner coverage gaps and map vendored or custom-versioned components to
+upstream identities when required. Malware checks and vulnerability matching
+serve different purposes; retain both as required by the site.
 
 For an actionable finding, the release record should identify the exact Spack
 spec and DAG hash or the exact external package, disposition the finding, and
@@ -129,3 +141,7 @@ normal path: update inputs, concretize a new lockfile, rebuild, validate, sign,
 and publish a new release. An affected system external remains blocked until
 the system owner updates it or an approved non-external replacement is selected
 and validated.
+An affected Spack/bootstrap runtime follows the toolchain readmission procedure;
+assess which builds and releases were exposed and revalidate or rebuild according
+to the finding. Continue advisory review for retained toolchain versions even
+when their pins remain unchanged.

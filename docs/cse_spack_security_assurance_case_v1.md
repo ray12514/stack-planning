@@ -3,7 +3,7 @@
 | Document control | Value |
 |---|---|
 | Date | 2026-09-03 |
-| Alignment review | 2026-09-16; proposed repository snapshot waiting period and optional review outside CSE, aligned with the SOP drafts |
+| Alignment review | 2026-09-16; explicit Spack installation and bootstrap admission, repository snapshot waiting period, and optional review outside CSE, aligned with the SOP drafts |
 | Status | Research-backed proposed policy basis; not an authorization decision or operator procedure |
 | Audience | CSE package managers, security reviewers, assessors, system owners, and responsible authorizing roles |
 | Primary scope | Spack 1.2.2 used to build and publish software for unclassified DoD HPC systems |
@@ -171,7 +171,7 @@ not a replacement of Spack.
 
 | Input or authority | Security effect | Required control |
 |---|---|---|
-| Spack core | Runs the concretizer, configuration system, fetch logic, build orchestration, hooks, signing, and installation | Pin an exact approved commit or release; record origin and verification; update through change control |
+| Spack core and its runtime | Runs the concretizer, configuration system, fetch logic, build orchestration, hooks, signing, and installation; includes bundled Python libraries and the separately supplied starting interpreter | Bind the release tag to a full commit and retained content digest; inventory and assess bundled libraries, the actual Python interpreter, and system prerequisites; approve before operational use on builders, publishers, and managed installers |
 | `spack-packages` and overlays | Supply executable recipes, patches, resources, variants, providers, conflicts, and hooks | Pin exact commits; record repository order; review the reachable baseline or approved delta |
 | Source archives and VCS content | Supply the software and upstream build logic | Use approved origins, immutable identifiers, strong digests, controlled intake, scanning, and retained source objects |
 | Bootstrap content | May introduce solvers, GPG support, or other tools outside the ordinary package source mirror. Spack's default bootstrap enables bundled public binary and source methods | Disable bootstrap and pre-provision approved prerequisites, or admit a separate local bootstrap mirror and its metadata and digests. Bootstrap's `--trust` setting is configuration trust, not a GPG signature assertion ([default bootstrap configuration](https://github.com/spack/spack/blob/v1.2.2/etc/spack/defaults/bootstrap.yaml), [bootstrap verification path](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/bootstrap/core.py#L154-L192)) |
@@ -328,10 +328,16 @@ vulnerability scanner
 ## Assurance gates
 
 The release should move forward only when every applicable gate passes.
+Spack runtime and bootstrap admission is a prerequisite to G1: approve staged
+inputs before controlled provisioning, then approve the installed supporting
+toolchain before its first production solve. Bootstrap preparation may require
+its own restricted provisioning and resolution; it must not be deferred until
+application-source intake at G2. The admission requirements below apply to
+that preparation as well as later production use.
 
 | Gate | Decision | Mandatory evidence | Failure response | Candidate NIST alignment |
 |---|---|---|---|---|
-| G0 Governance and baseline | Are policy, roles, package criticality, exact tool and repository revisions, and configuration authority approved? | C-SCRM plan; owners; independent-review assignments; snapshot publication/age evidence and waiting-rule decision; review and exception policy; exact commits; repository order; approved launcher and configuration baseline | Do not resolve or fetch | SR-1, SR-2, SR-3, RA-3, RA-9, CM-2, CM-5; SP 800-161; SP 1326 |
+| G0 Governance and baseline | Are policy, roles, package criticality, exact tool and repository revisions, and configuration authority approved? | C-SCRM plan; owners; independent-review assignments; snapshot publication/age evidence and waiting-rule decision; review and exception policy; exact commits; repository order; approved launcher and configuration baseline; Spack/Python/bootstrap admission record and installed-toolchain acceptance before G1 | Do not resolve production environments or begin production work | SR-1, SR-2, SR-3, RA-3, RA-9, CM-2, CM-5; SP 800-161; SP 1326 |
 | G1 Resolve and review | Is the complete concrete closure and executable input delta understood and approved? | `spack.yaml`; `spack.lock`; evaluated roots, DAGs and hashes; recipe and patch snapshots; change report; review decisions | Reject, revise, or return to review | SR-5, SR-6, SR-10, SR-11, SA-11; SSDF PW.4. SA-9 applies only if CSE relies on an externally operated repository, mirror, scanner, signer, or build service |
 | G2 Source intake | Did controlled intake acquire immutable, verified, scanned, and complete source and bootstrap content? | Origins; commits and digests; VCS-commit-to-mirror-archive bindings; separate bootstrap admission; mirror inventory; TLS/checksum results; scanner engine, policy, signature database date and result; acquisition log | Quarantine or reject | SI-3, SI-7, SC-7, AC-6; SSDF PO.5; SP 800-204D by analogy |
 | G3 Controlled build | Did a nonprivileged builder use only approved, read-only inputs with no outbound network and no release-key access? | builder identity and baseline; effective scopes; config blame; security environment variables; compiler/module/external inventory; egress-denial evidence; full logs | Destroy candidate output and rebuild | AC-6, CM-2, CM-3, CM-4, CM-5, CM-6, CM-7, SA-10, SA-15; SSDF PO.3, PO.5, PW.6 |
@@ -373,6 +379,103 @@ assist with reproducibility, but it should not be the security boundary. Host,
 container, scheduler, filesystem, identity, and network controls must enforce
 the boundary outside Spack.
 
+## Spack installation and bootstrap admission
+
+Installing Spack and preparing its supporting tools are security-relevant
+intake and execution steps. They precede application builds and require their
+own admission record. This applies to builder, publisher, signing, and managed
+installer runtimes, including tools used only to verify or install an accepted
+binary cache. A signed application cache does not approve the Spack runtime
+that operates on it. The [shared SOP sections 4.4 and 4.5](software_stack_sop_v1.md)
+own the operating procedure; [CSE SOP section 4](cse_software_stack_sop_v1.md)
+records CSE responsibilities. These requirements remain proposed controls
+until adopted and demonstrated on the applicable system.
+
+### Required assessment scope
+
+Keep an inventory separate from the application environment's `spack.lock`
+and per-package SPDX documents. Those application records do not establish
+the identity or vulnerability status of the complete Spack runtime.
+
+| Component set | Required identity and coverage |
+|---|---|
+| Pinned Spack installation | Origin, release tag, resolved full commit, retained archive or checkout digest, and any local delta; include bundled/vendored Python libraries and their component identities, not only the top-level Spack version |
+| Starting Python and host prerequisites | Actual interpreter path, version, provider or site package identity, supporting libraries, and required system tools; link applicable OS/vendor inventory and advisory evidence, including backport information |
+| Bootstrap inputs | Clingo solver, GnuPG, Linux patchelf, and other tools actually required for the role and platform, together with transitive dependencies, source/binary objects, bootstrap metadata, exact digests, origins, and transfer records |
+| Provisioned toolchain | Installed supporting-tool inventory and prefixes, external tools actually selected, effective bootstrap/configuration scopes, provisioning logs, installed-file evidence, and the scan and acceptance record bound to that result |
+
+Spack must already have an approved Python interpreter to start. Its bootstrap
+configuration treats that running interpreter as an external; it does not
+bootstrap a missing starting Python. Tool needs vary by operation and platform,
+so the named helpers are assessment examples rather than a mandate to install
+every helper everywhere
+([Spack bootstrap Python handling](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/bootstrap/config.py#L30-L75),
+[bootstrap functions and separate store](https://github.com/spack/spack/blob/v1.2.2/lib/spack/docs/bootstrapping.rst)).
+
+### Intake, provisioning, and release to use
+
+1. Acquire the pinned Spack content and required supporting inputs through
+   the approved intake route. Keep newly acquired content in staging or
+   quarantine; verify origin and immutable identity, inventory components, and
+   complete the required malware and vulnerability assessment before invoking
+   the acquired Spack code or installing its tools. Intake utilities and any
+   Spack instance used to prepare the bundle must themselves be approved.
+2. Record both malware-scanner coverage and component/vulnerability analysis
+   against current approved advisory data. A file scan is not a CVE assessment.
+   A Python package-manager inventory alone is not evidence that bundled
+   libraries or native bootstrap dependencies were covered. Record component
+   matching uncertainty, unsupported formats, exclusions, scan errors, and
+   available supplier/backport evidence. Unresolved required findings or
+   coverage gaps hold admission unless the responsible authority accepts a
+   documented, scoped exception with compensating controls and expiry.
+3. Use approved preinstalled prerequisites with bootstrap disabled, or an
+   independently admitted local bootstrap bundle. Replace the public default
+   source/trust configuration, retain the effective configuration, and enforce
+   outbound denial outside Spack during provisioning and operational use.
+   Missing content must stop the operation rather than cause public fallback.
+   Select already acquired and reviewed local recipe repositories before entering
+   bootstrap context; a remote repository descriptor can initiate a fetch even
+   when bootstrap metadata is local. Source provisioning also uses those recipes.
+   Setting a private bootstrap root alone does not establish these controls.
+4. Provision admitted inputs in the restricted, nonprivileged context. Capture
+   what was actually installed or selected, including transitive and external
+   dependencies, then assess the installed toolchain before the first
+   production solve, build, signing, or managed installation that uses it.
+   Retain provisioning and readiness evidence; readiness is not security
+   acceptance. Required scan coverage, finding disposition, configuration, and
+   installed inventory must pass independent review before release to use.
+5. Bind acceptance to exact input and installed identities, target compatibility,
+   effective configuration, scanner/intelligence versions and dates, reports,
+   reviewer, and exceptions. Later builders may reference applicable evidence
+   for unchanged admitted content while verifying their installed state.
+   Changed Spack code, Python, helpers, dependencies, metadata, or configuration
+   require reassessment. New intelligence requires review of retained inventory
+   and rescanning or replacement as applicable; elapsed time does not renew
+   approval automatically.
+
+Spack's default bootstrap methods include public binary and source locations.
+Prebuilt bootstrap packages use SHA-256 values in bootstrap metadata and are
+treated as unsigned cache packages. Therefore the metadata must be admitted
+alongside the artifacts; its checks are not the signed CSE release-cache trust
+model. `spack bootstrap add --trust` grants configuration trust, not a GPG
+signature verification result
+([default bootstrap methods](https://github.com/spack/spack/blob/v1.2.2/etc/spack/defaults/bootstrap.yaml),
+[bootstrap verification](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/bootstrap/core.py#L154-L192)).
+
+Neither a pinned version nor the recipe snapshot's proposed 90-day waiting
+period proves that this toolchain is safe. Spack core, Python, newly acquired
+bootstrap content, and local changes do not inherit a package-repository
+snapshot's age or approval. `spack bootstrap status`, `spack audit`, and
+`spack verify` are not substitutes for vulnerability matching against this
+inventory. The [Spack security capability note](spack_1_2_signing_sbom_security_note_v1.md)
+distinguishes those commands from an external vulnerability scanner.
+
+This draft does not select a scanner or assert that an automated gate exists.
+Before adoption, the security owner must name the approved scanning methods,
+component-discovery coverage, advisory sources and update cadence, evidence
+retention, disposition authority, and reassessment rules. The stop conditions
+above apply even when the process is performed manually.
+
 ## Source intake and scanning
 
 The fetch phase should be the only phase with outbound access. It should create
@@ -402,17 +505,10 @@ approved full commit to the exact archived mirror object and its independently
 calculated digest
 ([Spack VCS mirror verification limitation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/stage.py#L669-L685)).
 
-Bootstrap is a separate supply-chain path. Spack's default bootstrap methods
-are enabled and include public binary and source locations. Prebuilt bootstrap
-packages are intentionally treated as unsigned cache packages and checked
-against SHA-256 values in bootstrap metadata. That is not the same trust model
-as the signed CSE release cache. CSE should either disable bootstrap and
-pre-provision approved prerequisites or separately admit a local bootstrap
-mirror, metadata, exact digests, and transfer evidence. `spack bootstrap add
---trust` marks a configuration source as trusted; it does not verify a GPG
-signature
-([default bootstrap methods](https://github.com/spack/spack/blob/v1.2.2/etc/spack/defaults/bootstrap.yaml),
-[bootstrap core verification](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/bootstrap/core.py#L154-L192)).
+Bootstrap remains a separate supply-chain path governed by
+[Spack installation and bootstrap admission](#spack-installation-and-bootstrap-admission).
+An application-source mirror or reviewed application lock does not replace
+the earlier toolchain admission and installed-state assessment.
 
 If Trellix or another organization-approved scanner is used, retain at least:
 
@@ -872,6 +968,7 @@ attestation workflow is mandatory.
 |---|---|
 | Release control | release ID, status, timestamps, owners, reviewers, approvers, versioned path, retained digests, write authority, predecessor, replacement, and withdrawal state |
 | Tool and recipe provenance | Spack core and package-repository commits, origins, verification, snapshot publication and age evidence, waiting-rule decision and exceptions, overlay commits and diffs, repository namespaces and order, controlled launcher version |
+| Spack runtime and bootstrap admission | Exact Spack content and bundled-library inventory; starting Python and host-prerequisite identities; bootstrap sources, binaries, metadata and transitive dependencies; staged and installed scan/SCA reports and coverage gaps; provisioned inventory and configuration; digest-bound independent acceptance; builder, publisher and installer applicability |
 | Independent review | Reviewer identity and organization, qualifications, independence, assigned scope, exact evidence revision, findings and dispositions, approval or hold; outside-CSE participation when assigned |
 | Environment identity | `spack.yaml`, `spack.lock`, evaluated root specs, full DAGs and hashes, variants, providers, architecture, lane, view and module configuration |
 | Effective configuration | `spack config scopes -p`, config-blame evidence, approved scope digests, repositories, mirrors, bootstrap configuration, compilers, externals, and security-relevant environment variables |
@@ -1001,9 +1098,12 @@ and replacement procedures.
 3. Approve package criticality tiers, recipe-review depth, the proposed 90-day
    snapshot waiting rule and urgent-update exceptions, reviewer qualifications,
    outside-CSE review assignment, and exception authority.
-4. Name the approved source and binary scanners, update cadence, evidence
-   fields, false-positive process, quarantine rule, rescan cadence, and
-   remediation timing.
+4. Name the approved source and binary scanners and vulnerability/SCA methods,
+   including discovery and advisory coverage for Spack's bundled libraries,
+   starting Python, bootstrap tools and transitive dependencies. Define update
+   cadence, evidence fields, coverage-gap and false-positive disposition,
+   quarantine rule, installed-toolchain acceptance, rescan cadence, and
+   remediation timing for builders, publishers, and managed installers.
 5. Select the authoritative build-cache backend and define signing-key custody,
    fingerprint distribution, use authorization, rotation, revocation, and
    recovery.

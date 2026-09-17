@@ -7,8 +7,10 @@ sources before preparing the next review revision.
 ## SOP review pair
 
 These Word copies retain the 2026-09-10 review revision. The Markdown sources
-advanced on 2026-09-16 with proposed repository-snapshot admission timing and
-optional independent review outside CSE. Those additions are not yet in these
+advanced on 2026-09-16 with proposed repository-snapshot admission timing,
+optional independent review outside CSE, and explicit Spack installation,
+Python prerequisite, and bootstrap inventory/scanning/admission procedures.
+Those additions are not yet in these
 Word review snapshots; use the dated Markdown sources for the current proposal.
 Distribute both Word files together in one folder; the CSE SOP
 links to the shared procedure.

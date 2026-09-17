@@ -27,7 +27,7 @@ Reviewers should confirm who will provide and maintain these controls:
 | Review topic | Decision for reviewers | Sections |
 |---|---|---|
 | Network restrictions | Required restrictions, platform support, and proof that they work | 4.3, 9.3 |
-| Security checks and testing | Scan coverage, tools, advisory updates, handling of findings, and specialist and scientific testing support | 8.1, 9.3, 12 |
+| Security checks and testing | Spack/Python/bootstrap admission, scan coverage, tools, advisory updates, handling of findings, and specialist and scientific testing support | 4.4–4.5, 8.1, 9.3, 12 |
 | Package signing | Cache type, key protection, trusted-key distribution, key replacement, and recovery | 10.1, 10.3 |
 | Ongoing support | Staff for security updates, record retention, storage, and recovery checks | 12–14 |
 
@@ -73,7 +73,8 @@ destination sequence in Section 9.2.1. Stop at a failed required check. Record
 unused branches as not applicable, with a reason; do not mark them as passed.
 
 1. Complete the operating record in Section 3.
-2. Start the approved Spack installation and run the setup checks.
+2. Admit and install the pinned Spack runtime, assess its supporting tools, and
+   run the setup checks in Sections 4.4–4.5 before the first production solve.
 3. Select one approved catalog release and its configuration scopes.
 4. Prepare and review the environment files.
 5. Concretize and review `spack.lock`.
@@ -171,6 +172,8 @@ Fill every actual-value field before the setup checks in Section 5.
 | Environment directory | `ENVIRONMENT_ROOT` | Absolute path containing `spack.yaml` |
 | Approved Spack checkout | `SPACK_ROOT` | Absolute path to the pinned checkout |
 | Spack version | `SPACK_VERSION` | Approved version and commit |
+| Starting Python | `SPACK_PYTHON` | Absolute approved interpreter path, version, provider/package identity, and assessment reference |
+| Spack toolchain admission | Operating record | Spack checkout/archive and vendored-library inventory; host prerequisites; bootstrap bundle and installed-tool inventory; digests, scan coverage, findings, reviewer, and acceptance scope; Sections 4.4–4.5 |
 | Package repositories | Release record | Each approved upstream and local source, commit or checksum, namespace, and search order |
 | Per-user Spack state | `SPACK_USER_CACHE_PATH` | Absolute path private to the builder |
 | Bootstrap configuration | `BOOTSTRAP_CONFIG_DIR` | Absolute path to an approved scope outside the Spack checkout; Section 4.5 |
@@ -194,7 +197,8 @@ cache** holds built packages for later installation. A **checksum**, also called
 a digest, lets you check that a file's contents match the recorded value. Keep
 these file checksums distinct from Spack's package hashes.
 
-Start the approved Spack session after completing the record:
+Set the recorded paths first. These exports do not approve or start Spack;
+complete Section 4.4 before sourcing its setup script or running its commands.
 
 ```bash
 export STACK_SYSTEM="<system>"
@@ -206,23 +210,18 @@ export SPACK_ROOT="<absolute-approved-spack-root>"
 export SPACK_VERSION="1.2.2"
 export SPACK_TAG="v1.2.2"
 export SPACK_COMMIT="<approved-full-spack-commit>"
+export SPACK_PYTHON="<absolute-approved-python-executable>"
 export SPACK_STAGE_ROOT="<absolute-build-stage>"
 export BOOTSTRAP_CONFIG_DIR="<absolute-approved-bootstrap-config-directory>"
 
 export SPACK_DISABLE_LOCAL_CONFIG=true
 export SPACK_USER_CACHE_PATH="<absolute-per-user-cache-root>/$USER/spack/$SPACK_VERSION"
 export PYTHONDONTWRITEBYTECODE=1
-
-test -f "$SPACK_ROOT/share/spack/setup-env.sh"
-test -r "$CATALOG_RECORD"
-source "$SPACK_ROOT/share/spack/setup-env.sh"
-spack --version
 ```
 
-Save the version output and checkout commit. Stop if either differs from the
-approved version and commit. Prepare the tools and configuration in Section 4.5 before
-concretization or any command that may install Spack's supporting tools. Later
-examples explicitly include that configuration so the same trust rules apply.
+Prepare the tools and configuration in Sections 4.4–4.5 before concretization
+or any command that may install Spack's supporting tools. Later examples
+explicitly include that configuration so the same trust rules apply.
 
 ## 4. Storage, access, and Spack runtime
 
@@ -246,7 +245,6 @@ Give each builder their own temporary Spack state:
 ```bash
 export SPACK_DISABLE_LOCAL_CONFIG=true
 export SPACK_USER_CACHE_PATH="<approved-per-user-cache-root>/$USER/spack/<version>"
-source "<approved-spack-root>/share/spack/setup-env.sh"
 ```
 
 Keep verification keys and authorized signing keys in private per-user or
@@ -399,22 +397,102 @@ unresolved requirements under Section 12.
 
 ### 4.4 Check the Spack version and repositories
 
-Use the approved shared checkout or a local copy with the same version, tag,
-commit, and clean working tree. After the session setup in Section 3.1, run:
+This section installs and approves **Spack itself**, before it is used to build
+application packages. Apply it to the builder's Spack and to any separate
+Spack used for signing or managed binary installation. An application lockfile
+or package SBOM does not inventory that complete toolchain.
+
+#### 4.4.1 Acquire and admit the runtime before executing it
+
+1. Record the approved origin, release tag, full commit, and target runtime
+   requirements. The full commit is the pin; retain evidence connecting it to
+   the approved origin. Choose an unused versioned directory for a new runtime.
+   Reuse a shared installation only when its identity and admission record match.
+2. On the authorized intake system, acquire the candidate with already approved
+   download, Git, extraction, and scanning tools. Keep it in restricted staging.
+   Do not source its setup script or run its Python code to establish its own
+   initial approval. For a Git delivery, the acquisition and identity checks are:
 
 ```bash
+export SPACK_ORIGIN="<approved-spack-git-origin>"
+git clone --no-checkout "$SPACK_ORIGIN" "$SPACK_ROOT"
+git -C "$SPACK_ROOT" checkout --detach "$SPACK_COMMIT"
+test "$(git -C "$SPACK_ROOT" rev-parse HEAD)" = "$SPACK_COMMIT"
+test "$(git -C "$SPACK_ROOT" rev-parse "${SPACK_TAG}^{commit}")" = "$SPACK_COMMIT"
+test -z "$(git -C "$SPACK_ROOT" status --porcelain)"
+```
+
+   For an archive delivery, verify its SHA-256 against the authenticated intake
+   record before extraction; retain the archive, origin, full source revision,
+   and an extracted-file digest inventory. Check received and deployed files
+   against that inventory. A digest obtained only from the same unreviewed
+   download does not establish an approved origin. Follow Section 9.2 for transfer.
+3. Inventory and assess the entire checkout, including vendored Python code.
+   For Spack 1.2.2, retain `var/spack/vendoring/vendor.txt` and inspect the bundled
+   files under `lib/spack/spack/vendor`; a host `pip list` is not a complete
+   inventory of those copies. Match exact component versions/revisions against
+   current vulnerability advisories and run required malware checks using the
+   approved scanner and policy recorded below. Scan tools run from the approved
+   intake environment, independently of the candidate Spack installation.
+4. Separately verify the existing Python interpreter and system prerequisites
+   against the host's approved inventory and security assessment. Record Python's
+   provider/package revision and relevant modules and libraries, including any
+   vendor backports. Use a supported interpreter accepted by the site; satisfying
+   Spack's minimum Python version alone is not security approval. Spack must
+   already have Python to start and does not bootstrap that starting interpreter.
+5. Resolve required findings and coverage gaps, or retain an authorized exception
+   under Section 12. Obtain independent review identifying the exact bytes and
+   approved use. Approval for controlled provisioning/testing is distinct from
+   approval for production builds or publication. Protect the admitted runtime
+   from modification and retain its assessment outside the checkout.
+
+**Required assessment record.** Name the organization-approved malware scanner
+and vulnerability/software-composition-analysis (SCA) tool or advisory service;
+record the exact invocation or job, tool and policy versions, vulnerability/feed
+timestamp, scan time, input digests, covered components, results, exclusions,
+errors, and reviewer decision. Record each unresolved component or unrecognized
+version as a coverage gap, not a clean result. A source checkout or custom
+bootstrap version may require explicit upstream-version/commit mapping and
+documented advisory review. If the site has not selected the required tools,
+coverage, and acceptance criteria, resolve that requirement before production use.
+This SOP does not supply a built-in Spack vulnerability-scanning command.
+
+#### 4.4.2 Activate and verify the admitted runtime
+
+Create the external configuration directory and place the reviewed
+`bootstrap.yaml` and local `repos.yaml` from Section 4.5 there before activation.
+Start with bootstrap disabled until any required bootstrap inputs have passed
+intake. Use an approved shell/Python environment; inherited Python module paths or startup customizations
+must not add unreviewed code. After Section 3.1's exports, run:
+
+```bash
+test -x "$SPACK_PYTHON"
+"$SPACK_PYTHON" --version
+test -f "$SPACK_ROOT/share/spack/setup-env.sh"
+test -r "$BOOTSTRAP_CONFIG_DIR/bootstrap.yaml"
+test -r "$BOOTSTRAP_CONFIG_DIR/repos.yaml"
+source "$SPACK_ROOT/share/spack/setup-env.sh"
 SPACK_VERSION_OUTPUT="$(spack -C "$BOOTSTRAP_CONFIG_DIR" --version)"
+printf '%s\n' "$SPACK_VERSION_OUTPUT"
 test "${SPACK_VERSION_OUTPUT%% *}" = "$SPACK_VERSION"
+SPACK_EXPECTED_PYTHON="$("$SPACK_PYTHON" -c 'import sys; print(sys.executable)')"
+SPACK_SELECTED_PYTHON="$(spack -C "$BOOTSTRAP_CONFIG_DIR" python --path)"
+printf '%s\n' "$SPACK_SELECTED_PYTHON"
+test "$SPACK_SELECTED_PYTHON" = "$SPACK_EXPECTED_PYTHON"
 test "$(git -C "$SPACK_ROOT" rev-parse HEAD)" = "$SPACK_COMMIT"
 test "$(git -C "$SPACK_ROOT" rev-parse "${SPACK_TAG}^{commit}")" = "$SPACK_COMMIT"
 test -z "$(git -C "$SPACK_ROOT" status --porcelain)"
 spack -C "$BOOTSTRAP_CONFIG_DIR" config scopes -vp
 ```
 
-For an approved archive without Git metadata, compare its checksum with the
-release record instead. Do not pull updates, switch branches, edit checkout-local
+For an approved archive without Git metadata, substitute the retained archive
+and deployed-file digest checks for the Git checks. Save the Python identity,
+Spack version, checkout identity, and scope output. Stop for any mismatch or
+unexpected scope. Do not pull updates, switch branches, edit checkout-local
 configuration, or replace the tool directory during a release. Install a new
 version in a separate directory.
+
+#### 4.4.3 Check the recipe repositories separately
 
 Before concretization imports recipes, review their sources and any new or
 changed executable inputs under Section 8.1. Complete the review against the
@@ -440,12 +518,26 @@ all settings are approved.
 
 ### 4.5 Prepare Spack supporting tools
 
-Spack needs approved Python, solver, and other runtime tools before
-concretization. **Bootstrapping** installs these supporting tools when they are
-not already available. Use approved preinstalled tools, or acquire a bundle of
-supporting tools and transfer it under Section 9.2 before the first solve. That
-bundle does not need an application lockfile. Installing from an already
-reviewed lockfile does not require concretizing it again.
+**Bootstrapping** provisions missing Spack support tools, notably the Clingo
+solver, GnuPG when needed, and patchelf for Linux binary relocation. It uses the
+already running Python interpreter; assess that interpreter under Section 4.4.
+Basic host utilities still need approved system provisioning. These tools and
+their dependencies have their own inventory and admission record, separate from
+the application environment's `spack.lock` and SPDX files.
+
+Complete these steps before the first production solve or other operation that
+may bootstrap. Installing from a reviewed application lockfile avoids solving
+again, but still requires an admitted runtime and any installation helpers.
+
+#### 4.5.1 Choose and restrict the provisioning path
+
+Use one of two paths: approved preinstalled tools, or an approved local bootstrap
+mirror. Acquire and scan any new tools, source/binary artifacts, and bootstrap
+metadata on the authorized intake system; follow Section 9.2 for transfer.
+Retain origin, artifact SHA-256, upstream component identity, dependency inventory,
+and the Section 4.4 assessment record. The bundle can be prepared before an
+application lockfile exists. For source provisioning, review its recipes,
+patches, compilers, and complete build inputs as well as the resulting binaries.
 
 Keep approved configuration in `$BOOTSTRAP_CONFIG_DIR` outside the pinned
 checkout. Give each builder a private bootstrap working directory. For
@@ -482,18 +574,121 @@ and architecture compatibility is accepted. Save actual local paths in the
 configuration. Bootstrap metadata trust and release-package signing trust are
 separate decisions.
 
-```bash
-spack -C "$BOOTSTRAP_CONFIG_DIR" bootstrap list
-spack -C "$BOOTSTRAP_CONFIG_DIR" bootstrap status
-spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get bootstrap
+In the same `$BOOTSTRAP_CONFIG_DIR`, create `repos.yaml` pointing to the already
+acquired, reviewed local recipe repository. Use the actual directory containing
+`repo.yaml` and `packages/`, not the checkout root:
+
+```yaml
+repos::
+  builtin: <absolute-approved-spack-packages-root>/repos/spack_repo/builtin
 ```
 
-Supporting tools must report ready before the first solve. Run the last command
-after preparing the environment in Section 7, before concretization. Check its merged bootstrap settings
-and keep the same `-C` scope on later commands. Enforce source-acquisition,
-bootstrap, and build network restrictions outside Spack. See the official
+List any required approved overlay repositories explicitly, in their reviewed
+precedence order. The `repos::` override replaces lower-scope repositories.
+Entering bootstrap context, including bootstrap-store inventory, can initialize
+the repository configuration; a remote descriptor can trigger a clone or fetch.
+Prepare this local selection before those commands. If provisioning from sources,
+the selected recipes and their build inputs must already have passed intake.
+
+Spack's prebuilt bootstrap artifacts are verified against SHA-256 values in
+bootstrap metadata; `trusted: true` or `bootstrap add --trust` does not establish
+a release GPG signature or vulnerability approval. Admit the metadata and the
+artifacts together. A Spack core pin fixes its bundled bootstrap metadata, but
+does not itself approve the downloaded components. The application's recipe
+snapshot age does not establish their age or security status.
+
+Keep outbound access blocked except for the explicitly authorized acquisition
+step. Local mirror configuration alone cannot enforce this: source provisioning
+can use the configured recipe repositories and ordinary fetch paths. Review
+those repositories and supply all required sources; block public-origin fallback
+outside Spack. A missing approved input must stop provisioning.
+
+#### 4.5.2 Provision, inventory, scan, and accept
+
+First inspect the effective settings with the admitted runtime:
+
+```bash
+spack -C "$BOOTSTRAP_CONFIG_DIR" config get bootstrap
+spack -C "$BOOTSTRAP_CONFIG_DIR" config get repos
+spack -C "$BOOTSTRAP_CONFIG_DIR" bootstrap list
+```
+
+For preinstalled tools, keep bootstrap disabled and resolve missing tools through
+the host's approved provisioning process. Check the actual approved Python's
+Clingo import/version/path, the selected GnuPG executable, patchelf on Linux,
+and required host utilities against the recorded compatibility requirements.
+For example, after those inputs have passed intake:
+
+```bash
+spack -C "$BOOTSTRAP_CONFIG_DIR" python -c 'import clingo; print(clingo.__version__); print(clingo.__file__)'
+"<absolute-approved-gnupg-executable>" --version
+```
+
+Check the approved patchelf executable's version on Linux as well. Retain the
+external inventory and assessment; no bootstrap-store inventory is expected
+for this path. In Spack 1.2.2, ordinary `bootstrap status` and `-b` store commands
+require bootstrap to be enabled, so omit them for the disabled path. Do not
+turn on provisioning to work around that command limitation.
+
+For the admitted local-mirror path, provision in the approved restricted setup
+context using:
+
+```bash
+spack -C "$BOOTSTRAP_CONFIG_DIR" bootstrap now
+```
+
+This command installs tools; it is not an inventory or scan command. Run it only
+after approving the inputs, configuration, and execution context above. Do not
+enable public sources or development tools to make a readiness check pass.
+
+For that local-mirror path, record the actual installed inventory and readiness
+after provisioning:
+
+```bash
+spack -C "$BOOTSTRAP_CONFIG_DIR" bootstrap root
+spack -C "$BOOTSTRAP_CONFIG_DIR" -b find --json --deps
+spack -C "$BOOTSTRAP_CONFIG_DIR" -b find -p
+spack -C "$BOOTSTRAP_CONFIG_DIR" bootstrap status
+```
+
+For both paths, the inventory must cover any tools supplied externally through
+the host or Python environment. The bootstrap-store inventory excludes those
+tools. Record their actual paths, versions, provider/package identities, and
+assessment references separately. Match installed components,
+dependencies, and file digests to the admitted inputs; scan the installed tools
+and assess the combined inventory against current vulnerabilities before
+production use. Retain the commands/jobs and decisions defined in Section 4.4.
+For source-built tools, retain build logs and assess the resulting components.
+
+`bootstrap list` reports configured sources; `bootstrap status` checks tool
+availability. Neither is a vulnerability scan. `spack audit`, package hashes,
+and clean malware results also do not replace vulnerability matching. Resolve
+findings and unexplained inventory differences, or obtain the scoped exception
+required by Section 12. The independent reviewer records acceptance of the exact
+toolchain and allowed target systems/uses. Reuse evidence for identical approved
+inputs when its scope and freshness still apply; verify each builder's private
+installation. Do not copy another builder's mutable state or signing material.
+
+After Section 7 prepares an environment, repeat the merged configuration check
+before concretization or installation:
+
+```bash
+spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get bootstrap
+spack -C "$BOOTSTRAP_CONFIG_DIR" -e "$ENVIRONMENT_ROOT" config get repos
+```
+
+Stop if an environment changes the approved sources, trust settings, root, or
+repository selection. Keep the same `-C` scope on later commands. Supporting
+tools must be ready and accepted before production use; readiness alone is not
+acceptance. Reassess on Spack, Python, bootstrap, or host-dependency changes and
+when new vulnerability intelligence affects retained inventory (Section 12).
+
+For Spack 1.2.2 behavior, see the official
 [bootstrap configuration](https://github.com/spack/spack/blob/v1.2.2/etc/spack/defaults/bootstrap.yaml)
-and [read-only command-line scope](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/main.py#L460-L468).
+and [bootstrap command implementation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/cmd/bootstrap.py),
+[starting Python selection](https://github.com/spack/spack/blob/v1.2.2/bin/spack#L12-L36),
+[Python and repository handling during bootstrap](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/bootstrap/config.py),
+and [vendored library inventory](https://github.com/spack/spack/blob/v1.2.2/var/spack/vendoring/vendor.txt).
 
 ## 5. Preflight
 
@@ -505,6 +700,8 @@ Before building, check from the node types that will build and test the software
 - another build-group member can read, write, and traverse shared generated files;
 - the build stage is writable with enough space and file entries (inodes);
 - the Spack version matches the approved version;
+- the runtime and bootstrap admission record covers the actual Python, tools,
+  dependencies, target, and effective configuration, with no unresolved required check;
 - package recipes are available;
 - required scheduler, launcher, interconnect (fabric), and GPU resources are available; and
 - active scopes contain no unexpected user, system, or site configuration.
@@ -549,8 +746,8 @@ record. Every selected scope must exist. Stop for a missing scope or an unresolv
 provider dependency.
 
 Preflight passes when the recorded paths and node types work, the Spack version
-matches, the catalog is readable, and both scope listings contain only expected
-configuration.
+matches, its runtime and support tools are accepted under Sections 4.4–4.5, the
+catalog is readable, and both scope listings contain only expected configuration.
 
 ## 6. Select platform configuration
 
@@ -1006,7 +1203,8 @@ replaces the source, build, scan, test, and review checks below.
 
 1. **Record the starting point.** Inventory all locked packages and dependencies, repositories,
    imported recipe helpers, patches, source resources, bootstrap and build tools,
-   and system externals. For the first release, record repository origins,
+   and system externals. Link the separately accepted Spack/Python/bootstrap
+   inventory and scan evidence from Sections 4.4–4.5. For the first release, record repository origins,
    pinned versions, available upstream checks, scan coverage, and risk criteria.
    There is no previous approval to reuse, but line-by-line review of every
    package is still not required.
@@ -1161,16 +1359,22 @@ destination acceptance.
    compilers, build tools and runtime requirements. Mirrors exclude system
    externals: retain their inventory and verify destination availability. A
    source mirror does not supply the complete installation of Spack and its supporting tools.
-4. If bootstrap tools must be collected, create their mirror on a compatible
-   connected system:
+4. If bootstrap tools must be collected, use an already admitted Spack runtime
+   on a compatible authorized intake system. The following command downloads
+   inputs and can require supporting tools; assess those tools under Sections
+   4.4–4.5 first. Use the separately recorded intake configuration and permitted
+   origins, not the destination's local-only scope:
 
 ```bash
+export INTAKE_CONFIG_DIR="<absolute-approved-acquisition-config-directory>"
 export BOOTSTRAP_ROOT="<absolute-release-bootstrap-bundle>"
-spack -C "$BOOTSTRAP_CONFIG_DIR" bootstrap mirror --binary-packages "$BOOTSTRAP_ROOT"
+spack -C "$INTAKE_CONFIG_DIR" bootstrap mirror --binary-packages "$BOOTSTRAP_ROOT"
 ```
 
 Retain its source and binary metadata, bootstrap cache and setup instructions.
-Separately review and approve their origins, digests and destination
+This output is a candidate bundle. Apply the malware and vulnerability assessment
+and independent admission in Sections 4.4–4.5 before destination provisioning.
+Separately review and approve its origins, digests and destination
 architecture and runtime compatibility. Bootstrap metadata needs its own trust
 decision; an ordinary build-cache signature does not approve it. Follow Section
 4.5 for destination bootstrap configuration. Do not change the pinned Spack
@@ -1626,6 +1830,12 @@ it does not assess vulnerabilities.
 ([Spack SBOM generation](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/hooks/sbom_generate.py),
 [binary installation hooks](https://github.com/spack/spack/blob/v1.2.2/lib/spack/spack/binary_distribution.py#L2163-L2174))
 
+Also retain the separate Spack checkout/vendored-library, starting-Python,
+host-prerequisite, and bootstrap-tool inventory from Sections 4.4–4.5. Application
+SPDX files do not automatically cover those execution tools. Bind both inventories
+and their assessments to the release record, including the managed installer's
+toolchain when it differs from the builder's.
+
 ## 11. User access
 
 Publish modules under the application's established module root, which should
@@ -1656,13 +1866,23 @@ unchanged hashes.
 For a security advisory:
 
 1. record the advisory and affected versions;
-2. inspect lockfiles, package inventories, SBOMs and the external inventory;
+2. inspect lockfiles, package inventories, SBOMs, the external inventory, and
+   the separate Spack/Python/bootstrap inventory;
 3. select an approved fix or mitigation;
 4. rebuild and retest affected packages; and
 5. withdraw or replace user modules under local policy.
 
 Spack SBOMs do not match packages to vulnerability reports. Use the
 organization's approved vulnerability source or scanner.
+
+For an affected Spack runtime, vendored library, starting Python, or bootstrap
+tool, hold its affected production use and assess candidate/release impact.
+Admit the correction under Sections 4.4–4.5 and revalidate affected operations
+before resuming. Determine affected package rebuilds or release withdrawal from
+the finding and exposure; a tool update does not by itself prove all application
+packages need rebuilding or that existing outputs remain acceptable. Reassess
+retained toolchain inventories when advisory intelligence changes, even when
+their pins have not changed. Record the monitoring owner and review cadence.
 
 Routine releases within agreed source, build, signing and transfer limits stay
 with the builder, reviewer and release authority. Seek security input through
@@ -1714,8 +1934,13 @@ Keep these records:
 - approved `spack.lock` and concrete hashes;
 - inventory of sources and mirrors, baseline and recipe-change assessment, items selected
   for manual review, cache signing identity, scan results and decisions;
-- identities of prerequisites and bootstrap tools, approved source and trust configuration,
-  enforced network-control evidence and configuration digests;
+- Spack checkout/archive and vendored-library inventory, starting Python and host
+  prerequisite identities, bootstrap metadata/artifact digests and installed-tool
+  inventory, approved source and trust configuration, enforced network-control
+  evidence and configuration digests;
+- runtime/bootstrap scan commands or jobs, tools/policies/feed dates, coverage
+  and gaps, findings and dispositions, independent acceptance scope, exceptions,
+  and monitoring owner/cadence;
 - transfers, when used: authorized route and reference, complete manifest,
   authenticated origin digest, received digest and import results, destination
   configuration changes, compatibility assessment and whether the transfer used sources or binaries;

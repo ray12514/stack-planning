@@ -168,7 +168,7 @@ and release. Also record these CSE choices:
 | Release identity | System, stack, candidate or release identifier, previous release, builder, reviewer, release authority, and document revisions. |
 | Package choices | Approved package list and environments, including requested package versions, build options (variants), supported dependency combinations, and exceptions. |
 | Platform catalog | Exact restricted catalog release, source identities, checksums of selected configuration scopes (sets of Spack settings), and reviewed platform and provider records. |
-| Tools and recipes | Approved Spack version, tag, and commit, package-repository commits and search order, and local recipes (overlays). Verify the exact Spack version against the shared procedure's command baseline. |
+| Tools and recipes | Approved Spack version, tag, full commit or archive identity, vendored-library inventory, starting Python and host prerequisites, bootstrap metadata/artifacts and installed-tool inventory, package-repository commits and search order, and local recipes (overlays). Link the toolchain assessment and acceptance record in Section 4.1. Verify the exact Spack version against the shared procedure's command baseline. |
 | Deployment | Installer-chosen restricted and published paths, build stages, caches and mirrors, evidence and module-entry locations, collaboration group, and intended users. |
 | Security requirements | Input sources, acquisition and build network controls, scanners and tests, signing backend and full key fingerprint, review scope, and all applicable exception decisions. |
 | Transfer, when used | Source, destination, authorized route, bundle identity and inventory, build or binary-install mode, compatibility evidence, and receipt and acceptance decisions. |
@@ -238,12 +238,56 @@ views, modules, or signing key. Install a changed Spack version in a new sibling
 directory. Follow the shared runtime and configuration-scope checks; do not
 change checkout-local configuration in place.
 
+### 4.1 Admit Spack and its supporting tools before production use
+
+Follow shared procedure **Sections 4.4–4.5** for acquisition, installation,
+configuration, inventory, scanning, and acceptance of the Spack toolchain. This
+applies to builder, signing, and managed-installation environments. Keep this
+assessment separate from the application package assessment and link both to
+the same release record.
+
+| Admission step | CSE requirement and retained evidence |
+|---|---|
+| Acquire the pinned runtime | Authorized intake with already approved tools; exact origin, tag/full commit or archive identity, authenticated digests, and received/deployed file checks. Stage and assess the checkout before sourcing or running it. |
+| Assess runtime dependencies | Include Spack's vendored Python libraries, the already-present Python interpreter, its relevant dependencies, and host prerequisites. A host `pip list` or application SBOM alone does not cover this inventory. |
+| Admit bootstrap inputs | Use approved preinstalled tools with bootstrap disabled, or separately approve local bootstrap metadata, binary/source artifacts, dependencies, and compatibility. This covers Clingo, GnuPG and Linux patchelf where used. The starting Python is provisioned separately; Spack cannot start without it. |
+| Control provisioning | Record effective configuration; replace default public bootstrap sources; deny unapproved network fallback outside Spack. Restrict provisioning to the approved setup context. A private bootstrap directory is an access control, not source admission or a scan. |
+| Accept the installed toolchain | Record actual installed and external tools and dependencies, file identities, readiness, malware and vulnerability/SCA assessment coverage, findings, gaps, and independent acceptance before production solving, building, signing, or installation. |
+
+The operating record must name approved scanners/advisory sources, their actual
+invocations or jobs, policies and intelligence dates, acceptance criteria, and
+the person responsible for updates. A scanner error, unrecognized component, or
+unsupported version is a gap requiring disposition. `spack audit`, bootstrap
+readiness checks, hashes, and malware results alone do not establish that the
+toolchain has no known vulnerabilities. Record authoritative upstream component
+mapping and targeted advisory review when a generic scanner cannot identify
+bundled or custom-versioned components.
+
+Independent review under Section 2.1 may accept inputs for controlled
+provisioning/testing first; production acceptance must then identify the actual
+installed toolchain and completed assessment. Hold affected use for failed
+integrity checks, unapproved origins, unexplained components, or unresolved
+required findings/coverage. Apply Section 2.2 for authorized exceptions and
+security involvement. This draft defines required controls; a generated workspace
+or successful bootstrap does not demonstrate that they have been implemented.
+
+The package-repository snapshot waiting rule in Section 8.1 does not approve
+Spack core or bootstrap inputs and does not establish their age. Reuse prior
+assessment only for matching identities, accepted target/use, and still-current
+evidence. Verify each builder's private installation; reassess changed Spack,
+Python, support tools, dependencies, or trust settings, and respond to new
+vulnerability intelligence under shared procedure Section 12. Record the
+monitoring owner and cadence. Preserve approved runtime versions and replace
+them through a new admitted revision, including when distributing to other systems.
+
 ## 5. Preflight
 
 With shared procedure Section 5 and the CSE operating record, both team members
 confirm that the system and catalog, deployment, package list, Spack, repositories,
 and configuration describe the same release. Check required node types and
 providers, shared paths and locks, and both accounts' working access.
+Confirm Section 4.1 admission covers the actual toolchain on each execution
+system, including separately operated signing and managed-installation tools.
 
 Record and verify acquisition and build network controls, the signing environment,
 and mirror paths. For transferred inputs, complete destination preflight and
