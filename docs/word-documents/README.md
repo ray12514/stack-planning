@@ -6,12 +6,11 @@ sources before preparing the next review revision.
 
 ## SOP review pair
 
-These Word copies retain the 2026-09-10 review revision. The Markdown sources
-advanced on 2026-09-16 with proposed repository-snapshot admission timing,
-optional independent review outside CSE, and explicit Spack installation,
-Python prerequisite, and bootstrap inventory/scanning/admission procedures.
-Those additions are not yet in these
-Word review snapshots; use the dated Markdown sources for the current proposal.
+These Word copies match the 2026-09-16 Markdown review revision, including
+proposed repository-snapshot admission timing, optional independent review
+outside CSE, and explicit Spack installation, Python prerequisite, and bootstrap
+inventory, scanning, and admission procedures. They remain working drafts;
+this refresh does not establish local adoption or implementation.
 Distribute both Word files together in one folder; the CSE SOP
 links to the shared procedure.
 Neither document requires the internal runbook or other planning documents.
@@ -34,8 +33,23 @@ for maintaining the Word and Markdown versions together.
 The [white paper response guidance](cse_spack_white_paper_response_guidance_v1.docx)
 is a separate drafting aid, not part of the SOP review pair. Its
 [Markdown source](../cse_spack_white_paper_response_guidance_v1.md) remains in
-the parent folder. The 2026-09-16 Markdown guidance and companion prompt include
-the snapshot and outside-review proposals; this Word snapshot predates them.
+the parent folder. The Word edition matches the 2026-09-16 guidance and includes
+the current companion drafting prompt as an appendix, with the snapshot and
+outside-review proposals. Its lifecycle schematic remains embedded, and its
+editable source is linked.
+
+## Security assurance draft
+
+The [CSE Spack security assurance case](cse_spack_security_assurance_case_v1.docx)
+is the Word edition of the [security draft](../cse_spack_security_assurance_case_v1.md),
+including the 2026-09-16 Spack installation and bootstrap admission additions.
+It is a proposed policy basis, not an authorization decision. Wide evidence
+matrices use landscape pages for readability. Keep it with the SOP pair when
+circulating the complete security review set.
+
+Links between these Word documents use relative filenames. Keep the four files
+together when copying the review set to another system. Supporting references
+without a Word edition link to their recorded repository sources.
 
 ## Local learning exports
 

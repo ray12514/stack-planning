@@ -427,6 +427,7 @@ test -z "$(git -C "$SPACK_ROOT" status --porcelain)"
    and an extracted-file digest inventory. Check received and deployed files
    against that inventory. A digest obtained only from the same unreviewed
    download does not establish an approved origin. Follow Section 9.2 for transfer.
+
 3. Inventory and assess the entire checkout, including vendored Python code.
    For Spack 1.2.2, retain `var/spack/vendoring/vendor.txt` and inspect the bundled
    files under `lib/spack/spack/vendor`; a host `pip list` is not a complete
