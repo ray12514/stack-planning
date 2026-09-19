@@ -31,8 +31,8 @@ signing for that destination type.
 
 Stack Content's complete pilot suite passes **158 tests**, including **19** new
 legacy upgrade cases, **24** existing transaction cases and **5** acceptance-gate
-cases. Composer's required check passes **276 tests**, typing, dependency and
-lint checks, including **10** added delivery regressions. These are local
+cases. Composer's required check passes **277 tests**, typing, dependency and
+lint checks, including **11** added delivery regressions. These are local
 regression results; real-Spack runtime evidence is recorded separately below.
 
 ## Older workspace rehearsals
@@ -116,6 +116,13 @@ existing offline builder. It includes matching Composer and `spack-build`,
 Content and Planning, hash-locked helper wheels, source/file manifests,
 checksums, a stdlib verifier and explicit receiving commands. A separate release
 receipt records the actual archive checksum, source commits and rebuild proof.
+
+Assembly qualification caught a helper import attempting to create bytecode
+inside the sealed source export. The input-inventory check rejected that
+assembly. The bundler now suppresses bytecode writes before loading its helper,
+with a public captured-source CLI regression. Fresh capsules and builds replace
+the rejected attempt; generated files are not admitted into its sealed manifest.
+This packaging correction changes no rendering or maintenance runtime code.
 
 Use the delivered [maintenance procedure](../../stack-content/pilots/cse-pilot/CONTROL-REFRESH.md)
 and [acceptance gate procedure](../../stack-content/pilots/cse-pilot/BUILDCACHE-ACCEPTANCE.md).
