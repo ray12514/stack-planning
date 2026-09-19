@@ -81,3 +81,48 @@ Built packages may be exported to a private candidate build cache while module
 and runtime validation continue. Cache presence is not release approval.
 Sign/publish the accepted exact set under the CSE SOP only after its required
 package, consumer, module and destination checks pass.
+
+## Accepted follow-through: existing workspace upgrade and delivery
+
+The next accepted rehearsal starts with a small installed, locked workspace.
+Missing view/module files are an injected failure fixture: the retained older
+trial workspace already contains named views and some module configuration.
+Its actual gaps include older module policy, missing overlay inventory/helper,
+and tag-only repository configuration. Replacing its environment YAML with a
+new render would also change package specifications and is not an upgrade path.
+
+The explicit `module-policy` refresh accepts a reviewed candidate tree with the
+same workspace identity. It may change only named `spack.view` entries and the
+paired environment `modules.yaml`. It preserves all non-view environment
+semantics, old include order, lock bytes, shared configuration and recipes.
+The module scope must already be included. Missing groups or named-view
+references fail instead of guessing package intent. Every selected environment
+must already have its lock; incomplete environments remain outside this action.
+Apply and retained restore use the same protected-input guards and transaction
+journal as control refresh. Regeneration and module/consumer qualification are
+separate real-Spack actions against those installed identities.
+
+Overlay inventory admission accepts an explicitly reviewed inventory and
+trusted verifier against the recipes already frozen in the workspace. It may
+add only the inventory and helper; it must not copy new recipes or rewrite
+repository configuration. In particular, recording an old tag-only workspace
+does not establish which commit that tag resolved to on a target machine.
+
+A reusable acceptance-and-buildcache command executes an explicit argv against
+a locked environment, retains output and YAML/lock hashes, and refuses signed
+publication on consumer failure, timeout or input drift. Successful publication
+selects exact locked roots and their dependencies. OCI destinations are refused
+because the pinned Spack implementation disables signing for OCI. This gate
+does not activate modules or advance any public pointer.
+
+The local acceptance adds a dependency-only overlay, a resulting consumer DAG
+change and runtime failure, both failing and succeeding publication gates, an
+untrusted signing keyring, and corrupted cache content. After fixing findings,
+one new uninterrupted run must pass the complete small-fixture lifecycle under
+the 1,800-second outer timeout. A resumed troubleshooting run is not that proof.
+
+Delivery uses the existing offline builder and exact committed Composer,
+Content and Planning exports. A versioned archive includes matching tools,
+offline helper dependencies, source revisions, checksums, verification and
+explicit receiving commands. Source installation is separate from workspace
+refresh; no existing trial deployment is performed by bundle creation.
