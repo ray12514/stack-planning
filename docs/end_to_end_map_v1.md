@@ -37,6 +37,11 @@ assembled manually when Stack Composer is unavailable on the target system:
   `spack.yaml` and `modules.yaml` files, views, module exposure artifacts,
   reports, and the release manifest.
 
+The full-workspace description is its target contract. The current
+[implementation status](../../stack-composer/PHASE_STATUS.md) records remaining
+Spack 1.2 module/producer and acceptance work; this map does not establish that
+the entire target contract has shipped.
+
 The products share one approved platform-configuration model, but not an output
 contract. CSE workspace preparation uses the restricted catalog contract or
 materializes the same selected plan in the managed workspace. Independent
@@ -50,6 +55,24 @@ that path. It retains the reviewed catalog, renders the blueprint's files, and
 records input digests; it does not add another lane planner. Full `render`
 continues to consume the standard managed inputs above. Keeping the assembler
 does not require refreshing existing trial workspaces or changing their locks.
+
+## Three alternative preparation paths
+
+Production-path selection remains undecided. These routes converge on the
+shared SOP build/validation/publication lifecycle; they are not successive
+steps and no route requires the trial `cse-build` launcher universally.
+
+| Route | Preparation | Build handoff |
+|---|---|---|
+| Catalog consumer | `render-static` → reviewed catalog; package manager authors `spack.yaml` and deployment/configuration using selected scopes | Authored environment → bare Spack or selected driver |
+| Blueprint workspace (current CSE trial) | `render-static` → reviewed catalog + blueprint/roster/values → `init-workspace` | Authored workspace → current trial `cse-build` or equivalent approved downstream commands |
+| Managed full render | Profile + deployment + defaults + stack/package inputs → `render` | Generated workspace → selected downstream builder |
+
+The managed-flow table and example below describe the third route. The
+[failure/recovery and test matrix](stack_failure_recovery_and_test_matrix_v1.md)
+maps all three to the SOP and distinguishes local tests from missing real
+build/recovery acceptance. Full-render maturity is a gate for that route,
+not a requirement to replace current trial workspaces.
 
 ## Actors and tools
 
@@ -65,7 +88,7 @@ does not require refreshing existing trial workspaces or changing their locks.
 | Build path | One of: `spacktools`, `spack-build`, Ansible, bare Spack. Concretizes + installs the rendered tree. |
 | Spack | The concretizer/installer the build path drives. |
 
-## The flow (master table)
+## The managed full-render flow
 
 `P` = produced once and re-touched only on change; `C` = continuous / on every change.
 
@@ -77,11 +100,14 @@ does not require refreshing existing trial workspaces or changing their locks.
 | 3 | Author stack intent | package needs | Package manager | editor | `stacks/<stack>/stack.yaml` (+ `package-sets/`) | render | hand-done; **most frequent** · C |
 | 4 | Sync source to shared FS | `stack-content` (GitLab) | Driver / CI | `git clone`/`pull` (or GitLab-direct, no sync) | `stack-content` on shared FS (or remote URLs) | render | automatable from day one · C |
 | 5 | Render | profile + stack + templates + package-sets + **`deployment.yaml`** | Driver invokes | `stack-composer render` | rendered workspace tree: `configs/**`, `environments/**/spack.yaml`, `release-manifest.yaml` | build path | automatable; re-render on any input change · C |
-| 6 | Build + concretize | rendered workspace tree | Site | a build path (`spacktools` / `spack-build` / Ansible / bare Spack) | install tree, `spack.lock` per lane, buildcache | Spack, users | first run validated by hand; then automatable · C |
-| 7 | Expose | installed lanes + manifest | Site / publish | `stack-composer publish-manifest` + module/view emission | modules, views, final manifest, `current` symlink | users | per release · C |
-| 8 | Validate | installed lanes | Operator | smoke tests | pass/fail evidence | release record | per release · C |
+| 6 | Concretize, review and build candidate | rendered workspace tree | Site | a build path (`spacktools` / `spack-build` / Ansible / bare Spack) | reviewed `spack.lock` per lane, restricted install tree and build evidence | candidate validation | first run validated by hand; then automatable · C |
+| 7 | Validate candidate | installed lanes + candidate views/modules | Operator | package/consumer and clean-entry checks | pass/fail evidence and review decision | release approval | per release · C |
+| 8 | Approve, publish and accept public entrance | exact approved locks, binaries and evidence | Site / release authority | publication driver under applicable SOP policy; final manifest tooling | accepted installation and public modules/views, final manifest; CSE uses signed cache-only installation; default pointer only after destination acceptance | users | per release · C |
 
-The `spack.yaml` you asked about is the **stage-5 output** (`environments/<compiler>/<lane>/spack.yaml`). It is generated, not hand-written; produced by render from stages 1–3, then consumed by the build path at stage 6.
+In this route, `spack.yaml` is the **stage-5 output**
+(`environments/<compiler>/<lane>/spack.yaml`), produced by render from the
+authored inputs and consumed at stage 6. Catalog consumers instead own their
+environment source, and blueprint users own the templates/roster/values.
 
 The install tree, caches, view/module roots, and module `publish_root` are **not** auto-derived. The installer chooses them in `systems/<system>/deployment.yaml` (the profile offers only candidates); build-time flags can override. See `deployment_inputs_and_ownership_v1.md`.
 
@@ -143,8 +169,11 @@ Output tree `<shared-fs>/rendered/example-cray/science-stack/2026.06/`:
 `environments/cce/mpi-craympich/spack.yaml` (and the other lanes) +
 `configs/**` + `release-manifest.yaml`. Only the lanes in
 `profile ∩ deployment ∩ defaults ∩ stack` are emitted. This tree is a
-**regeneratable build artifact**; it persists on the shared FS but is rebuilt
-from inputs, not committed. Producer: `stack-composer`. Consumer: the build path.
+**regeneratable build artifact**; it persists on the shared FS and can be
+recreated from inputs in a separate candidate. After solves/builds begin,
+preserve its locks, evidence and completed state; successful `--overwrite`
+replaces the tree and is not a partial-build refresh. Producer:
+`stack-composer`. Consumer: the build path.
 
 **Stage 6: build (co-equal choice).** Hand the tree to one build path:
 
@@ -156,12 +185,19 @@ spack-build --workspace <shared-fs>/rendered/example-cray/science-stack/2026.06 
 # or drive it from Ansible, or run bare `spack -e <env> install`.
 ```
 
-Output: install tree, `spack.lock` per lane, buildcache. **First run validated by
-hand; then automatable.** Consumer: Spack, then users.
+Output: restricted install tree, reviewed `spack.lock` per lane and build
+evidence. **First run validated by hand; then automatable.** These outputs
+remain candidates until validation and publication acceptance.
 
-**Stages 7–8: expose + validate.** `publish-manifest` finalizes the manifest;
-modules/views expose the lanes; smoke tests confirm `mpicc`, `srun`, GPU runtime,
-and a representative app. Per release.
+**Stages 7–8: validate, then approve and publish.** Candidate package and
+consumer checks exercise the required compiler/MPI/GPU interfaces and module
+entrances. After approval, follow the applicable publication policy: CSE signs
+and caches the exact binaries and installs the publication release from that
+cache; the shared SOP also permits directly publishing a validated installation
+where policy allows it. Validate destination modules, runtime and access before
+changing user defaults. A failure at this gate holds the candidate and leaves
+the prior default unchanged. Finalizing a manifest is evidence assembly, not
+a substitute for those gates. Follow the shared and CSE SOPs.
 
 ## First time vs. continuous
 
@@ -170,18 +206,23 @@ and a representative app. Per release.
 | Create `stack-content` (stage 0) | Sync source → shared FS (stage 4) |
 | Review the first `profile.yaml` per system (stage 1) | Render on any input change (stage 5) |
 | Curate the template set (stage 2) | Build changed lanes (stage 6) |
-| Validate the first build by hand (stage 6) | Expose + validate per release (stages 7–8) |
+| Validate the first build by hand (stage 6) | Validate candidate, then publish/accept per release (stages 7–8) |
 | | Re-probe only when a system changes (stage 1) |
 
-After the first proven run, the steady state is: edit `stack.yaml` → driver syncs
-+ re-renders the affected systems → build path rebuilds changed lanes. Profiles
-and templates sit until a system or support change forces a touch.
+For this route, the steady state is: edit `stack.yaml` → prepare affected
+candidate outputs → review graph changes → build and revalidate affected
+packages/consumers → publish after acceptance. Completed releases stay intact;
+reuse compatible approved exact binaries. Profiles and templates need changes
+only when their owned facts or behavior change.
 
 ## Where the boundaries hold
 
 - Facts come from `cluster-inspector`; policy from defaults + stack + templates;
   rendering from `stack-composer`; building from a build path. No stage reaches
   into another's job (see the orchestration note's driver MUST-NOT list).
-- The rendered tree is regeneratable, not source. Back up the `stack-content`
-  inputs (GitLab) and the reproducibility artifacts (lockfiles, manifest,
-  buildcache), not the workspace.
+- Pristine rendered files are regeneratable from complete retained inputs.
+  Long-term reconstruction needs `stack-content` inputs plus reproducibility
+  artifacts (lockfiles, manifests, recipe snapshots, binaries and evidence).
+  Active and failed workspaces also contain diagnostic/build state: preserve
+  them through the candidate's recorded disposition and replacement acceptance,
+  rather than treating them as disposable render output.

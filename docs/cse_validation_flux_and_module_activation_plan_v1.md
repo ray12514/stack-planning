@@ -6,6 +6,11 @@
 | Status | Active implementation plan; Phase 0 is trial-only and blocks Initial Conversion Trial CCE publication |
 | Scope | Current CPU-only CSE trials, published release regression, optional nested Flux execution, and the post-trial consumption environment |
 
+The broader repository boundary, platform/site-software coverage and runnable
+starter are now specified in
+[HPC validation with ReFrame](hpc_validation_reframe_implementation_spec_v1.md).
+This document retains the detailed CSE activation gates and package behaviors.
+
 ## 1. Outcome and decisions
 
 CSE should add one downstream validation path that proves a rendered and built
@@ -107,15 +112,18 @@ provider facts but apply different ambient-state policies.
 |---|---|---|
 | Cluster Inspector | Observed compiler/MPI/module/scheduler/fabric/runtime facts and evidence | Stack selection, test policy, or job execution |
 | Stack Planning | Activation and acceptance contracts, ownership rules, release gates | Site commands or implementation code |
-| Stack Content | Trial blueprint and modulefile templates; curated package/test policy, ReFrame probes, site adapters, application pins, runbook deltas | Host probing or production lane resolution |
+| Stack Content | Trial blueprint, modulefile templates, curated package intent, release values and runbook deltas | Host probing, production lane resolution or duplicated ReFrame checks |
+| hpc-validation | Reusable ReFrame probes, source fixtures, site execution configuration, test selection, application canary pins and evidence | CSE construction, release reconcretization or renderer policy |
 | Stack Composer | `render-static`, trial blueprint materialization through `init-workspace`, and the separate eventual full-render behavior used as the reference | Spack installation, ReFrame execution, Flux lifecycle, or live wrapper selection |
 | Build driver | Locked environment execution, cache/view/module ownership, optional Flux build adapter | Render policy or test verdicts |
 | Validation driver | ReFrame configuration/run selection, evidence capture, optional Flux test adapter | Re-solving the CSE release |
 
-For the first implementation, ReFrame tests and source fixtures can live under
-Stack Content and a generated `cse-validate` entry point can travel in the
-workspace. A separate validation repository is unnecessary until the interface
-and cadence stabilize.
+With the expanded system/software scope requested on 2026-09-06, keep ReFrame
+tests and source fixtures in a separate `hpc-validation` repository. The trials
+are its first consumer. A later generated `cse-validate` entry point can invoke
+a pinned installation of that suite from the workspace; it should not carry a
+second copy of the tests. The [implementation specification](hpc_validation_reframe_implementation_spec_v1.md)
+defines this boundary and separates the local starter from complete acceptance.
 
 ## 3. Current trial inventory and coverage boundary
 

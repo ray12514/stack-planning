@@ -23,10 +23,18 @@ Use the following precedence when two documents appear to disagree:
 5. Research, readiness, branch-history, and presentation notes provide
    evidence and context; they do not override the current model or runbook.
 
-The internal source directory remains `stack-content/pilots/cse-pilot/` while
-the temporary initializer is in use. The activity described to operators and
-stakeholders is the **Initial Conversion Trials**, not a separate production
-mode.
+The internal source directory remains `stack-content/pilots/cse-pilot/` for
+the current trial blueprint. `init-workspace` is the supported blueprint
+assembler. The activity described to operators and stakeholders is the
+**Initial Conversion Trials**, not a separate production mode.
+
+Production-path selection remains open. Static-catalog consumption, supported
+blueprint assembly and standard full render are alternative preparation
+paths; they share the downstream SOP lifecycle. The
+[failure/recovery and test matrix](stack_failure_recovery_and_test_matrix_v1.md)
+records their current coverage and missing lifecycle tests. The retained
+assembler decision supersedes older descriptions of `init-workspace` as a
+temporary command; the current CSE blueprint remains specific to the trials.
 
 ## Current model: start here
 
@@ -50,6 +58,8 @@ when sharing them so their companion-document links remain usable.
 | `cse_spack_catalog_to_build_handoff_v1.md` | Self-contained bare-Spack guide with a per-system path/variable handoff sheet, shared-Spack startup, environment selection, scope inspection, concretization, fetching, installation, and build-state inspection. |
 | `initial_conversion_trials_build_findings_v1.md` | Running technical record of trial build failures, causes, recoveries, permanent mitigations, and validation gates. |
 | `cse_spack_customization_and_upstream_inventory_v1.md` | Consolidated inventory of CSE Spack policy, integration controls, provider adapters, active package overlays, and the upstream retirement queue. |
+| `package_overlay_operating_model_v1.md` | Correction-layer decisions, canonical/deployed overlay paths, complete operator loop, SOP ownership, and build-lifecycle implementation/acceptance gaps. |
+| `stack_failure_recovery_and_test_matrix_v1.md` | Three alternative preparation paths, exact trial pre-check behavior, SOP re-entry by failure type, partial-build preservation, and verified versus proposed recovery tests. |
 | `software_stack_sop_v1.md` | Shared procedural SOP for CSE and application package managers: runtime/configuration setup, risk-based review, source mirrors, delivery to systems with limited or no external network access, build/validation, signing, catalog and cache publication, and maintenance. |
 | `cse_software_stack_sop_v1.md` | CSE operating policy and acceptance choices, referencing the shared procedure: two-person builder/reviewer audit, security review points, CSE package/provider/module and access policy, delivery to systems with limited or no external network access, and release responsibilities. |
 | `stack_build_handoff_note_v1.md` | Where render stops; build is a co-equal choice (spacktools / spack-build / Ansible / bare Spack); stack-content + config delivery modes. |
@@ -75,6 +85,7 @@ stated scope and must remain aligned with the current-model documents above.
 | `environment_granularity_note_v1.md` | Decision to keep one independent Spack environment per lane/surface. |
 | `foundation_core_view_semantics_note_v1.md` | Foundation/Core build, reuse, view, and public-module semantics. |
 | `cse_validation_flux_and_module_activation_plan_v1.md` | Integrated plan for the current module/Cray entrance gate, ReFrame package and application regression, native scheduler acceptance, and optional Flux execution inside an allocation. |
+| `hpc_validation_reframe_implementation_spec_v1.md` | Separate downstream validation-suite boundary, runnable starter, full trial/package and platform/MPI/GPU coverage, evidence/reporting model and implementation milestones. |
 | `full_render_open_decisions_v1.md` | Accepted full-render direction and remaining implementation work. |
 | `platform_runtime_set_design_v1.md` | Coherent platform runtime-set selection across compiler, MPI, fabric, and CPE facts. |
 | `cray_runtime_package_repo_note_v1.md` | Cray runtime package-repository direction for GTL, PMI/PALS, libfabric/CXI, and runtime closure. |
@@ -104,6 +115,7 @@ operator procedures and do not override the current model.
 
 | File | Purpose |
 |---|---|
+| `package_overlay_spack_semantics_research_v1.md` | Primary-source Spack 1.2.2 evidence for repository precedence, inheritance, recipe identity, reconcretization, tests, and overlay retirement. |
 | `cce_aocc_cpu_baseline_research_v1.md` | CPU-baseline research for CCE, AOCC, and GNU on AMD-based Cray EX systems. |
 | `cse_spack_security_assurance_case_v1.md` | Supporting assurance rationale for conditional, system-specific acceptance of managed CSE Spack use: designated operators and module users, risk-based input review, controlled builds, signing and publication, evidence, hardening, and candidate NIST/DoD traceability. |
 | `cse_spack_white_paper_response_guidance_v1.md` | Guidance for drafting a constructive, evidence-backed response to the organizational Spack security white paper, with a Word edition, lifecycle schematic, and standalone chatbot prompt in `cse_spack_white_paper_response_prompt_v1.md`. |
@@ -112,6 +124,7 @@ operator procedures and do not override the current model.
 | `cray_wrapper_consumption_primary_source_research_v1.md` | Primary-source HPE guidance and the trial recommendation for CCE drivers, direct CSE GCC, Cray MPICH wrappers, runtime closure, and launch evidence. |
 | `related_tools_assessment_v1.md` | Comparison with Stackinator and spack-stack. |
 | `reframe_flux_primary_source_research_v1.md` | Primary-source ReFrame and Flux capability, integration, lifecycle, and risk research supporting the CSE validation plan. |
+| `reframe_site_practices_and_reporting_research_v1.md` | Primary-source site adoption, reusable suites, current reporting capabilities, dashboard options and recommended reporting stages. |
 | `site_stack_survey_v1.md` | External HPC-site survey used as background evidence. |
 | `spack_supply_chain_security_primary_source_research_v1.md` | Primary-source security assessment of recipes, repository pins, source intake, signed cache-only promotion, SBOM limits, and the bounded RPM/DNF comparison used by both SOPs. |
 | `spack-learnings/CSE-Spack-Learnings.md` | Full technical findings from system validation. |

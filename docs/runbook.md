@@ -12,6 +12,16 @@ the shared procedure's
 [transfer](software_stack_sop_v1.md#procedure-disconnected-transfer) sections;
 system notes identify the applicable paths and approved transfer route.
 
+For deciding whether a failure requires a variant/configuration change, a
+recipe overlay, or operational recovery, use the
+[package correction and lifecycle map](package_overlay_operating_model_v1.md).
+It connects shared SOP Section 7.6 and CSE SOP Section 7.3 to the authored and
+deployed paths, evidence requirements, and outstanding acceptance gates.
+The [failure/recovery and test matrix](stack_failure_recovery_and_test_matrix_v1.md)
+identifies the SOP stage to revisit after variant/version/recipe changes or
+build/publication failures, and distinguishes tested controls from missing
+end-to-end recovery coverage across all three preparation paths.
+
 For a manual package correction during an unfinished trial, start with the
 [offline overlay quickstart in Stack Content](../../stack-content/pilots/cse-pilot/templates/PACKAGE-OVERLAY-QUICKSTART.md).
 It covers finding the pinned original `package.py`, the deployed overlay,
@@ -28,6 +38,19 @@ destination for documentation, a package overlay, or generated controls.
 Copying an overlay also requires checking recipe selection, recovering affected
 candidate locks, and testing on the receiving system; a source-repository pull
 alone does not update a generated workspace.
+
+The quickstart's in-place steps are for diagnosis in an unaccepted working
+copy. Apply [Same release or new release](#same-release-or-new-release) before
+adopting changed recipes, variants, or locks into the trial release record.
+Checkpoint 4 protects reviewed locks even before final publication; preserve
+those inputs and integrate semantic corrections into a new trial release.
+For a partially completed workspace, preserve completed environments and
+limit recovery to the declared failing candidate and reviewed dependency
+impact. A documentation, overlay, or generated-control refresh is not an
+instruction to rerender or reconcretize all environments. The
+[active-trial boundary](package_overlay_operating_model_v1.md#active-trial-boundary-finish-the-two-remaining-cce-systems)
+records the current focus on the two unfinished CCE systems and separates
+those corrections from later production improvements.
 
 Stack Planning owns this overall process and its release boundaries. The
 operational recipe guide lives in Stack Content beside the recipes and
