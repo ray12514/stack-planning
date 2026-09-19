@@ -1,5 +1,13 @@
 # Package corrections and build lifecycle assessment v1
 
+**Implementation follow-up, 2026-09-19:** The findings below record the original
+trial baseline. Repository priority, exact builtin pins, generic overlay
+inventory enforcement, cache isolation, scoped refresh/recovery and named
+module maintenance are now implemented in source. See the
+[implementation receipt](recovery_hardening_acceptance_2026_09_19.md) for actual
+test results and remaining acceptance boundaries. Source updates do not deploy
+these controls to existing cluster workspaces.
+
 **Date:** 2026-09-19  
 **Scope:** Current Initial Conversion Trials, Spack 1.2.2, and alternative production paths.  
 **Status:** Operating map of existing procedures plus an implementation assessment;

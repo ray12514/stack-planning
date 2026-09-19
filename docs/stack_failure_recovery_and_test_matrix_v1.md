@@ -1,7 +1,7 @@
 # Stack failure recovery and test coverage v1
 
 **Date:** 2026-09-19  
-**Status:** Cross-path operating assessment and proposed acceptance matrix.  
+**Status:** Operating assessment, implemented recovery controls, and remaining acceptance matrix.
 **Production choice:** Undecided; assess all supported environment preparation paths.  
 **Current constraint:** Finish the two remaining CCE systems; preserve completed builds.
 
@@ -61,6 +61,11 @@ result of this assessment.
 
 ## 2. What the current workspace pre-check actually checks
 
+Existing cluster workspaces retain the verifier they were generated with. The
+table immediately below describes that original deployed trial baseline. The
+updated source has the generic inventory gate described after the table; source
+updates do not automatically replace a cluster's controls.
+
 The [trial launcher](../../stack-content/pilots/cse-pilot/templates/cse-build.j2)
 calls `verify_workspace_inputs`, which runs the generated
 `scripts/verify-lockfiles.py --workspace-only`, before dispatching the requested
@@ -85,12 +90,12 @@ the package-specific pre-check handles only these two.
 
 Spack can use a new overlay as soon as the complete recipe is in the registered
 repository and the affected candidate is correctly solved. No new launcher
-branch is inherently required. Today, however, that new package does **not**
+branch is inherently required. In the original verifier, that new package does **not**
 automatically acquire the Dakota/HDF5 safety checks.
 
 Every correction needs a regression check for the defect and evidence for its
 scope. That does not mean embedding more package names and patch strings in
-the launcher. The next-refresh design should separate:
+the launcher. The implemented separation is:
 
 1. **Generic input verification:** expected repository identity/order, complete
    reviewed file inventory, digests and local support files, selected recipe
@@ -102,12 +107,19 @@ the launcher. The next-refresh design should separate:
 3. **Package regression and runtime checks:** reproduce the original defect,
    prove it fixed, and exercise affected consumers plus an unaffected control.
 
-Record a new overlay in the inventory and add its defect check to the content
-or downstream validation tests that own the behavior. A future generic input
-checker can read the reviewed inventory without a new per-package code branch.
-That checker is proposed work, not a currently available command. Do not change
-the running CCE launcher merely to make this design uniform; use the current
-manual selection/evidence procedure until a needed control refresh is tested.
+The current source's `scripts/verify-overlay-inputs.py` reads the reviewed JSON
+inventory and checks every repository/support-file identity without importing
+recipes. Its `--candidate OUTPUT` mode writes a separate review artifact;
+normal checks never approve current bytes automatically. New package admission
+therefore needs an inventory update and defect regression, not another package
+name in the launcher. Actual Spack class selection and input-to-lock provenance
+remain separate downstream checks. Candidate recipe caches include the resolved
+repository paths and inventory identity, avoiding stale patch indices when a
+same-namespace overlay is moved or changed.
+
+The updated launcher requires the helper and admitted inventory. Refresh checks
+those prerequisites before adopting controls. Existing trials can update
+presentation separately; new admission controls are qualified in a candidate.
 
 The same three kinds of evidence apply to authored, initialized and fully
 rendered environments. A bare-Spack operator must run the chosen checks
@@ -120,7 +132,8 @@ ones. Rerunning it after editing a variant or recipe is not a recovery of an
 existing lock. The overlay procedure's explicit affected-lock solve and graph
 comparison are necessary.
 
-The launcher's `--surface` option narrows `status`, `fetch` and `install`;
+The updated launcher's `--surface` option narrows `status`, `fetch`, `install`
+and the new installed-package `modules` action;
 it does not narrow `concretize` or `verify`. Full verification requires all
 eight trial locks. After a targeted diagnostic solve, run the full trial
 verifier only against a coherent candidate set; do not copy or rewrite
@@ -129,8 +142,9 @@ longer fits the trial invariants needs an explicit policy/candidate decision.
 
 The launcher also checks the Spack **tool** checkout's exact commit and clean
 state. That is separate from the builtin **package repository**, whose trial
-configuration remains tag-based. Neither check establishes package runtime
-correctness.
+configuration was tag-based. Newly generated pilot and v6 candidates use the
+full builtin commit. This does not advance an existing workspace's pin.
+Neither identity check establishes package runtime correctness.
 
 ## 3. Failure and re-entry matrix
 
@@ -204,12 +218,17 @@ proves preservation of fixture `spack.yaml`/`spack.lock` bytes, but deliberately
 replaces modulefiles and presentation content, including removal of old files.
 Thus “preserves locks” does not mean “cannot affect completed users.”
 
-The helper stages all source copies before committing them, but replaces
-control files and trees sequentially. Its rollback is local to a failing tree,
-not a transaction over the full refresh. A later failure can leave earlier
-controls updated. There is no existing failure-injection test for restoration
-of the whole allowlist. Treat an interrupted/failed refresh as a blocked state
-requiring inspection and recovery of the complete saved control set.
+The updated helper stages the complete selection and retains old controls,
+fingerprints and a transaction record. Ordinary replacement failure rolls back
+the complete selected set; incomplete rollback blocks further ordinary updates.
+Public tests inject later file/tree failures, damaged records and competing
+updates. `--restore-from` undoes an applied refresh, while `--recover-from`
+recovers unfinished state after its underlying fault is corrected. Both refuse
+unrelated later edits and protected build-input paths. `--scope presentation`
+selects only the two presentation trees; `--dry-run` makes no workspace changes.
+Quiesce readers/builders: multi-file replacement is not a filesystem-wide atomic
+switch or a portable power-loss guarantee. See the executable
+[operator procedure](../../stack-content/pilots/cse-pilot/CONTROL-REFRESH.md).
 
 Before a planned refresh, stage the exact proposed controls separately, review
 the allowlisted diff and changed presentation/configuration, and test the
@@ -236,10 +255,12 @@ regression coverage and must not be presented as a real build/recovery cycle.
 | Existing locks and downstream stage failure | Same suite: `test_existing_lock_requires_explicit_reconcretization`, `test_failed_stage_prevents_downstream_execution`, failed inventory/push tests | Executes `spack-build` with a fake Spack command; proves driver decisions, not a real solver or package build |
 | Known overlay files and patch shape | [Overlay tests](../../stack-content/pilots/cse-pilot/tests/test_package_repo_overlays.py) | Syntax/text and synthetic patch inputs; no general new-overlay lifecycle |
 | Trial input/graph guard failures | [Toolchain template tests](../../stack-content/pilots/cse-pilot/tests/test_toolchain_templates.py): incomplete overlays, stale producer, wrong compiler hash | Rendered verifier/synthetic inputs plus selected assertions; not eight freshly solved real environments |
-| Control refresh scope and identity | [Refresh tests](../../stack-content/pilots/cse-pilot/tests/test_refresh_workspace_controls.py) | Temporary files; does not prove live module behavior, arbitrary failure rollback or completed-build safety |
+| Control refresh, restore and recovery | [Refresh tests](../../stack-content/pilots/cse-pilot/tests/test_refresh_workspace_controls.py): 24 cases covering scope, identity, whole-selection rollback, interrupted recovery, damaged records and concurrent updates | Temporary filesystem fault injection; real module behavior is a separate lab slice |
+| Generic overlay admission and cache identity | [Inventory tests](../../stack-content/pilots/cse-pilot/tests/test_overlay_inventory.py) | Exact bytes, support inputs and shell cache selection; does not prove source compilation |
+| Modules on already installed locks | [Module action tests](../../stack-content/pilots/cse-pilot/tests/test_module_refresh.py): named sets, selected surface, missing DB install and missing prefix | Generated launcher command boundary; actual Spack module sets tested separately in lab |
 | Installed consumer behavior | [HPC validation coverage](../../hpc-validation/docs/coverage.md) | Tests existing installations; it intentionally never solves/builds/changes locks, so it cannot establish the recovery cycle itself |
 
-### Proposed failure-injection acceptance suite
+### Failure-injection acceptance target
 
 Run this only in disposable candidate workspaces, with dedicated stores/caches,
 stages and module roots. Mount or checksum the retained baseline so attempted
@@ -266,8 +287,9 @@ manifest formats to be identical.
 For speed, use small fixture packages with intentional failures to establish
 the generic cycle, then the actual failing CCE package and its consumers on
 the remaining targets. A Linux fixture cannot establish CCE linker/Fortran
-behavior. The case matrix is proposed coverage, not a claim that these tests
-have been implemented or passed.
+behavior. This matrix describes the complete target, not a claim that every
+case has passed. The [implementation receipt](recovery_hardening_acceptance_2026_09_19.md)
+maps the small local cases actually executed and the outstanding cases.
 
 Keep implementation in its owning repository: generator transactions and
 driver control flow in Composer; authored overlay/policy/refresh behavior in
@@ -275,9 +297,9 @@ Stack Content; cross-path Spack lifecycle in a maintained integration harness;
 consumer/runtime acceptance in HPC Validation. The trial verifier's literal
 eight-environment expectations should not become the universal test contract.
 
-## 6. Assessment evidence
+## 6. Initial assessment evidence, before implementation
 
-This is a local code/document/test review. No live workspace, installed prefix,
+The initial phase was a local code/document/test review. No live cluster workspace, installed prefix,
 runtime pin, lockfile or module tree is changed. Focused execution results are
 recorded below. Missing end-to-end evidence remains an acceptance gap, not a
 reason to modify completed trials.
@@ -303,9 +325,11 @@ Executed during this assessment:
 - **13 passed** using `python3 -m unittest pilots.cse-pilot.tests.test_package_repo_overlays`
   from Stack Content.
 
-These **131 passing test cases** do not execute a real Spack
+Those **131 baseline passing test cases** did not execute a real Spack
 solve → partial install → changed variant/version/recipe → reviewed recovery
 → consumer test → cache-only publication cycle. They also do not establish
 real CCE behavior. R2–R12 above identify the additional lifecycle evidence
 needed beyond current unit/fixture coverage; R1 extends existing transaction
-tests across each relevant preparation path.
+tests across each relevant preparation path. Subsequent implementation and
+real local execution are recorded in the linked implementation receipt; use
+that receipt for current results rather than this historical baseline count.

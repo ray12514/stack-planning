@@ -1,0 +1,83 @@
+# Isolated recovery hardening implementation
+
+Status: implementation branch, 2026-09-19. Production selection remains open.
+
+The `codex/recovery-hardening` worktrees under `Development/stack-recovery`
+snapshot the current working sources for isolated implementation. Verified
+changes are also copied back to the existing `codex/simplified-render-plan`
+working branches so ongoing trial maintenance can use them. Pre-existing work
+on those branches is preserved. Updating source does not deploy a generated
+workspace change.
+No new control, recipe, pin or lock is deployed to an existing trial by this
+work. The two remaining CCE trials may receive individually qualified fixes
+later; completed package stores and lock sets remain retained evidence.
+The preservation boundary is the actual cluster environments. The local HPC
+lab is disposable and should use small, bounded fixtures rather than rebuild
+the complete CSE roster to test a workflow.
+
+## Accepted implementation boundaries
+
+1. The control-refresh command gains explicit `presentation`, `controls` and
+   `all` scopes and a dry-run. Presentation scope updates only declared module
+   entrance/presentation trees. It must not rewrite environment manifests,
+   locks, recipes, catalog, source caches, views or installed prefixes.
+2. Refresh stages the complete selected payload before mutation, retains all
+   previous controls and their identities, and rolls the whole selected set
+   back if any commit fails. Failed rollback retains a named recovery record
+   and blocks unnoticed continuation. Successful refresh also retains a
+   record permitting explicit restoration. This is recoverable multi-file
+   replacement with quiesced readers, not a filesystem-wide atomic switch or
+   a portable power-loss guarantee. Concurrent refreshes are rejected.
+3. The CSE overlay verifier consumes a reviewed source-controlled JSON inventory
+   beside the package repositories. It records repository namespace/API,
+   package/support-file paths and SHA-256 identities. Missing, unrecorded,
+   changed or escaping/symlinked inputs fail before candidate build actions.
+   An explicit candidate-inventory command writes a separate review artifact;
+   normal checks never accept current mutable bytes as their own baseline.
+   This replaces Dakota/HDF5-specific text checks, not the CSE graph policy.
+4. The builtin package repository uses an exact full commit as its executable
+   pin; the tag remains explanatory admission evidence. The new inputs apply
+   to newly generated candidates. They do not advance an existing trial's
+   runtime/repository or silently regenerate its locks.
+5. Generic full render honors each local repository's declared before/after
+   builtin priority, preserving authored order within each group, and emits
+   API-v2 repositories beneath the required `spack_repo/<namespace>` path.
+   Static catalogs emit an empty common scope when needed so recommended
+   includes exist. Spack selection is exercised separately in real-Spack lab
+   tests.
+6. The integration harness uses separate workspaces, stores, stages, cache,
+   module roots and test signing keys inside the development HPC lab. It tests
+   actual Spack solving/building/reuse and induced failures. No fake Spack is
+   used to claim lifecycle acceptance. Small fixture packages establish the
+   generic cycle; CCE/Fortran, physical fabric and site module qualification
+   still require the actual target systems.
+7. The `modules` builder action regenerates views and all applicable named
+   package-module sets from existing locked installs, without fetching,
+   installing or concretizing. Module sets sharing a tree must not erase one
+   another. Presentation publication remains a separate action.
+8. New candidates scope mutable recipe/patch indices to their resolved overlay
+   paths and reviewed inventory identity. Reusing a package store is independent
+   of sharing mutable recipe caches. Candidate overlay changes must not inherit
+   a stale namespace patch index from an earlier candidate.
+
+The agreed public test seams are generated workspace output, the overlay
+verification/candidate CLI, control-refresh/restore, and downstream real
+Spack operation through the lab harness. Each defect is captured by a failing
+case before its implementation. Broader full-render Spack 1.2 work is assessed
+through the harness; a passing minimal fixture is not a claim that every
+producer/MPI/GPU contract is complete.
+
+## Package reuse and module updates
+
+Keeping locks preserves requested concrete identities. Reuse additionally
+requires the referenced prefixes and Spack database to remain available and
+valid, with their external/compiler runtime assumptions still satisfied.
+Updating source code or module presentation need not change those identities.
+Changing package intent/recipes/providers requires the explicit candidate
+solve and affected-consumer review from the SOP. Never delete old locks or
+prefixes to make a test pass.
+
+Built packages may be exported to a private candidate build cache while module
+and runtime validation continue. Cache presence is not release approval.
+Sign/publish the accepted exact set under the CSE SOP only after its required
+package, consumer, module and destination checks pass.
