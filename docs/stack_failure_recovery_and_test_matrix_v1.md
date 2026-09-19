@@ -258,6 +258,8 @@ regression coverage and must not be presented as a real build/recovery cycle.
 | Control refresh, restore and recovery | [Refresh tests](../../stack-content/pilots/cse-pilot/tests/test_refresh_workspace_controls.py): 24 cases covering scope, identity, whole-selection rollback, interrupted recovery, damaged records and concurrent updates | Temporary filesystem fault injection; real module behavior is a separate lab slice |
 | Generic overlay admission and cache identity | [Inventory tests](../../stack-content/pilots/cse-pilot/tests/test_overlay_inventory.py) | Exact bytes, support inputs and shell cache selection; does not prove source compilation |
 | Modules on already installed locks | [Module action tests](../../stack-content/pilots/cse-pilot/tests/test_module_refresh.py): named sets, selected surface, missing DB install and missing prefix | Generated launcher command boundary; actual Spack module sets tested separately in lab |
+| Older workspace module-policy and inventory admission | [Legacy upgrade tests](../../stack-content/pilots/cse-pilot/tests/test_legacy_workspace_upgrade.py): 19 cases including protected scopes, omitted policies, retained restore and interrupted staging | Uses existing lock/input shapes; real view/module operation is a separate lab slice |
+| Explicit consumer gate before signed cache push | [Acceptance CLI tests](../../stack-content/pilots/cse-pilot/tests/test_accept_and_push_buildcache.py): failure, input drift, bounded process group and OCI refusal | Exact locked roots and YAML/lock drift are automatic; the operator supplies meaningful consumer coverage |
 | Installed consumer behavior | [HPC validation coverage](../../hpc-validation/docs/coverage.md) | Tests existing installations; it intentionally never solves/builds/changes locks, so it cannot establish the recovery cycle itself |
 
 ### Failure-injection acceptance target
@@ -290,6 +292,9 @@ the remaining targets. A Linux fixture cannot establish CCE linker/Fortran
 behavior. This matrix describes the complete target, not a claim that every
 case has passed. The [implementation receipt](recovery_hardening_acceptance_2026_09_19.md)
 maps the small local cases actually executed and the outstanding cases.
+The subsequent [upgrade and delivery receipt](recovery_upgrade_acceptance_2026_09_19.md)
+records historical input compatibility, additional runtime/cache cases and the
+fresh-run evidence without replacing the broader matrix.
 
 Keep implementation in its owning repository: generator transactions and
 driver control flow in Composer; authored overlay/policy/refresh behavior in

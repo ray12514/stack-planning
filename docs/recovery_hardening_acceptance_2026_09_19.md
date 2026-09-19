@@ -1,5 +1,9 @@
 # Recovery implementation and local acceptance — 2026-09-19
 
+This is the initial implementation receipt. Subsequent older-workspace,
+consumer/cache and delivery work is recorded in the
+[follow-through receipt](recovery_upgrade_acceptance_2026_09_19.md).
+
 The preservation boundary is the environments on the real clusters. The local
 HPC lab is disposable. The implementation and tests use a tiny C library and
 consumer to exercise recovery; they do not rebuild the CSE roster. Production
@@ -98,7 +102,7 @@ The full-render lab fixture adds an explicit empty Ubuntu 24 scope to a private
 copy of the templates because maintained production content currently covers
 RHEL and SLES. This is an adaptation for the observed lab OS, not production
 Ubuntu support. Raw Inspector output is preserved; the reviewed full-render
-fixture selects actual GCC/OpenMPI facts and excludes existing mock vendor
+fixture selects actual GCC facts, omits MPI for its serial roots and excludes mock vendor
 compiler surfaces in the lab. Fixture source builds establish the general overlay and
 package-intent recovery cycle; they do not qualify CCE, Fortran ABI, physical
 MPI fabrics, scheduler interruption or any production scientific result.
