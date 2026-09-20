@@ -31,8 +31,8 @@ signing for that destination type.
 
 Stack Content's complete pilot suite passes **158 tests**, including **19** new
 legacy upgrade cases, **24** existing transaction cases and **5** acceptance-gate
-cases. Composer's required check passes **277 tests**, typing, dependency and
-lint checks, including **11** added delivery regressions. These are local
+cases. Composer's required check passes **280 tests**, typing, dependency and
+lint checks, including **14** added delivery regressions. These are local
 regression results; real-Spack runtime evidence is recorded separately below.
 
 ## Older workspace rehearsals
@@ -122,7 +122,12 @@ inside the sealed source export. The input-inventory check rejected that
 assembly. The bundler now suppresses bytecode writes before loading its helper,
 with a public captured-source CLI regression. Fresh capsules and builds replace
 the rejected attempt; generated files are not admitted into its sealed manifest.
-This packaging correction changes no rendering or maintenance runtime code.
+Independent delivery review also reproduced a damaged zipapp bootstrap or
+dependency passing the application-only source check. Assembly now verifies
+every complete build product against the offline build's recorded checksums
+before packaging. Three regression cases reject bootstrap corruption, dependency
+corruption and a missing checksum receipt. These packaging corrections change
+no rendering or maintenance runtime code.
 
 Use the delivered [maintenance procedure](../../stack-content/pilots/cse-pilot/CONTROL-REFRESH.md)
 and [acceptance gate procedure](../../stack-content/pilots/cse-pilot/BUILDCACHE-ACCEPTANCE.md).
