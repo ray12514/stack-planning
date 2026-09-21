@@ -1833,45 +1833,40 @@ that variable as a builder-named partition below the shared restricted root:
 $CSE_RESTRICTED_ROOT/cache/misc/$USER
 ```
 
-Stop processes using the workspace, synchronize Stack Content, and refresh the
-declared controls in place:
+Stop processes using the affected workspace and follow the complete
+[existing-trial maintenance procedure](../../stack-content/pilots/cse-pilot/CONTROL-REFRESH.md).
+It restores the saved login/session paths, selects reviewed tools, and prepares
+`REFRESH_VALUES` as a separate copy of the recorded values when current render
+fields are needed. The earlier shortcut that regenerated `BUILD_VALUES` from
+current discovery and refreshed the default `all` scope is superseded.
+
+A permission-helper or operational-config correction is a separately reviewed
+`--scope controls` change. Verify its prerequisite inventory/helper admission
+and the new launcher's graph policy against the retained inputs before applying
+it. For entrance/lane files alone, choose `--scope presentation`; package-module
+policy and generated package modules are separate operations in the guide.
+Keep an older prepared launcher when its replacement has not been qualified.
+
+After the reviewed controls operation, inspect the existing workspace:
 
 ```bash
-source "$CSE_OPERATOR_SESSION_FILE"
-git -C "$CONTENT" pull --ff-only origin codex/simplified-render-plan
-
-"$CSE_PYTHON" \
-  "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
-
-grep -n 'misc_cache:' "$BUILD_VALUES"
-
-"$CSE_PYTHON" \
-  "$CONTENT/pilots/cse-pilot/scripts/refresh-workspace-controls.py" \
-  --composer "$STACK_COMPOSER" \
-  --blueprint "$CONTENT/pilots/cse-pilot" \
-  --values "$BUILD_VALUES" \
-  --workspace "$BUILD_WORKSPACE"
-
 grep -F 'misc_cache: ${SPACK_MISC_CACHE_PATH}' \
   "$BUILD_WORKSPACE/configs/common/config.yaml"
 
 cd "$BUILD_WORKSPACE"
 ./cse-build login status
-./cse-build login concretize   # creates only missing locks
 ./cse-build login verify
 ```
 
-This controls-only refresh replaces `cse-build`, the common config, generated
-shared-permission helper, other environment helpers, verifier, and handoff note.
-It preserves environment YAML, lockfiles, the source cache, views, installed
-prefixes, and every other build input. On entry and exit, `cse-build`
-normalizes entries owned by the active builder across every handoff-critical
-generated surface and verifies those entries against the group/no-world
-contract. `status`, `concretize`, and `verify` additionally verify all entries
-on the declared surfaces; use `status` as the cross-user handoff gate after
-parallel actions stop. A prepared interactive shell normalizes its builder's
-entries when it exits. Each builder receives a separate `$USER` misc-cache
-partition, so its repair does not race another builder's live mutable index.
+This maintenance path does not concretize. If an unfinished environment still
+needs its first lock, return to Step 9 deliberately; a permission or module
+correction is not a reason to change existing locks. Current qualified controls
+normalize entries owned by the active builder across generated handoff surfaces
+and verify the group/no-world contract. Use `status` as the cross-user handoff
+gate after parallel actions stop. A prepared interactive shell normalizes its
+builder's entries when it exits. Each builder receives a separate recorded
+misc-cache partition; current controls also bind that partition to the reviewed
+overlay inventory.
 
 #### One-time misc-cache traversal repair after accidental `chmod 660`
 
@@ -1977,9 +1972,14 @@ toolchain file mean the workspace was generated from an older blueprint or the
 session points at a different workspace. A downstream-hash mismatch means the
 locks were created from older inputs. A controls-only refresh cannot repair either case
 because it deliberately preserves environment YAML and lockfiles.
-Synchronize Stack Content, confirm the operator-session paths, and continue
-with the replacement procedure below. A blueprint-only compiler-policy
-correction does not require a new static catalog.
+The replacement procedure below is retained for the historical pre-install
+compiler-policy repair only: no installation or build-cache promotion may have
+started, and its locks must remain unaccepted diagnostic output. If any package
+installation was attempted, preserve that workspace and use a separate candidate
+release instead. For completed-build module/control maintenance, use
+[CONTROL-REFRESH.md](../../stack-content/pilots/cse-pilot/CONTROL-REFRESH.md).
+A blueprint-only compiler-policy correction does not require new observed
+machine facts when the recorded static catalog remains correct.
 
 First stop every process using the workspace, synchronize the four repositories
 in Step 2, rebuild Stack Composer when `cse_session_status` reports it stale,
@@ -1996,9 +1996,9 @@ cse_session_status
   "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
 ```
 
-If any install was attempted, retain the current locks under the evidence root
-before replacement. Do not remove installed prefixes merely because the
-control workspace is being refreshed:
+Before this eligible pre-install replacement, retain its diagnostic locks under
+the evidence root. If installation was attempted, stop this procedure and keep
+the entire workspace and installed prefixes for the separate candidate path:
 
 ```bash
 REFRESH_EVIDENCE="$BUILD_EVIDENCE/pre-install-control-refresh"
@@ -2013,9 +2013,9 @@ while IFS= read -r lockfile; do
 done < "$REFRESH_EVIDENCE/lockfiles.list"
 ```
 
-Review `lockfiles.list` before continuing. If package installation was already
-accepted, stop and use the release recovery policy instead of this pre-install
-refresh.
+Review `lockfiles.list` before continuing. An accepted lock, any installation
+attempt or build-cache promotion excludes this pre-install replacement; use the
+release recovery policy instead.
 
 Render the current workspace in place, then recreate and verify all eight
 locks through the login context:
@@ -2452,19 +2452,22 @@ done
 
 ### Restricted module presentation and team-review checkpoint
 
-Each completed environment has already regenerated its view and its Spack
-package-module tree in the restricted deployment roots. The workspace
-`modulefiles/` tree is different: it contains the CSE compiler front doors and
-lane selectors that present those package modules to users.
+A completed package build does not by itself establish module readiness; older
+workspaces may need current module settings or their first module generation.
+Follow the [existing-trial maintenance procedure](../../stack-content/pilots/cse-pilot/CONTROL-REFRESH.md)
+to check installed coverage, preserve recorded values and locks, select a
+reviewed module-policy candidate when needed, and regenerate/test only the
+required view and package-module output. Back up those external output roots
+separately before regeneration.
 
-After all required build processes finish, synchronize the reviewed Stack
-Content branch and apply the system runbook's control-only workspace refresh.
-That refresh replaces generated controls, `modulefiles/`, and `presentation/`
-inside the existing workspace. It does not replace environment YAML, lockfiles,
-views, package-module trees, installed prefixes, or caches.
+The workspace `modulefiles/` tree contains the CSE compiler front doors and lane
+selectors. Update those with `--scope presentation`; adopting newer controls or
+a verifier is a separate qualification. Follow the guide's older-launcher route
+if the retained `cse-build` lacks module actions. A newer verifier is not a
+reason to edit old specs or locks.
 
-Confirm that the build values still name the restricted module root. Then copy
-the ready presentation modules into that root:
+After consumer checks pass and the build values still identify the restricted
+module root, the qualified launcher can copy the ready presentation modules:
 
 ```bash
 cd "$BUILD_WORKSPACE"
@@ -2493,11 +2496,12 @@ outcomes are:
 1. Accept the presentation. Record each accepted lane as `runtime-passed`, then
    continue to Step 11 for private build-cache promotion and Step 12 for public
    static-catalog and cache-only stack publication.
-2. Change presentation controls only. Update the owning template or values,
-   rerun the control-only refresh, and repeat this checkpoint without rebuilding
-   or reconcretizing.
-3. Change a Spack module projection without changing the DAG. Regenerate only
-   the affected package-module tree, then repeat the clean-session review.
+2. Change presentation controls only. Update the owning template or reviewed
+   render-only values, preview/apply `--scope presentation`, and repeat this
+   checkpoint without rebuilding or reconcretizing.
+3. Change a Spack module projection without changing the DAG. Adopt the reviewed
+   module-policy candidate when needed, regenerate only the affected output,
+   then repeat the clean-session review.
 4. Change a package, dependency, compiler, MPI provider, external, or concrete
    hash. Follow the DAG-changing recovery rule and do not reuse the old review
    result.
