@@ -126,3 +126,31 @@ Content and Planning exports. A versioned archive includes matching tools,
 offline helper dependencies, source revisions, checksums, verification and
 explicit receiving commands. Source installation is separate from workspace
 refresh; no existing trial deployment is performed by bundle creation.
+
+## Operator workflow follow-through
+
+The source now adds two downstream interfaces shipped with workspace controls:
+
+- `workspace-overlay.py` applies or edits a complete recipe in the existing
+  unfinished workspace, validates its inventory, records all-lock impact, and
+  retains the previous files for recovery. `workspace-build.py` reconcretizes
+  one explicitly selected environment with a saved lock and resumes that
+  environment from its current lock. Other locks and installed prefixes are
+  preserved; matching installed hashes are reused. Pending affected locks block
+  later build actions until deliberately reconcretized. One shared maintenance
+  lock serializes these operations and finite new-launcher actions. There is no
+  additional operator workspace or mandatory approval-digest sequence.
+  The isolated `overlay-recovery.py` path remains available for experiments and
+  supplies shared runtime primitives; its earlier acceptance is labeled separately.
+- `module-preview.py` inspects installed prefixes, named views and module policy,
+  then generates an isolated preview. Policy/projection iterations reuse the same
+  concrete package hashes. Missing lane prerequisites are reported for scoped
+  control/policy maintenance; Composer/Spack upgrades are not a prerequisite to
+  regenerate an already valid module policy.
+
+Older generated launchers can use the standalone helpers from their prepared
+shell. New controls delegate `overlay`, selected `concretize`/`resume`, and
+`module-preview` actions to these same implementations. The previously sealed `recovery.2` delivery is unchanged and
+predates these helpers; current source or a subsequent delivery is required.
+Actual results and limitations are recorded in
+[operator acceptance](recovery_operator_acceptance_2026_09_22.md).

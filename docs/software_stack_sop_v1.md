@@ -1858,11 +1858,18 @@ require a new release.
 
 ## 12. Changes, security events, and platform updates
 
-Create a new release record when changing a root spec, version, variant, recipe,
+For an accepted or published stack, create a new release record when changing
+a root spec, version, variant, recipe,
 patch, repository revision or order, compiler, MPI, GPU provider, catalog scope,
 Spack version, external identity or lockfile. Rebuild and retest affected
 packages and dependencies. Reuse concrete packages only if unchanged, with
 unchanged hashes.
+
+An unfinished build may correct recipes, versions, or variants in its existing
+workspace. Retain prior inputs and locks, explicitly reconcretize the selected
+environment, and resume; preserve all unselected locks and installed prefixes.
+Report shared recipe impact and repeat affected lock/build review before
+release acceptance. Do not replace a workspace merely to deliver a correction.
 
 For a security advisory:
 
@@ -1912,8 +1919,10 @@ Record retention and user-notification periods. Keep the current accepted
 release and at least one working previous release when storage permits. Never
 remove a cache object referenced by a retained lockfile.
 
-Resume interrupted work only if inputs and hashes are unchanged and the failure
-was operational. A changed build input or hash requires a new release.
+For an operational interruption, resume from unchanged inputs and hashes. An
+unfinished build may follow the selected-environment correction loop in Section
+12, preserving its previous inputs and lock. Changed inputs or hashes in an
+accepted or published release require a new release.
 
 Rollback points the supported module default or release pointer to a previous
 accepted release that remains acceptable under current security findings.

@@ -394,6 +394,18 @@ and rebuild and retest all affected packages and dependencies. Make the tested
 repository revision available to another authorized builder and include it in
 applicable transfer and retention records.
 
+In an unfinished CSE trial, a new input revision stays in the same workspace:
+apply the complete correction, retain the previous selected lock, explicitly
+reconcretize that environment, then resume its build with the same compiler.
+Reuse installed hashes that remain unchanged. Report impact on every lock, but
+leave unselected locks, prefixes, views and modules intact until deliberately
+selected. A previously reviewed lock needs renewed review after it changes;
+installation alone does not require a replacement workspace. The
+[operator recovery guide](../../stack-content/pilots/cse-pilot/OVERLAY-RECOVERY.md)
+gives the commands and the older-launcher path. For a configure, compile, or link
+failure, passing the original failing build stage is the recovery test; later
+release runtime/module/MPI acceptance remains required where applicable.
+
 If a supported public catalog choice needs the correction, give its approved
 users the exact unchanging repository revision through an authorized,
 accessible source, with identity and selection instructions. A restricted internal path will not work for those users. When an approved upstream update contains the

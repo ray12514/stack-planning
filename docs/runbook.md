@@ -39,11 +39,11 @@ Copying an overlay also requires checking recipe selection, recovering affected
 candidate locks, and testing on the receiving system; a source-repository pull
 alone does not update a generated workspace.
 
-The quickstart's in-place steps are for diagnosis in an unaccepted working
-copy. Apply [Same release or new release](#same-release-or-new-release) before
-adopting changed recipes, variants, or locks into the trial release record.
-Checkpoint 4 protects reviewed locks even before final publication; preserve
-those inputs and integrate semantic corrections into a new trial release.
+The quickstart corrects the same unfinished workspace. Preserve the previous
+inputs and selected lock in a recovery record; invalidate and repeat the affected
+checkpoint-4 lock review after reconcretization. Follow
+[Same release or new release](#same-release-or-new-release) to preserve accepted
+or published releases.
 For a partially completed workspace, preserve completed environments and
 limit recovery to the declared failing candidate and reviewed dependency
 impact. A documentation, overlay, or generated-control refresh is not an
@@ -273,7 +273,7 @@ contract.
 
 ### Same release or new release
 
-Resume the same release only when all of these are true:
+For an operational retry with unchanged inputs, resume the same release when:
 
 - the profile, catalog, semantic provider/package values, roster,
   package-recipe pin, Spack version and commit, and repository commits are
@@ -295,12 +295,17 @@ root and another a builder-local root without changing the release when both
 roots pass the same version, tag, commit, clean-tree, and scope checks. Record
 the selected path with each builder's evidence.
 
-Create a new catalog release and a new trial release when observed system facts
-or reusable static scopes change. Create a new trial release when the compiler,
-MPI, toolchain, specs, variants, values, roster, package recipes, Spack
-version, or any lockfile changes. A module or view correction made after a
-release is accepted also gets a new trial release, even when package hashes stay
-the same.
+An unfinished trial can correct a package recipe, patch, spec, version, or
+variant in its existing workspace. Retain before/after inputs and selected
+locks, reconcretize only explicitly selected environments, and resume from those
+locks. Reuse installed hashes that remain unchanged. Earlier installation does
+not require a replacement workspace. Report all affected locks; repeat their
+lock review and build checks when each is selected, before release acceptance.
+
+Create a new catalog and trial release when observed system facts or reusable
+static scopes change. Compiler, MPI, toolchain, roster, or Spack identity changes
+also require a new trial release. Once a release is accepted or published, any
+semantic input, lock, module, or view correction gets a new release record.
 
 A new release does not imply rebuilding every package. It may reuse compatible
 approved binaries already present in the private CSE build cache. The rule is
@@ -308,9 +313,10 @@ about preserving provenance and immutable release records, not discarding safe
 cache reuse.
 
 Use `--overwrite` only before the first lockfile exists and before anything has
-been pushed or published. Once a run reaches checkpoint 4, preserve the failed
-workspace and evidence. Derive a new release for semantic input changes instead
-of deleting or rewriting the old record.
+been pushed or published. Later corrections use the existing workspace and
+retained recovery records. Never overwrite the workspace to deliver an overlay.
+An affected checkpoint-4 review must be repeated after its lock changes; its
+earlier evidence remains in the recovery record.
 
 ### Catalog correction and replacement
 
@@ -353,12 +359,13 @@ content edit is part of this procedure.
 | Scheduler timeout, node failure, temporary network failure, or resolved quota problem with unchanged inputs | Retry only the failed command or environment in the same release. |
 | Selected build node is unavailable, but the other recorded context can run the same locked target | Enter the same workspace through `./cse-build login` or `./cse-build compute`. The selector chooses an executable stage for that context; keep the existing locks and install tree. |
 | Source build failure caused by a transient host/tool problem | Retry the failed lane after recording the log; earlier validated lanes remain valid. |
-| Package recipe, patch, variant, compiler, MPI, or Spack version/commit change is required | Create a new trial release, reconcretize, and revalidate every affected lane. |
+| Package recipe, patch, spec, version, or variant correction in an unfinished trial | Apply in the same workspace, retain the old lock, explicitly reconcretize the selected environment, and resume. Report other affected locks and repeat their reviews before later builds. |
+| Compiler, MPI, or Spack version/commit change, or a semantic change to an accepted/published release | Create a new trial release, reconcretize, and revalidate every affected lane. |
 | Selected Spack checkout is dirty or does not match the pinned source/tag/commit | Stop. Replace the selected root with a clean checkout of the approved identity. Do not pull, switch branches, or run `spack isolate` in place. |
 | Cluster Inspector fact or external module/prefix is wrong | Regenerate the profile, create a new catalog release and trial release, and restart at checkpoint 1. |
 | Static catalog scope or toolchain is wrong | Fix the owning profile/catalog logic, create new catalog and trial releases, and restart at checkpoint 2. |
 | Restricted workspace template or values are wrong | Before installation, unaccepted diagnostic locks from the current checkpoint may be discarded together and the working release reinitialized. After a lock has been accepted, installed, or promoted, create a new trial release. |
-| A later lane fails while earlier lane locks and inputs remain unchanged | Keep the earlier evidence and retry only the failed lane. If a shared upstream hash changes, reconcretize and revalidate every dependent lane in a new release. |
+| A later lane fails while earlier lane locks and inputs remain unchanged | Keep earlier locks, prefixes, and evidence; retry the failed lane. If a shared upstream hash changes, report dependent lanes and explicitly reconcretize/revalidate each affected lane before accepting the unfinished trial. |
 | Build-cache push, index, or signing operation is interrupted | Retry the cache operation from the installed restricted specs; do not rebuild. |
 | Publication reports a cache miss for an exact approved hash | Return to the restricted workspace, build and validate that exact locked hash, push it, and retry only the failed publication environment. If producing it requires a changed hash, create a new release. |
 | Another builder cannot traverse, read, or replace generated workspace/cache/view/module/build-cache content | Stop processes using the affected tree, refresh the common generated controls, and follow [Shared generated-content permission recovery](#shared-generated-content-permission-recovery). Each owner repairs that owner's entries; do not recursively chmod the install tree or a broad shared parent. |
@@ -1526,11 +1533,12 @@ instead of later in Dakota's CMake configuration.
 Pulling `stack-content` does not modify a workspace that was already rendered.
 Before package installation starts, replace an unaccepted older workspace with
 the current blueprint by following **Recovery: replace an unaccepted workspace
-after a blueprint correction**. If installation has started, preserve that
-workspace and evidence, create the required new trial release, refresh its
-workspace-owned package repository, and force only the affected MPI roots with
-`concretize -f --reuse-deps -j 1`. A normal `concretize --fresh` does not replace
-an existing Dakota root after its recipe or patch changes.
+after a blueprint correction**. If installation has started in an unfinished trial, keep the same
+workspace and evidence, apply the complete recipe correction, and use
+`concretize --environment COMPILER/LANE --reconcretize` followed by
+`resume --environment COMPILER/LANE`. These helpers retain the old selected
+lock and solve afresh so a corrected dependency cannot be silently reused.
+An accepted/published release remains immutable.
 
 If this exact dedicated workspace was initialized by an older checkout and
 already contains lockfiles or partial installs, do not use `--overwrite` merely

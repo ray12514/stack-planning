@@ -61,6 +61,7 @@ when sharing them so their companion-document links remain usable.
 | `package_overlay_operating_model_v1.md` | Correction-layer decisions, canonical/deployed overlay paths, complete operator loop, SOP ownership, and build-lifecycle implementation/acceptance gaps. |
 | `stack_failure_recovery_and_test_matrix_v1.md` | Three alternative preparation paths, exact trial pre-check behavior, SOP re-entry by failure type, partial-build preservation, and verified versus proposed recovery tests. |
 | `recovery_hardening_implementation_v1.md` | Implemented source boundaries for scoped control recovery, generic overlay admission, module-only maintenance and disposable local lifecycle tests. |
+| `recovery_operator_acceptance_2026_09_22.md` | Same-workspace correction/resume and module-preview regressions, real Spack tiny-fixture evidence, and remaining CCE acceptance. |
 | `recovery_hardening_acceptance_2026_09_19.md` | Source branches, actual validation results, real-Spack evidence and outstanding target-system acceptance. |
 | `recovery_upgrade_acceptance_2026_09_19.md` | Older workspace rehearsals, module-policy and inventory adoption, consumer/cache failure coverage, fresh-run and delivery evidence. |
 | `software_stack_sop_v1.md` | Shared procedural SOP for CSE and application package managers: runtime/configuration setup, risk-based review, source mirrors, delivery to systems with limited or no external network access, build/validation, signing, catalog and cache publication, and maintenance. |

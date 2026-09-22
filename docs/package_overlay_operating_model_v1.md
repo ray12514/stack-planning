@@ -19,6 +19,35 @@ audits static-catalog consumption, blueprint initialization, and full render as
 alternative preparation paths. A full-render defect is a gate for that path;
 it does not require moving the current trials or catalog consumers onto it.
 
+## Workspace-aware recovery and module iterations
+
+The normal downstream correction loop stays in the existing unfinished workspace:
+`workspace-overlay.py apply` (from Stack Content or a complete corrected directory)
+or `edit` (manual local diagnosis), followed by selected-environment
+`workspace-build.py concretize --reconcretize` and `resume`. The generated
+`cse-build` exposes those same operations. Backups and recovery records remain
+internal to that workspace; no new render or operator workspace is required.
+
+All locks are inspected for recipe impact, but only the explicitly selected
+lock is reconcretized. Affected unselected locks are flagged for their later
+build; existing installed prefixes/modules remain usable. Resume reuses matching
+installed hashes. Build-error verification is the corrected build succeeding in
+the same compiler environment, without a mandatory extra consumer program.
+The isolated-candidate helper remains an optional diagnostic path, not the
+normal operator procedure. Release/module/MPI acceptance remains separate.
+
+`module-preview.py` checks the existing installed workspace and renders module
+presentation into a new directory. It neither solves nor installs packages and
+never regenerates live views. Lane layout is the initial presentation; alternate
+Spack module projections are reviewed as presentation inputs over the same locks.
+The preparation renderer stays pure and production path selection remains open.
+
+For operational commands and tool-update requirements, use the Content-owned
+[overlay recovery guide](../../stack-content/pilots/cse-pilot/OVERLAY-RECOVERY.md),
+[module preview guide](../../stack-content/pilots/cse-pilot/MODULE-PRESENTATION.md)
+and [existing-workspace maintenance guide](../../stack-content/pilots/cse-pilot/CONTROL-REFRESH.md).
+The historical findings below remain the audit of the pre-helper baseline.
+
 ## Finding and document ownership
 
 The architecture already supports operating without an LLM. An operator can
@@ -69,16 +98,18 @@ because the source repositories have changed.
 | Update class | Current-trial delivery boundary |
 | --- | --- |
 | Documentation | Copy the reviewed guide to the intended workspace; this does not deploy a recipe or change a lock |
-| Failing CCE package recipe/patch | Apply only the complete reviewed package file set to an unaccepted diagnostic candidate after evidence capture; review affected CCE dependencies and locks before retrying |
+| Failing CCE package recipe/patch | Apply the complete reviewed package directory in the same unfinished workspace; retain prior files, report affected locks, then explicitly reconcretize and resume the selected CCE environment |
 | Generated shell/verifier controls | Use the existing allowlisted control refresh only for a specific needed correction, after testing in a disposable copy and reviewing its exact diff; it does not deploy overlays or authorize new solves |
-| Variant, dependency, compiler/provider, or accepted lock change | Prepare a separate scoped candidate/release under the runbook; preserve completed environments and reuse only compatible approved binaries |
+| Variant or dependency correction in an unfinished trial | Update the selected environment inputs, retain the previous lock, reconcretize that environment, and resume; report all affected locks |
+| Compiler/provider or accepted release change | Prepare a separate scoped release under the runbook; preserve completed environments and reuse compatible binaries |
 | Composer implementation, generic full-render priority, runtime/package-repo pin, or new digest enforcement | Track for a separately tested refresh or new candidate; do not roll these findings into running trials automatically |
 
 For the focused CCE correction, inspect every affected graph but change only
-the explicitly selected unaccepted candidate locks. A dependency fix can
-require rebuilding its affected consumers. If that set reaches a completed
-environment or violates the workspace's shared-producer hash checks, stop the
-rollout and prepare a separate candidate with an explicit impact decision.
+the explicitly selected locks in the unfinished workspace. A dependency fix
+can require rebuilding its affected consumers. If that set reaches a completed
+environment, retain its current lock and prefix until it is explicitly selected.
+If shared-producer hashes differ, hold acceptance until every affected environment
+has been reconcretized and validated; do not replace the workspace.
 Do not force all eight locks to change just to make the verifier pass, and do
 not weaken the verifier to hide a mismatch.
 
@@ -173,10 +204,11 @@ hashes based only on the guard.
 ```mermaid
 flowchart LR
   A[Capture failure and exact inputs] --> B[Choose owning layer]
-  B --> C[Prepare and review complete candidate]
-  C --> D[Prove selection and review affected locks]
-  D --> E[Build and reproduce the passing result]
-  E --> F[Test consumers and other affected surfaces]
+  B --> C[Apply complete correction in this workspace]
+  C --> D[Report impact and reconcretize selected environment]
+  D --> E[Resume build with the same compiler]
+  E -->|Another failure| B
+  E --> F[Complete applicable release acceptance]
   F --> G[Retain source and release evidence]
   G --> H[Approve, sign, publish and test public entrance]
   H --> I[Monitor upstream and retire through a new candidate]
@@ -203,10 +235,11 @@ flowchart LR
    source-build log. `--fresh` is a solve policy; `--no-cache` is an install
    policy; neither forces replacement of an already installed hash. Do not
    delete shared prefixes merely to obtain a fresh test.
-6. **Demonstrate the fix.** Repeat the original failing operation and a real
-   consumer. Include other affected compiler/lane cases and an unaffected
-   control. Run the generated lock verifier, but do not treat it as a binary
-   or runtime acceptance test.
+6. **Demonstrate the fix.** Repeat the original failing build with the same
+   compiler. Passing its configure, compile, or link failure is the recovery
+   test. Add a runtime consumer when the reported defect or release acceptance
+   requires it. Record which affected compiler/lane cases were actually run.
+   The generated lock verifier does not replace this build evidence.
 7. **Retain and reproduce.** Copy the accepted files back to authored content;
    record a commit or complete archive digest and the final recipe tree. Keep
    each before/after lock, command, log, test result, and reviewer decision.
@@ -221,17 +254,12 @@ flowchart LR
 ### Release boundary
 
 The [runbook's same/new-release rule](runbook.md#same-release-or-new-release)
-governs trials: semantic changes to recipes, variants, providers, or locks need
-a new trial release; operational retries with unchanged inputs can resume.
-Checkpoint 4 means **locks reviewed**, earlier than final user publication.
-Never interpret “unfinished trial” as permission to alter reviewed locks or
-cached release inputs in place.
-
-An unaccepted working copy can be used for diagnosis and the focused retry in
-the quickstart. Record those edits as an experiment. Integrate a semantic fix
-into a new trial release under the runbook before advancing acceptance; preserve
-the original record. The new release can reuse compatible approved binaries.
-Do not regenerate over an active workspace to deliver one diagnostic overlay.
+keeps accepted/published inputs immutable. An unfinished trial uses the same
+workspace for recipe, version, and variant corrections. Retain prior inputs
+and selected locks, repeat the affected checkpoint-4 review, and rebuild only
+changed/missing hashes. Other locks and installed prefixes stay intact until
+explicitly selected. Return the final correction to authored content before
+acceptance. A full render or replacement workspace is not part of this loop.
 
 ### Minimum correction record
 
@@ -274,7 +302,7 @@ service is not required to close the gaps below.
 
 1. **Finish the two remaining CCE trials with bounded corrections.** Capture the full failure,
    verify scope/recipe selection, recover affected candidate locks, and retain
-   before/after consumer evidence while preserving completed builds. The quickstart's Blueback CCE LAPACK example
+   before/after build evidence with the same compiler while preserving completed builds. The quickstart's Blueback CCE LAPACK example
    explicitly does not claim a diagnosed fix or successful retry.
 2. **In a separately tested refresh, make selection and final inputs provable.** Correct full-render
    repository priority before using it for overlays. Resolve the builtin full-commit pin and
