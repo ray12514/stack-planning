@@ -82,8 +82,10 @@ The original preview guide incorrectly added a second lane `module use`, and
 its combined preview module root exposed backing compiler/package names during
 Lmod's recursive discovery. This was reproduced independently of package builds.
 The corrected preview has a separate `entrances/cse/` root. Loading an entrance
-automatically exposes Core/Common and Serial/MPI; loading a lane exposes its
-packages. The guide and control-refresh procedure now test that exact sequence.
+automatically exposes individual Core/Common package modules and Serial/MPI
+selectors; loading a lane exposes its packages. Core/Common are package groups,
+not selectors users load. The guide and control-refresh procedure now test that
+exact sequence.
 
 Future `publish-modules` operations use `<recorded-module-root>/entrances/cse/`
 for compiler entrances, keeping lane/package paths unchanged. The executable
@@ -111,6 +113,18 @@ The separate receipt is
 Earlier historical receipts remain unchanged. The older lab harness entry paths
 were updated for future runs; this correction does not claim a rerun of the
 complete earlier lifecycle suite.
+
+The same-day TModules follow-up ran the same Tcl entrance/lane templates under
+**Tcl Environment Modules 5.3.0**, then repeated the strengthened check under
+**Lmod 8.6.19**. Both passed eight assertion groups, explicitly including
+individual Core/Common package availability and loading with no Core/Common
+selectors. TModules is the primary target; Lmod is a secondary compatibility
+check. The new receipts are
+`hpc-lab/results/module-preview-entrance/20260923-tmodules-verified/acceptance.json`
+and `20260923-lmod-verified/acceptance.json` under the same parent. The TModules
+run used an already available offline image. Both used stub package/compiler/MPI
+modules, performed zero builds/solves, and preserved workspace input hashes.
+The earlier Lmod-only receipt remains unchanged.
 
 ## Remaining target-system work
 
