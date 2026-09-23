@@ -1850,6 +1850,14 @@ module load <package>/<version>
 Use `module use` only for a private, test or newly introduced module root;
 document that path with the release.
 
+For compiler-entrance layouts, register only the entrance directory. Keep the
+backing compiler/lane/package trees outside it so recursive discovery does not
+expose them before selection. Loading a compiler entrance must automatically
+expose its supported lanes; loading a lane exposes its packages. Clean-session
+acceptance uses one initial `module use` and checks those transitions without
+manually adding a lane path. The CSE trial's publisher uses
+`<recorded-module-root>/entrances` for that initial directory.
+
 Check user access through module trees, views, external runtime paths and package
 installations from login and compute nodes. Users outside the approved
 package-manager group must not have write access. Authorized manager writes

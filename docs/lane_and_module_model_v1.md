@@ -418,6 +418,23 @@ module roots for every MPI/GPU/serial lane. A lane module is the isolation seam:
 after the user loads one lane module, only that lane's package-module root is
 visible.
 
+The initial consumer `MODULEPATH` must contain only the compiler entrances.
+Keep backing compiler/lane/package trees outside that directory: module
+systems can discover descendants recursively, bypassing the intended selection
+order if the shared parent is registered. Users issue one initial `module use`
+for a review; the entrance module itself adds Core/Common and lane paths, and
+the lane module adds its package path. A manual second `module use` to expose
+Serial/MPI is a failed entrance test, not a normal activation step. GPU follows
+the same selection pattern when configured.
+
+The CSE trial publisher implements this with `<modules-root>/entrances/cse/`
+for entrances and `<modules-root>/<compiler>/...` for backing trees. Register
+only `<modules-root>/entrances`. Private previews similarly use
+`<preview>/entrances/cse/` alongside `<preview>/modulefiles/<compiler>/...`.
+Existing site registration and generated workspace controls change only
+through the deliberate refresh/review procedure; this layout does not alter
+locks, package prefixes, or the undecided production preparation path.
+
 The user-facing hierarchy is intentionally short:
 
 ```text

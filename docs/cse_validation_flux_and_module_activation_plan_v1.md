@@ -429,6 +429,15 @@ only the two CSE front doors and ready lane selectors. It never invokes Spack's
 module refresh and cannot bypass the withheld CSE GCC MPI native multi-node
 gate. Never edit an accepted release in place.
 
+The publisher places compiler entrances under `<modules-root>/entrances/cse/`
+and lane selectors under `<modules-root>/<compiler>/lanes/`. Register only
+`<modules-root>/entrances` in the consumer session: initially see compiler
+entrances, then see lanes automatically after selecting a compiler, then see
+packages after selecting a lane. The private preview uses the same activation
+sequence with its own `entrances/` directory. Do not add a lane path manually
+to make this acceptance test pass, or register the shared parent whose recursive
+discovery exposes backing trees prematurely.
+
 ## 5. ReFrame validation architecture
 
 ### 5.1 Configuration model

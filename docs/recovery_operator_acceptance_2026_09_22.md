@@ -76,6 +76,42 @@ The original 24-check historical receipt remains unchanged at SHA-256
 See the [lab acceptance procedure](../../hpc-lab/docs/stack-recovery-acceptance.md)
 for reproduction and the retained evidence layout.
 
+## Module entrance correction — 2026-09-23
+
+The original preview guide incorrectly added a second lane `module use`, and
+its combined preview module root exposed backing compiler/package names during
+Lmod's recursive discovery. This was reproduced independently of package builds.
+The corrected preview has a separate `entrances/cse/` root. Loading an entrance
+automatically exposes Core/Common and Serial/MPI; loading a lane exposes its
+packages. The guide and control-refresh procedure now test that exact sequence.
+
+Future `publish-modules` operations use `<recorded-module-root>/entrances/cse/`
+for compiler entrances, keeping lane/package paths unchanged. The executable
+publisher regression confirms that existing legacy entrance and package files
+retain their bytes and timestamps. Existing generated launchers and site login
+registrations require deliberate updates; no real cluster workspace or module
+tree was changed by this correction.
+
+The focused real-Lmod regression passed seven checks: compiler-only initial
+discovery, GCC and platform CCE entrance routing, automatic Serial/MPI exposure,
+selected package loading, sibling lane conflict, unload cleanup, and preserved
+workspace input hashes. It uses actual entrance/lane templates and preview
+routing with stub compiler/MPI/package modules, with **zero builds or solves**.
+It does not qualify CCE execution. See the
+[bounded reproduction procedure](../../hpc-lab/docs/stack-recovery-acceptance.md#compiler-entrance-and-lane-discovery).
+
+The final focused Content run passed **71 tests and 14 subtests** across module
+preview, toolchain/publisher templates, and Composer launcher tests. Ruff,
+shell-script syntax, 29 operator-document Bash blocks, and whitespace checks
+also passed.
+
+The separate receipt is
+`hpc-lab/results/module-preview-entrance/20260923-final/acceptance.json`, SHA-256
+`9a2ca3c5cb606425c47ae796815125b3bed3a1956e353f8051d4bbd0024a36f2`.
+Earlier historical receipts remain unchanged. The older lab harness entry paths
+were updated for future runs; this correction does not claim a rerun of the
+complete earlier lifecycle suite.
+
 ## Remaining target-system work
 
 Run the actual failing build with CCE on each remaining system. A corrected

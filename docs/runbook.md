@@ -2490,11 +2490,21 @@ workspace, change permissions for users outside CSE, rebuild a package, or
 reconcretize an environment. It creates the restricted module presentation for
 CSE team review.
 
+The corrected publisher writes compiler entrances into
+`<recorded-module-root>/entrances/cse/`. In a clean team session, use only
+`module use <recorded-module-root>/entrances`, then load the compiler entrance
+and its lane. The entrance must expose the lanes automatically. Do not register
+the parent package-module tree, whose recursive discovery exposes backing
+modules before compiler/lane selection. Existing launchers need the reviewed
+controls refresh before this publisher layout is available; existing login
+registration changes remain a separate deliberate step.
+
 Review the ready compiler front doors, lane selectors, dependency autoloads,
 conflicts, and package-module visibility from clean login and compute sessions.
-For CSE GCC plus external Cray MPICH, load the validation-only MPI selector from
-`$BUILD_WORKSPACE/modulefiles/<compiler>/lanes` and complete the native
-multi-node check recorded in the system runbook. That selector remains outside
+For CSE GCC plus external Cray MPICH, generate the private module preview from
+the workspace's candidate presentation, load its compiler entrance and MPI
+selector, and complete the native multi-node check recorded in the system
+runbook. That selector remains outside
 the restricted release module root until its gate passes.
 
 After the platform and package checks below are complete, return to this
@@ -2759,15 +2769,30 @@ Gate: all hashes match and no source build occurred below the published root.
 
 ## 15. Validate modules and freeze the release record
 
-Exercise the publication module hierarchy from clean sessions:
+First test the publication workspace's presentation with the
+[private-preview procedure](../../stack-content/pilots/cse-pilot/MODULE-PRESENTATION.md).
+After its required checks pass, copy ready entrances and lanes in the new
+publication workspace using its qualified launcher:
 
 ```bash
-module use "$PUBLISH_WORKSPACE/modulefiles"
+cd "$PUBLISH_WORKSPACE"
+./cse-build login publish-modules
+```
+
+Exercise that module hierarchy from clean sessions. Use the absolute entrance
+path printed by the publisher; it must be below the module root recorded for
+this publication workspace, not the restricted build root:
+
+```bash
+module use "/absolute/path/to/published/module-root/entrances"
+module avail
 module load "cse/<Compiler-public-name>"
 module avail
 ```
 
-Confirm the compiler front door did not select a payload lane and that its
+Initially only CSE compiler entrances should be visible from this tree. Loading
+one exposes its Core/Common modules and Serial/MPI selectors automatically;
+do not add a lane path manually. Confirm the compiler front door did not select a payload lane and that its
 recorded commands resolve:
 
 ```bash
