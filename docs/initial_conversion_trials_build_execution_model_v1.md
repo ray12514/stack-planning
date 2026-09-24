@@ -319,26 +319,36 @@ executable by both. Access for users outside that group remains disabled.
 
 | Generated surface | Restricted-build policy owner |
 |---|---|
-| Workspace, environment YAML, lockfiles, reports, views, modules, shared source cache, builder misc-cache partition, file-backed build cache | `cse-build` and its prepared-shell entry/exit hook: directories `2770`, ordinary files `0660`, executables `0770`, recorded group, no “other” access |
+| Workspace, environment YAML, lockfiles, reports, views, modules, shared source cache, builder misc-cache partition, file-backed build cache | `cse-build` finite-action exit and explicit `permissions` handoff: directories `2770`, ordinary files `0660`, executables `0770`, recorded group, no “other” access |
 | Installed package prefixes and Spack database/locks | Spack `packages:all:permissions` plus the cross-node prefix-lock/access smoke test; the wrapper validates the install root but does not recursively rewrite package prefixes |
 | Initial rendered workspace | Stack Composer `init-workspace` applies the same modes to the newly rendered tree; group ownership comes from the dedicated setgid parent |
 | Build stage, `SPACK_USER_CACHE_PATH`, bootstrap store, and GPG home | Per-builder private state; not handed to another builder |
 
 `umask 0007` and setgid inheritance are necessary but not sufficient. A tool
 that explicitly creates `0600` or `0700` content masks out the group bits. The
-entry/exit hook therefore normalizes entries owned by the active builder and
-verifies those entries. The `status`, `concretize`, and `verify` gates also
-verify every entry on the declared shared surfaces. Keeping full-tree
-verification at those gates avoids treating another builder's still-running
-parallel action as a completed handoff. A builder must use `cse-build` or a
-prepared shell launched by it; direct bare-Spack commands outside that shell do
-not satisfy the handoff contract.
+finite-action exit therefore repairs entries owned by the active builder. The
+`status`, `concretize`, `verify`, and explicit `permissions` gates also verify
+entries belonging to other builders. Repair and verification share a single
+walk; unchanged entries receive no chmod/chgrp operation. Workers own disjoint
+subtrees, do not follow symlinks or cross filesystem boundaries, and never
+walk the install tree. `--permission-jobs N` accepts 1–32 workers (default 4);
+16/32 require measurement on the site's Lustre metadata service.
 
-Before changing builders, the originating builder exits the prepared shell and
-runs `./cse-build login status`. The receiving builder runs the same status
-command from the shared workspace. A process terminated with `SIGKILL` cannot
-run an exit hook, so its owner or a filesystem administrator must repair any
-reported path before handoff.
+Interactive `login`/`shell`/`tmux` entry checks only declared root access and
+pinned Spack identity. Full checkout cleanliness and all-environment scope/input
+validation remain on finite actions. Interactive entry/exit does not recursively
+repair generated files. After manual Spack commands, or a killed build, the
+originating owner runs `./cse-build login permissions` before another builder
+resumes. Both builders run `./cse-build login status` for the handoff. Foreign
+owned bad entries are reported, not silently repaired or accepted.
+
+Stop writers before handoff/repair or control refresh; the workspace's finite
+operation lock does not track manual commands inside existing shells or other
+workspaces sharing a cache. Permission repair is not safe to race with writers.
+The control update can be applied before concretization, during a partially
+built trial, or after installation, between commands. Preserve the recorded
+install tree, padding, environment YAML and lockfiles. Exit old prepared shells
+and start a new session after refresh so old exit hooks cannot run.
 
 ## 7. Why the generated Python verifier exists
 

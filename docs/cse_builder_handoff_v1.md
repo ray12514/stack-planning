@@ -98,7 +98,11 @@ temporary process state:
 
 Setgid and `umask 0007` do not fix a child that Spack explicitly creates as
 `0600` or `0700`. `cse-build` therefore normalizes owner-created shared output
-at entry and exit. `status`, `concretize`, and `verify` additionally perform the
+at finite-command exit and through `./cse-build login permissions`. Interactive
+entry/exit checks only roots; after manual commands, stop writers and run
+`permissions` before changing builders. `--permission-jobs` accepts 1–32
+workers on disjoint subtrees (default 4). `status`, `concretize`, and `verify`
+additionally perform the
 shared-output permission check after parallel work has stopped. Each builder
 must normalize its own misc-cache partition; the receiving builder never
 rewrites another builder's mutable partition.

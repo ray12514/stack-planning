@@ -1157,8 +1157,8 @@ done
 ```
 
 This root setup is only the first half of the guarantee. After Step 8 creates
-the workspace, every builder must use its refreshed generated `cse-build`. On
-entry and exit it restores owner/`cse` parity for workspace/lock content,
+the workspace, every builder must use its refreshed generated `cse-build`. At
+finite-command exit and explicit `permissions` handoff it restores owner/`cse` parity for workspace/lock content,
 source cache, that builder's misc-cache partition, views, modules, and a
 file-backed build cache. Rendered `packages:all:permissions` applies the same
 group policy to every Spack-created install prefix. `./cse-build login status`
@@ -1810,7 +1810,7 @@ This is the complete all-system contract, not a misc-cache-only policy:
 
 | Path class | How owner/`cse` group parity is maintained |
 |---|---|
-| Restricted workspace, included catalog snapshot, environment YAML, lockfiles, reports, and generated controls | Workspace initialization applies `2770`/`0660`/`0770`; the generated launcher normalizes owner-created entries on entry and exit and verifies the entire workspace for handoff. |
+| Restricted workspace, included catalog snapshot, environment YAML, lockfiles, reports, and generated controls | Workspace initialization applies `2770`/`0660`/`0770`; the generated launcher repairs owner-created entries at finite-command exit and explicit `permissions` handoff, and verifies the entire workspace at handoff gates. Interactive entry/exit checks roots without walking descendants. |
 | Shared source cache | The generated launcher recursively normalizes owner-created entries and verifies the complete cache tree. |
 | Misc/provider/concretization cache | Each builder uses `cache/misc/$USER`; the generated launcher recursively normalizes that partition and verifies it. Other builders use their own partitions. |
 | Views and generated module trees | The generated launcher recursively normalizes owner-created entries after Spack and verifies the complete trees. |
