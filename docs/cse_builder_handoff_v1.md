@@ -55,15 +55,24 @@ the prepared shell directly.
 
 ## Refresh startup controls
 
-A startup-only control refresh renders only the launcher, permission helper,
-shell helper, shell RC, and builder handoff note. Its render inputs are the
+A startup-only control refresh installs the launcher and its runtime helpers
+together, including the shell setup, permission, overlay, recovery, build, and
+workspace-input helpers. Its render inputs are the
 recorded launcher identity, compiler/MPI names, access policy, and output roots;
 package-repository pins are not startup render inputs. An existing tag-based
 repository configuration therefore does not require a guessed commit to refresh
 startup controls. Full workspace rendering still requires the exact package
-repository commit. The refresh verifies existing launcher dependencies and
-unchanged recorded roots/runtime identity before promotion, and preserves the
-workspace manifest, configuration, recipes, lockfiles, and installed packages.
+repository commit. The refresh verifies unchanged recorded roots/runtime identity
+before promotion. If an overlay inventory is absent, it records the existing
+local recipe bytes as the baseline for subsequent change detection; this is not
+evidence of a historical recipe review. An existing inventory must still match
+and is retained. Recipes and builtin pins are never replaced. If needed, the
+refresh changes only the `misc_cache` scalar to select the launcher's prepared
+per-builder cache; all other configuration, including install-tree padding,
+remains unchanged. The full lock verifier retains the workspace's existing
+policy; input preflight invokes its input-only checks when available, without
+requiring missing locks. All promoted files share one rollback record, with
+protected inputs checked before and after promotion.
 
 ## Runtime prerequisites
 
