@@ -28,6 +28,23 @@ or `edit` (manual local diagnosis), followed by selected-environment
 `cse-build` exposes those same operations. Backups and recovery records remain
 internal to that workspace; no new render or operator workspace is required.
 
+When an operator has already added or edited live recipes, an explicit
+`workspace-overlay.py reconcile --package NAME` (repeatable) registers those
+current bytes together. It validates all referenced support files and rejects
+changes outside the named package directories. It reports each package as new,
+changed, or already recorded, without rewriting recipes. Since the previous
+inventory contains hashes rather than historical recipe bytes, reconciliation
+conservatively flags existing locks for later selected reconcretization. It
+never changes locks or installed packages itself. Its rollback restores only
+the previous inventory; it cannot undo recipe edits made before registration.
+
+Interactive entry, permission maintenance, and overlay reconciliation/status/
+restore remain available with a stale inventory, using a separate inspection
+cache and visible diagnostics. Finite build operations still require matching
+inventory and the selected environment's overlay solve checks. Startup control
+refresh may deliver these repair controls while preserving a stale inventory;
+it does not silently register the changed recipes.
+
 All locks are inspected for recipe impact, but only the explicitly selected
 lock is reconcretized. Affected unselected locks are flagged for their later
 build; existing installed prefixes/modules remain usable. Resume reuses matching

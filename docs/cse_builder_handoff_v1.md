@@ -65,8 +65,12 @@ startup controls. Full workspace rendering still requires the exact package
 repository commit. The refresh verifies unchanged recorded roots/runtime identity
 before promotion. If an overlay inventory is absent, it records the existing
 local recipe bytes as the baseline for subsequent change detection; this is not
-evidence of a historical recipe review. An existing inventory must still match
-and is retained. Recipes and builtin pins are never replaced. If needed, the
+evidence of a historical recipe review. An existing inventory is retained even
+when it is stale: the refresh reports its discrepancies and delivers repair
+controls without accepting changed recipe bytes. Interactive entry, permission
+maintenance, and overlay reconciliation/status/restore can use an isolated
+inspection cache. Build work still requires a matching inventory and selected
+lock recovery. Recipes and builtin pins are never replaced. If needed, the
 refresh changes only the `misc_cache` scalar to select the launcher's prepared
 per-builder cache; all other configuration, including install-tree padding,
 remains unchanged. The full lock verifier retains the workspace's existing
