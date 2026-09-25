@@ -53,6 +53,18 @@ To use a prepared shell without tmux:
 If tmux is unavailable, the default command reports that condition and opens
 the prepared shell directly.
 
+## Refresh startup controls
+
+A startup-only control refresh renders only the launcher, permission helper,
+shell helper, shell RC, and builder handoff note. Its render inputs are the
+recorded launcher identity, compiler/MPI names, access policy, and output roots;
+package-repository pins are not startup render inputs. An existing tag-based
+repository configuration therefore does not require a guessed commit to refresh
+startup controls. Full workspace rendering still requires the exact package
+repository commit. The refresh verifies existing launcher dependencies and
+unchanged recorded roots/runtime identity before promotion, and preserves the
+workspace manifest, configuration, recipes, lockfiles, and installed packages.
+
 ## Runtime prerequisites
 
 The builder must have:
