@@ -196,6 +196,16 @@ For the current trials that includes Python 3.6 on Raider. Generator or operator
 Python features newer than that floor must not be used in the generated
 verifier.
 
+Spack 1.2.2 writes lockfile version 6 for ungrouped environments and version 7
+for grouped environments. Both use the same concrete-node format; version 7
+records group names on roots. Recovery graph readers and the full verifier must
+accept both formats, preserve those root groups, and reject unknown formats.
+Startup control refresh may repair the known version-6-only reader in a retained
+full verifier without replacing its package policy. This narrow repair belongs
+in the same guarded, restorable transaction as the other runtime controls;
+environment manifests, locks, recipes, install roots and package policy remain
+unchanged.
+
 For the CPU-only trials, the handoff also owns one explicit portable CPU target
 for the entire initialized workspace. The values helper intersects compatible
 CPU targets from all profiled build/runtime node types, including GPU-bearing
