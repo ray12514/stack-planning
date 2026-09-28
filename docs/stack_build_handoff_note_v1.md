@@ -167,6 +167,12 @@ can authorize those routine steps without a confirmation per package; changes
 outside the delegated surface or to deployment/toolchain policy remain outside
 that scope. Build completion and module presentation are separate checkpoints.
 
+Corrections follow the [overlay operating model's correction-layer and scope
+rules](package_overlay_operating_model_v1.md#1-choose-the-correction-layer-before-creating-an-overlay):
+fix the responsible package, justify version/compiler applicability, account
+for affected dependents across environments, and retain evidence for upstream
+reuse. A recovered build alone does not establish that wider coverage.
+
 A host-integrated agent container may launch these commands directly when it
 preserves the native filesystem paths, identity/groups, module environment,
 host Python and compiler access. Each finite `cse-build login` invocation

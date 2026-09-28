@@ -48,8 +48,10 @@ it does not silently register the changed recipes.
 All locks are inspected for recipe impact, but only the explicitly selected
 lock is reconcretized. Affected unselected locks are flagged for their later
 build; existing installed prefixes/modules remain usable. Resume reuses matching
-installed hashes. Build-error verification is the corrected build succeeding in
-the same compiler environment, without a mandatory extra consumer program.
+installed hashes. The corrected build succeeding in the same compiler
+environment verifies that recovery attempt. Wider version/compiler coverage
+and dependent-package correctness need their own evidence under Sections 3–4;
+one successful build does not clear other environments' recorded impact.
 The isolated-candidate helper remains an optional diagnostic path, not the
 normal operator procedure. Release/module/MPI acceptance remains separate.
 
@@ -197,11 +199,24 @@ Record separately the package versions, compiler family/versions, variants,
 dependencies/providers, OS/target, affected systems, and tested systems. A
 successful CCE test is not evidence for all CCE releases or other compilers.
 
-Prefer Spack spec conditions for facts the spec represents. If a defect is
-verified only for a compiler release, narrow the condition to that range rather
-than every release of the family. If the cause is genuinely compiler-wide,
-record why the wider condition is justified and test an unaffected compiler.
-Review inherited builder behavior as well as the package class.
+Use source inspection, release history, upstream fixes and reproducers to
+establish the affected range, including where the defect was introduced or
+fixed when known. Cover that justified range with one reusable correction;
+record unknown boundaries separately from the versions actually tested.
+Prefer Spack spec conditions for facts the spec represents. A generic package
+defect should not acquire a CCE-only condition merely because CCE exposed it.
+Where evidence supports only one version or combination, keep that scope until
+broader evidence exists. Exclude known unaffected or already-fixed cases.
+Review inherited builder behavior as well as the package class, and retain
+the scope rationale with the candidate diff.
+
+Prepare corrections for upstream reuse: keep site paths and module policy out
+of package fixes, cite exact upstream revisions when adapting a fix, and record
+the reproducer, checks, coverage gaps and overlay retirement condition. Repeat
+the failing case and applicable existing checks; use an available unaffected
+control or version boundary to test the guard. A dependency/API/ABI/runtime
+change also needs the relevant dependent-package or consumer check. Missing
+test combinations remain explicit coverage gaps, not implied validation.
 
 A hostname or local path is not a substitute for a spec constraint. If the
 correction is site-only and the distinguishing fact cannot be expressed in
@@ -215,6 +230,11 @@ compiler surfaces. A guarded patch can leave another compiler's behavior
 unchanged while the recipe/namespace identity still changes. Review every
 environment using that package and its dependents; do not promise unchanged
 hashes based only on the guard.
+The helper's affected-lock list is a conservative recipe/graph impact set,
+not proof that every listed package version has the original defect. Review
+the package's dependent nodes and shared hashes across those environments;
+complete selected recovery within the delegated scope and retain pending
+impact elsewhere. A version/compiler guard alone cannot clear a stale lock.
 
 ## 4. Complete the operator loop
 
