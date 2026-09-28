@@ -148,6 +148,44 @@ mutex, input and overlay checks, concrete-root validation, and recovery journal
 in either context. It installs only the selected locked environment and leaves
 view/module refresh separate.
 
+The CSE handoff includes `BUILD-AGENT.md` as the entry point for a delegated
+build and `BUILD-CONTEXT.yaml` as its path index. The index points to retained
+catalog facts, recorded inputs, configuration, environments, recipe inventory,
+and recovery journals. It is navigation, not another Spack configuration or
+deployment override. Startup control refresh can deliver both files without
+requiring new package pins or replacing retained build inputs.
+
+An agent uses the same guarded operations as a builder. `overlay prepare`
+copies the complete current local recipe, or the verified pinned builtin
+recipe, into a writable candidate directory without opening an editor or
+changing live recipes, inventory, or locks. After diagnosing and editing that
+candidate, the agent reviews `overlay apply --dry-run`, applies it, explicitly
+reconcretizes each affected environment within the delegated surface, reviews
+the graph change, and resumes the selected build. Successful earlier
+environments affected by a later correction return to that queue. Delegation
+can authorize those routine steps without a confirmation per package; changes
+outside the delegated surface or to deployment/toolchain policy remain outside
+that scope. Build completion and module presentation are separate checkpoints.
+
+A host-integrated agent container may launch these commands directly when it
+preserves the native filesystem paths, identity/groups, module environment,
+host Python and compiler access. Each finite `cse-build login` invocation
+prepares its own environment; an agent does not need to drive an interactive
+shell or inherit state from a previously completed shell tool call. A local
+container smoke test proves this invocation seam, not site compiler, license,
+Lustre locking, or real package-build success.
+For non-setuid Apptainer, select the existing CSE group as the primary group on
+the native host before container entry: supplementary groups may appear as
+`nogroup` inside its user namespace, and changing the default group there is
+unsupported. This entry adjustment must not weaken workspace group checks or
+alter site membership/ACL policy. The generated native `cse-agent-workspace`
+entry selects that group and preserves the native environment, including
+exported module functions that `sg`'s intermediate shell may otherwise drop.
+Its temporary environment snapshot is private and removed before `ws` starts.
+No arguments starts a managed `ws session`; arguments after `--` run through
+`ws enter` for a direct command. See the
+[Apptainer permission model](https://apptainer.org/docs/user/latest/security.html).
+
 The initialized CSE workspace is a group-collaborative handoff. For restricted
 build values, `init-workspace` writes directories as `2770`, ordinary files as
 `0660`, and executable entry points as `0770`. Later finite `cse-build` actions
