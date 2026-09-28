@@ -138,6 +138,16 @@ This allows connected login-node concretization to prepare Clingo once for a
 later network-restricted compute session. The receiving builder supplies no
 replacement render inputs.
 
+Selected-environment `resume`, like `install`, accepts both `login` and
+`compute`. The operator chooses the execution context; the launcher uses that
+context's recorded executable stages without changing the target, compiler,
+environment, or install tree. A login-node overlay correction therefore stays
+in one context: `overlay edit/apply/reconcile`, selected `concretize
+--reconcretize`, then selected `resume`. Resume retains the same workspace
+mutex, input and overlay checks, concrete-root validation, and recovery journal
+in either context. It installs only the selected locked environment and leaves
+view/module refresh separate.
+
 The initialized CSE workspace is a group-collaborative handoff. For restricted
 build values, `init-workspace` writes directories as `2770`, ordinary files as
 `0660`, and executable entry points as `0770`. Later finite `cse-build` actions
