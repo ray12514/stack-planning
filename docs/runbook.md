@@ -12,6 +12,16 @@ the shared procedure's
 [transfer](software_stack_sop_v1.md#procedure-disconnected-transfer) sections;
 system notes identify the applicable paths and approved transfer route.
 
+For deciding whether a failure requires a variant/configuration change, a
+recipe overlay, or operational recovery, use the
+[package correction and lifecycle map](package_overlay_operating_model_v1.md).
+It connects shared SOP Section 7.6 and CSE SOP Section 7.3 to the authored and
+deployed paths, evidence requirements, and outstanding acceptance gates.
+The [failure/recovery and test matrix](stack_failure_recovery_and_test_matrix_v1.md)
+identifies the SOP stage to revisit after variant/version/recipe changes or
+build/publication failures, and distinguishes tested controls from missing
+end-to-end recovery coverage across all three preparation paths.
+
 For a manual package correction during an unfinished trial, start with the
 [offline overlay quickstart in Stack Content](../../stack-content/pilots/cse-pilot/templates/PACKAGE-OVERLAY-QUICKSTART.md).
 It covers finding the pinned original `package.py`, the deployed overlay,
@@ -28,6 +38,19 @@ destination for documentation, a package overlay, or generated controls.
 Copying an overlay also requires checking recipe selection, recovering affected
 candidate locks, and testing on the receiving system; a source-repository pull
 alone does not update a generated workspace.
+
+The quickstart corrects the same unfinished workspace. Preserve the previous
+inputs and selected lock in a recovery record; invalidate and repeat the affected
+checkpoint-4 lock review after reconcretization. Follow
+[Same release or new release](#same-release-or-new-release) to preserve accepted
+or published releases.
+For a partially completed workspace, preserve completed environments and
+limit recovery to the declared failing candidate and reviewed dependency
+impact. A documentation, overlay, or generated-control refresh is not an
+instruction to rerender or reconcretize all environments. The
+[active-trial boundary](package_overlay_operating_model_v1.md#active-trial-boundary-finish-the-two-remaining-cce-systems)
+records the current focus on the two unfinished CCE systems and separates
+those corrections from later production improvements.
 
 Stack Planning owns this overall process and its release boundaries. The
 operational recipe guide lives in Stack Content beside the recipes and
@@ -250,7 +273,7 @@ contract.
 
 ### Same release or new release
 
-Resume the same release only when all of these are true:
+For an operational retry with unchanged inputs, resume the same release when:
 
 - the profile, catalog, semantic provider/package values, roster,
   package-recipe pin, Spack version and commit, and repository commits are
@@ -272,12 +295,17 @@ root and another a builder-local root without changing the release when both
 roots pass the same version, tag, commit, clean-tree, and scope checks. Record
 the selected path with each builder's evidence.
 
-Create a new catalog release and a new trial release when observed system facts
-or reusable static scopes change. Create a new trial release when the compiler,
-MPI, toolchain, specs, variants, values, roster, package recipes, Spack
-version, or any lockfile changes. A module or view correction made after a
-release is accepted also gets a new trial release, even when package hashes stay
-the same.
+An unfinished trial can correct a package recipe, patch, spec, version, or
+variant in its existing workspace. Retain before/after inputs and selected
+locks, reconcretize only explicitly selected environments, and resume from those
+locks. Reuse installed hashes that remain unchanged. Earlier installation does
+not require a replacement workspace. Report all affected locks; repeat their
+lock review and build checks when each is selected, before release acceptance.
+
+Create a new catalog and trial release when observed system facts or reusable
+static scopes change. Compiler, MPI, toolchain, roster, or Spack identity changes
+also require a new trial release. Once a release is accepted or published, any
+semantic input, lock, module, or view correction gets a new release record.
 
 A new release does not imply rebuilding every package. It may reuse compatible
 approved binaries already present in the private CSE build cache. The rule is
@@ -285,9 +313,10 @@ about preserving provenance and immutable release records, not discarding safe
 cache reuse.
 
 Use `--overwrite` only before the first lockfile exists and before anything has
-been pushed or published. Once a run reaches checkpoint 4, preserve the failed
-workspace and evidence. Derive a new release for semantic input changes instead
-of deleting or rewriting the old record.
+been pushed or published. Later corrections use the existing workspace and
+retained recovery records. Never overwrite the workspace to deliver an overlay.
+An affected checkpoint-4 review must be repeated after its lock changes; its
+earlier evidence remains in the recovery record.
 
 ### Catalog correction and replacement
 
@@ -330,12 +359,13 @@ content edit is part of this procedure.
 | Scheduler timeout, node failure, temporary network failure, or resolved quota problem with unchanged inputs | Retry only the failed command or environment in the same release. |
 | Selected build node is unavailable, but the other recorded context can run the same locked target | Enter the same workspace through `./cse-build login` or `./cse-build compute`. The selector chooses an executable stage for that context; keep the existing locks and install tree. |
 | Source build failure caused by a transient host/tool problem | Retry the failed lane after recording the log; earlier validated lanes remain valid. |
-| Package recipe, patch, variant, compiler, MPI, or Spack version/commit change is required | Create a new trial release, reconcretize, and revalidate every affected lane. |
+| Package recipe, patch, spec, version, or variant correction in an unfinished trial | Apply in the same workspace, retain the old lock, explicitly reconcretize the selected environment, and resume. Report other affected locks and repeat their reviews before later builds. |
+| Compiler, MPI, or Spack version/commit change, or a semantic change to an accepted/published release | Create a new trial release, reconcretize, and revalidate every affected lane. |
 | Selected Spack checkout is dirty or does not match the pinned source/tag/commit | Stop. Replace the selected root with a clean checkout of the approved identity. Do not pull, switch branches, or run `spack isolate` in place. |
 | Cluster Inspector fact or external module/prefix is wrong | Regenerate the profile, create a new catalog release and trial release, and restart at checkpoint 1. |
 | Static catalog scope or toolchain is wrong | Fix the owning profile/catalog logic, create new catalog and trial releases, and restart at checkpoint 2. |
 | Restricted workspace template or values are wrong | Before installation, unaccepted diagnostic locks from the current checkpoint may be discarded together and the working release reinitialized. After a lock has been accepted, installed, or promoted, create a new trial release. |
-| A later lane fails while earlier lane locks and inputs remain unchanged | Keep the earlier evidence and retry only the failed lane. If a shared upstream hash changes, reconcretize and revalidate every dependent lane in a new release. |
+| A later lane fails while earlier lane locks and inputs remain unchanged | Keep earlier locks, prefixes, and evidence; retry the failed lane. If a shared upstream hash changes, report dependent lanes and explicitly reconcretize/revalidate each affected lane before accepting the unfinished trial. |
 | Build-cache push, index, or signing operation is interrupted | Retry the cache operation from the installed restricted specs; do not rebuild. |
 | Publication reports a cache miss for an exact approved hash | Return to the restricted workspace, build and validate that exact locked hash, push it, and retry only the failed publication environment. If producing it requires a changed hash, create a new release. |
 | Another builder cannot traverse, read, or replace generated workspace/cache/view/module/build-cache content | Stop processes using the affected tree, refresh the common generated controls, and follow [Shared generated-content permission recovery](#shared-generated-content-permission-recovery). Each owner repairs that owner's entries; do not recursively chmod the install tree or a broad shared parent. |
@@ -1503,11 +1533,12 @@ instead of later in Dakota's CMake configuration.
 Pulling `stack-content` does not modify a workspace that was already rendered.
 Before package installation starts, replace an unaccepted older workspace with
 the current blueprint by following **Recovery: replace an unaccepted workspace
-after a blueprint correction**. If installation has started, preserve that
-workspace and evidence, create the required new trial release, refresh its
-workspace-owned package repository, and force only the affected MPI roots with
-`concretize -f --reuse-deps -j 1`. A normal `concretize --fresh` does not replace
-an existing Dakota root after its recipe or patch changes.
+after a blueprint correction**. If installation has started in an unfinished trial, keep the same
+workspace and evidence, apply the complete recipe correction, and use
+`concretize --environment COMPILER/LANE --reconcretize` followed by
+`resume --environment COMPILER/LANE`. These helpers retain the old selected
+lock and solve afresh so a corrected dependency cannot be silently reused.
+An accepted/published release remains immutable.
 
 If this exact dedicated workspace was initialized by an older checkout and
 already contains lockfiles or partial installs, do not use `--overwrite` merely
@@ -1810,45 +1841,40 @@ that variable as a builder-named partition below the shared restricted root:
 $CSE_RESTRICTED_ROOT/cache/misc/$USER
 ```
 
-Stop processes using the workspace, synchronize Stack Content, and refresh the
-declared controls in place:
+Stop processes using the affected workspace and follow the complete
+[existing-trial maintenance procedure](../../stack-content/pilots/cse-pilot/CONTROL-REFRESH.md).
+It restores the saved login/session paths, selects reviewed tools, and prepares
+`REFRESH_VALUES` as a separate copy of the recorded values when current render
+fields are needed. The earlier shortcut that regenerated `BUILD_VALUES` from
+current discovery and refreshed the default `all` scope is superseded.
+
+A permission-helper or operational-config correction is a separately reviewed
+`--scope controls` change. Verify its prerequisite inventory/helper admission
+and the new launcher's graph policy against the retained inputs before applying
+it. For entrance/lane files alone, choose `--scope presentation`; package-module
+policy and generated package modules are separate operations in the guide.
+Keep an older prepared launcher when its replacement has not been qualified.
+
+After the reviewed controls operation, inspect the existing workspace:
 
 ```bash
-source "$CSE_OPERATOR_SESSION_FILE"
-git -C "$CONTENT" pull --ff-only origin codex/simplified-render-plan
-
-"$CSE_PYTHON" \
-  "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
-
-grep -n 'misc_cache:' "$BUILD_VALUES"
-
-"$CSE_PYTHON" \
-  "$CONTENT/pilots/cse-pilot/scripts/refresh-workspace-controls.py" \
-  --composer "$STACK_COMPOSER" \
-  --blueprint "$CONTENT/pilots/cse-pilot" \
-  --values "$BUILD_VALUES" \
-  --workspace "$BUILD_WORKSPACE"
-
 grep -F 'misc_cache: ${SPACK_MISC_CACHE_PATH}' \
   "$BUILD_WORKSPACE/configs/common/config.yaml"
 
 cd "$BUILD_WORKSPACE"
 ./cse-build login status
-./cse-build login concretize   # creates only missing locks
 ./cse-build login verify
 ```
 
-This controls-only refresh replaces `cse-build`, the common config, generated
-shared-permission helper, other environment helpers, verifier, and handoff note.
-It preserves environment YAML, lockfiles, the source cache, views, installed
-prefixes, and every other build input. On entry and exit, `cse-build`
-normalizes entries owned by the active builder across every handoff-critical
-generated surface and verifies those entries against the group/no-world
-contract. `status`, `concretize`, and `verify` additionally verify all entries
-on the declared surfaces; use `status` as the cross-user handoff gate after
-parallel actions stop. A prepared interactive shell normalizes its builder's
-entries when it exits. Each builder receives a separate `$USER` misc-cache
-partition, so its repair does not race another builder's live mutable index.
+This maintenance path does not concretize. If an unfinished environment still
+needs its first lock, return to Step 9 deliberately; a permission or module
+correction is not a reason to change existing locks. Current qualified controls
+normalize entries owned by the active builder across generated handoff surfaces
+and verify the group/no-world contract. Use `status` as the cross-user handoff
+gate after parallel actions stop. A prepared interactive shell normalizes its
+builder's entries when it exits. Each builder receives a separate recorded
+misc-cache partition; current controls also bind that partition to the reviewed
+overlay inventory.
 
 #### One-time misc-cache traversal repair after accidental `chmod 660`
 
@@ -1954,9 +1980,14 @@ toolchain file mean the workspace was generated from an older blueprint or the
 session points at a different workspace. A downstream-hash mismatch means the
 locks were created from older inputs. A controls-only refresh cannot repair either case
 because it deliberately preserves environment YAML and lockfiles.
-Synchronize Stack Content, confirm the operator-session paths, and continue
-with the replacement procedure below. A blueprint-only compiler-policy
-correction does not require a new static catalog.
+The replacement procedure below is retained for the historical pre-install
+compiler-policy repair only: no installation or build-cache promotion may have
+started, and its locks must remain unaccepted diagnostic output. If any package
+installation was attempted, preserve that workspace and use a separate candidate
+release instead. For completed-build module/control maintenance, use
+[CONTROL-REFRESH.md](../../stack-content/pilots/cse-pilot/CONTROL-REFRESH.md).
+A blueprint-only compiler-policy correction does not require new observed
+machine facts when the recorded static catalog remains correct.
 
 First stop every process using the workspace, synchronize the four repositories
 in Step 2, rebuild Stack Composer when `cse_session_status` reports it stale,
@@ -1973,9 +2004,9 @@ cse_session_status
   "$CONTENT/pilots/cse-pilot/scripts/create-build-values.py"
 ```
 
-If any install was attempted, retain the current locks under the evidence root
-before replacement. Do not remove installed prefixes merely because the
-control workspace is being refreshed:
+Before this eligible pre-install replacement, retain its diagnostic locks under
+the evidence root. If installation was attempted, stop this procedure and keep
+the entire workspace and installed prefixes for the separate candidate path:
 
 ```bash
 REFRESH_EVIDENCE="$BUILD_EVIDENCE/pre-install-control-refresh"
@@ -1990,9 +2021,9 @@ while IFS= read -r lockfile; do
 done < "$REFRESH_EVIDENCE/lockfiles.list"
 ```
 
-Review `lockfiles.list` before continuing. If package installation was already
-accepted, stop and use the release recovery policy instead of this pre-install
-refresh.
+Review `lockfiles.list` before continuing. An accepted lock, any installation
+attempt or build-cache promotion excludes this pre-install replacement; use the
+release recovery policy instead.
 
 Render the current workspace in place, then recreate and verify all eight
 locks through the login context:
@@ -2429,19 +2460,22 @@ done
 
 ### Restricted module presentation and team-review checkpoint
 
-Each completed environment has already regenerated its view and its Spack
-package-module tree in the restricted deployment roots. The workspace
-`modulefiles/` tree is different: it contains the CSE compiler front doors and
-lane selectors that present those package modules to users.
+A completed package build does not by itself establish module readiness; older
+workspaces may need current module settings or their first module generation.
+Follow the [existing-trial maintenance procedure](../../stack-content/pilots/cse-pilot/CONTROL-REFRESH.md)
+to check installed coverage, preserve recorded values and locks, select a
+reviewed module-policy candidate when needed, and regenerate/test only the
+required view and package-module output. Back up those external output roots
+separately before regeneration.
 
-After all required build processes finish, synchronize the reviewed Stack
-Content branch and apply the system runbook's control-only workspace refresh.
-That refresh replaces generated controls, `modulefiles/`, and `presentation/`
-inside the existing workspace. It does not replace environment YAML, lockfiles,
-views, package-module trees, installed prefixes, or caches.
+The workspace `modulefiles/` tree contains the CSE compiler front doors and lane
+selectors. Update those with `--scope presentation`; adopting newer controls or
+a verifier is a separate qualification. Follow the guide's older-launcher route
+if the retained `cse-build` lacks module actions. A newer verifier is not a
+reason to edit old specs or locks.
 
-Confirm that the build values still name the restricted module root. Then copy
-the ready presentation modules into that root:
+After consumer checks pass and the build values still identify the restricted
+module root, the qualified launcher can copy the ready presentation modules:
 
 ```bash
 cd "$BUILD_WORKSPACE"
@@ -2456,11 +2490,21 @@ workspace, change permissions for users outside CSE, rebuild a package, or
 reconcretize an environment. It creates the restricted module presentation for
 CSE team review.
 
+The corrected publisher writes compiler entrances into
+`<recorded-module-root>/entrances/cse/`. In a clean team session, use only
+`module use <recorded-module-root>/entrances`, then load the compiler entrance
+and its lane. The entrance must expose the lanes automatically. Do not register
+the parent package-module tree, whose recursive discovery exposes backing
+modules before compiler/lane selection. Existing launchers need the reviewed
+controls refresh before this publisher layout is available; existing login
+registration changes remain a separate deliberate step.
+
 Review the ready compiler front doors, lane selectors, dependency autoloads,
 conflicts, and package-module visibility from clean login and compute sessions.
-For CSE GCC plus external Cray MPICH, load the validation-only MPI selector from
-`$BUILD_WORKSPACE/modulefiles/<compiler>/lanes` and complete the native
-multi-node check recorded in the system runbook. That selector remains outside
+For CSE GCC plus external Cray MPICH, generate the private module preview from
+the workspace's candidate presentation, load its compiler entrance and MPI
+selector, and complete the native multi-node check recorded in the system
+runbook. That selector remains outside
 the restricted release module root until its gate passes.
 
 After the platform and package checks below are complete, return to this
@@ -2470,11 +2514,12 @@ outcomes are:
 1. Accept the presentation. Record each accepted lane as `runtime-passed`, then
    continue to Step 11 for private build-cache promotion and Step 12 for public
    static-catalog and cache-only stack publication.
-2. Change presentation controls only. Update the owning template or values,
-   rerun the control-only refresh, and repeat this checkpoint without rebuilding
-   or reconcretizing.
-3. Change a Spack module projection without changing the DAG. Regenerate only
-   the affected package-module tree, then repeat the clean-session review.
+2. Change presentation controls only. Update the owning template or reviewed
+   render-only values, preview/apply `--scope presentation`, and repeat this
+   checkpoint without rebuilding or reconcretizing.
+3. Change a Spack module projection without changing the DAG. Adopt the reviewed
+   module-policy candidate when needed, regenerate only the affected output,
+   then repeat the clean-session review.
 4. Change a package, dependency, compiler, MPI provider, external, or concrete
    hash. Follow the DAG-changing recovery rule and do not reuse the old review
    result.
@@ -2724,15 +2769,30 @@ Gate: all hashes match and no source build occurred below the published root.
 
 ## 15. Validate modules and freeze the release record
 
-Exercise the publication module hierarchy from clean sessions:
+First test the publication workspace's presentation with the
+[private-preview procedure](../../stack-content/pilots/cse-pilot/MODULE-PRESENTATION.md).
+After its required checks pass, copy ready entrances and lanes in the new
+publication workspace using its qualified launcher:
 
 ```bash
-module use "$PUBLISH_WORKSPACE/modulefiles"
+cd "$PUBLISH_WORKSPACE"
+./cse-build login publish-modules
+```
+
+Exercise that module hierarchy from clean sessions. Use the absolute entrance
+path printed by the publisher; it must be below the module root recorded for
+this publication workspace, not the restricted build root:
+
+```bash
+module use "/absolute/path/to/published/module-root/entrances"
+module avail
 module load "cse/<Compiler-public-name>"
 module avail
 ```
 
-Confirm the compiler front door did not select a payload lane and that its
+Initially only CSE compiler entrances should be visible from this tree. Loading
+one exposes its Core/Common modules and Serial/MPI selectors automatically;
+do not add a lane path manually. Confirm the compiler front door did not select a payload lane and that its
 recorded commands resolve:
 
 ```bash

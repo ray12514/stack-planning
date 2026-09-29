@@ -4,6 +4,10 @@
 
 **Date:** 2026-08-27
 
+**Overlay/process reconciliation:** 2026-09-19. Active local recipes and recovery
+rules were rechecked; historical upstream observations below retain their
+original date and do not establish today's latest upstream release.
+
 **Applies to:** Initial Conversion Trials on Spack 1.2.2 with the `spack-packages` `v2026.06.0` repository pin
 
 ## 1. Purpose
@@ -34,12 +38,14 @@ Primary repository rules are in [Cluster Inspector AGENTS.md](../../cluster-insp
 
 The current CSE implementation does not modify Spack core. It uses Spack-native configuration, an isolated package repository, rendered environments, and operational validation around Spack.
 
-There are four active package overlays:
+There are six active package overlays:
 
 - `cmake`: adds the two trial versions missing from the pinned package repository.
 - `cce`: records the CCE versions available on the trial systems while retaining an external-only compiler package.
 - `dakota`: applies a narrow source patch that removes Dakota's obsolete compiled Boost.System linkage.
 - `hdf5`: supplies CMake's separately discovered MPI Fortran module directory to HDF5 2.1.0's high-level parallel Fortran targets.
+- `ncurses`: permits absent version-map symbols for ncurses 6.6 links under CCE while retaining symbol versioning.
+- `zlib`: corrects the Linux shared-link version-map probe for zlib 1.2.13–1.3.2 `+shared` under CCE.
 
 The Dakota and HDF5 changes are upstream defect candidates. The CMake versions are already present on the current `spack-packages` development branch, so that overlay is a pin-compatibility bridge. The CCE overlay is partly upstreamable version metadata and partly local platform policy. No Cray MPICH, libfabric, Open MPI, NetCDF, Boost, Python, or Miniforge `package.py` is overlaid in the active trial repository.
 
@@ -55,7 +61,7 @@ These settings intentionally differ from an unconstrained Spack installation. Th
 | --- | --- | --- |
 | Spack version is pinned to 1.2.2 | [trial workspace blueprint](../../stack-content/pilots/cse-pilot/blueprint.yaml), [site-values example](../../stack-content/pilots/cse-pilot/site-values.example.yaml) | Release input, not a Spack default change. The official release is [Spack v1.2.2](https://github.com/spack/spack/releases/tag/v1.2.2). |
 | Package repository is pinned to `spack-packages` `v2026.06.0` | [repository template](../../stack-content/pilots/cse-pilot/templates/configs/common/repos.yaml.j2), [package repository manifest](../../stack-content/pilots/cse-pilot/templates/package-repos/spack_repo/cse_trials/repo.yaml) | Prevents package recipe drift during the trial. The official pin is [spack-packages v2026.06.0](https://github.com/spack/spack-packages/releases/tag/v2026.06.0). |
-| Local CSE trial repository precedes the builtin repository | [repository template](../../stack-content/pilots/cse-pilot/templates/configs/common/repos.yaml.j2) | Makes the four reviewed overlays deterministic and visible. |
+| Local CSE trial repository precedes the builtin repository | [repository template](../../stack-content/pilots/cse-pilot/templates/configs/common/repos.yaml.j2) | Gives the six authored overlays precedence; verify each candidate's effective selection and review status. |
 | User, site, and system Spack configuration is disabled | [workspace launcher template](../../stack-content/pilots/cse-pilot/templates/cse-build.j2), [workspace setup template](../../stack-content/pilots/cse-pilot/templates/env/setup-build-env.sh.j2) | Prevents ambient Spack configuration from silently changing a reviewed lockfile. The launcher also verifies active scopes. |
 | Install tree and source cache are shared release paths; miscellaneous cache is partitioned by builder; bootstrap state is builder-private | [config template](../../stack-content/pilots/cse-pilot/templates/configs/common/config.yaml.j2), [bootstrap template](../../stack-content/pilots/cse-pilot/templates/configs/common/bootstrap.yaml.j2), [site-values example](../../stack-content/pilots/cse-pilot/site-values.example.yaml) | Separates durable shared state from mutable per-builder state while preserving handoff between CSE builders. |
 | `locks: true` | [config template](../../stack-content/pilots/cse-pilot/templates/configs/common/config.yaml.j2) | Explicit concurrency safety for the shared install tree. |
@@ -74,7 +80,7 @@ These settings intentionally differ from an unconstrained Spack installation. Th
 | Shared compiler is GCC 12.5.0 built from an exact external seed compiler | [site-values example](../../stack-content/pilots/cse-pilot/site-values.example.yaml), [shared compiler template](../../stack-content/pilots/cse-pilot/templates/configs/surfaces/shared/compiler.yaml.j2) | Establishes a common compiler surface while preserving the system compiler as the bootstrap compiler. The built compiler includes C, C++, Fortran, and binutils. |
 | Platform compiler is an external selected from the system profile | [build-values generator](../../stack-content/pilots/cse-pilot/scripts/create-build-values.py), [platform compiler template](../../stack-content/pilots/cse-pilot/templates/configs/surfaces/platform/compiler.yaml.j2) | Preserves the reviewed CCE, AOCC, or classic Intel compiler instead of substituting a generic compiler. |
 | Every Serial and MPI lane receives an explicit toolchain | [serial lane partial](../../stack-content/pilots/cse-pilot/templates/_partials/serial-lane.j2), [MPI lane partial](../../stack-content/pilots/cse-pilot/templates/_partials/mpi-lane.j2) | Prevents the concretizer from selecting an unintended compiler or MPI provider. |
-| Package-repository changes require forced replacement of the affected roots with `concretize -f --reuse-deps` | [trial runbook](runbook.md) | The normal launcher concretizes missing lockfiles with `--fresh`. After an overlay or producer-spec change, `--fresh` alone does not guarantee replacement of existing roots and hashes; use the runbook recovery procedure for the affected environments. |
+| Recipe changes require explicit affected-lock recovery and graph review | [overlay quickstart](../../stack-content/pilots/cse-pilot/templates/PACKAGE-OVERLAY-QUICKSTART.md) and [trial runbook](runbook.md) | Use forced replacement with `--reuse-deps` only when retaining unchanged dependencies is appropriate; a corrected dependency or reused ancestor may require `-f --fresh`. Inspect every affected graph and preserve accepted inputs. |
 
 Spack's documented environment and concretizer behavior remains upstream behavior; CSE's contribution is the rendered grouping and verification around it. The concurrency and environment limits are summarized in [Spack 1.2.2 build orchestration semantics research](spack_1_2_2_build_orchestration_semantics_research_v1.md).
 
@@ -271,7 +277,13 @@ The relevant discovery and model paths are [compiler probe](../../cluster-inspec
 
 ## 7. Active package overlays
 
-The active repository contains exactly four package overlays. The overlay set is verified by [test_package_repo_overlays.py](../../stack-content/pilots/cse-pilot/tests/test_package_repo_overlays.py) and by each generated workspace before build actions.
+The active source repository contains six package overlays. The
+[overlay tests](../../stack-content/pilots/cse-pilot/tests/test_package_repo_overlays.py)
+exercise selected file, scope, and patch properties; they do not establish
+target-system build acceptance. The generated verifier checks selected known
+overlay requirements, not a generic authenticated inventory of every recipe
+and supporting file. Use the [operating map](package_overlay_operating_model_v1.md)
+for selection, evidence, and release rules.
 
 ### 7.1 CMake
 
@@ -284,7 +296,12 @@ The overlay extends the builtin CMake package and adds:
 
 **Why it exists:** The pinned `spack-packages` `v2026.06.0` repository does not contain these exact versions, but the approved trial matrix requires them.
 
-**Upstream disposition:** No new upstream change is required. Both versions are present in the current [CMake package on `develop`](https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/cmake/package.py). As of this inventory, `v2026.06.0` remains the latest immutable entry in the official [`spack-packages` releases](https://github.com/spack/spack-packages/releases), so there is no later released repository pin that contains both versions.
+**Upstream disposition:** The original 2026-08-27 check found both versions in
+the [CMake package on `develop`](https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/cmake/package.py),
+so the recorded retirement path is repository advancement rather than a new
+upstream change. Recheck the proposed admitted release and its exact commit
+before retiring the overlay; the September overlay-inventory reconciliation
+does not establish which upstream release is currently newest.
 
 Do not switch the builtin package repository to the moving `develop` branch merely to remove this overlay. Changing the entire builtin repository to `develop`, or to an exact post-release commit, changes package recipes and therefore can change CMake hashes, dependency hashes, and complete DAGs across all eight environments. Such a pin change requires an all-environment impact review, fresh root reconcretization, lockfile comparison, and target-system validation. The narrow CMake overlay is the lower-risk control while the immutable repository pin remains `v2026.06.0`.
 
@@ -370,6 +387,44 @@ local overlay only after the pinned package-repository generation contains the
 fix and both relevant compiler surfaces pass parallel Fortran builds without
 the overlay.
 
+### 7.5 Ncurses 6.6 CCE version-map linking
+
+**Local implementation:** [Ncurses overlay](../../stack-content/pilots/cse-pilot/templates/package-repos/spack_repo/cse_trials/packages/ncurses/package.py)
+
+The subclass preserves the builtin flag handler and adds
+`-Wl,--undefined-version` only for `ncurses@6.6 %cce` linker flags. The
+[Blueback finding](../../stack-content/systems/blueback/runbook-notes.md#cce-ncurses-66-lld-version-map-failure)
+records the split `libtinfo` link rejecting absent symbols in the broad version
+map. The correction retains symbol versioning instead of using a global shell
+workaround. Its current guard does not restrict the CCE version or `+termlib`;
+review any broader use against the actual tested combinations.
+
+**Upstream disposition:** Local compatibility correction; no accepted upstream
+fix or target-wide successful retry is established by this inventory update.
+Retain the original link failure, successful corrected link, terminal-library
+consumer and affected-dependent tests, plus an unaffected compiler control.
+Retire only when an admitted upstream recipe/source supplies equivalent
+behavior and those checks pass without the local recipe.
+
+### 7.6 Zlib CCE shared-library probe
+
+**Local implementation:** [Zlib overlay](../../stack-content/pilots/cse-pilot/templates/package-repos/spack_repo/cse_trials/packages/zlib/package.py)
+and [source patch](../../stack-content/pilots/cse-pilot/templates/package-repos/spack_repo/cse_trials/packages/zlib/cce-lld-version-map.patch).
+
+The overlay patches `@1.2.13:1.3.2+shared %cce`. The
+[Blueback diagnosis](../../stack-content/systems/blueback/runbook-notes.md#confirmed-blueback-cause-and-workspace-recovery)
+records zlib 1.3.1 silently installing only `libz.a` after its shared-link probe
+failed on version-map symbols absent from the probe object. The patch adds
+`--undefined-version` at the Linux version-map link and preserves `zlib.map`.
+Source inspection supports the stated package range; that is distinct from
+build/runtime proof for every package/compiler combination.
+
+**Upstream disposition:** Local compatibility correction; determine upstream
+status against the next proposed admitted pin. Acceptance includes the shared
+library and versioned symbols, a compression/decompression consumer, the
+original dependent failure, and an unaffected compiler control. Retire only
+after those checks pass against the upstream implementation without the patch.
+
 ## 8. Package constraints that are not overlays
 
 Several issues were resolved through Spack-native constraints rather than editing recipes.
@@ -422,6 +477,8 @@ Stack Composer's build process pins a usable Python and modern packaging tools b
 | P0 | Remove Dakota's compiled Boost.System requirement and links | Dakota upstream, followed by `spack-packages` | Patch applies to supported Dakota releases; configure/build and Serial/MPI install results with Boost 1.89 or later | Pinned repository carries the fix and both Dakota lanes pass CSE validation without the overlay |
 | P0 | Add `MPI_Fortran_MODULE_DIR` to HDF5 high-level parallel Fortran targets | HDF5 upstream, followed by `spack-packages` as needed | HDF5 2.1.0 AOCC/Open MPI reproducer, direct `mpi_f08` control compile, before/after target compile commands, successful static/shared build | Pinned repository carries the fix and affected compiler surfaces pass without the overlay |
 | P1 | Add current external CCE versions and preserve current compiler-standard metadata | `spack-packages` CCE recipe | CCE 19/20/21 compiler registration and compile probes; comparison against current `develop` | A pinned package repository release contains the versions and the CSE systems render/concretize without the overlay |
+| P1 | Review ncurses 6.6 CCE version-map compatibility correction | Ncurses / `spack-packages`, after reproducer review | Original split-library link failure; corrected link and consumer; affected dependents and unaffected compiler | Admitted upstream recipe/source passes those checks without the overlay |
+| P1 | Review zlib CCE shared-link probe correction | Zlib / `spack-packages`, after reproducer review | Shared library and symbol versions, compression consumer and original dependent failure; compiler control | Admitted upstream implementation builds correct shared libraries without the overlay |
 | P2 | Determine whether Miniforge target modeling needs a recipe correction | `spack-packages`, only if reproducible | Minimal current-`develop` reproducer using the published binary and target metadata | No local target exception is required, or upstream confirms the exception is correct policy |
 | P2 | Report persistent Readline patch source failure if it reproduces outside the site | `spack-packages` package/source metadata | Primary and mirror failures from a clean current repository, checksum and replacement source | Pinned repository has a reliable verified source; runbook cache injection removed |
 | P3 | Propose library-verification allowlists if CSE operational evidence supports them | Spack core | Real audit output, known platform library cases, proposed schema and security behavior | CSE can use the upstream verifier without a local post-processing rule |
@@ -435,7 +492,7 @@ No upstream work is required for the CMake overlay: current `spack-packages` dev
 2. Do not copy an entire upstream recipe when a narrow subclass, version addition, or source patch is sufficient.
 3. Compare every overlay against current `spack-packages` `develop` before proposing upstream or advancing the repository pin.
 4. Keep site module names, filesystem paths, and CSE release choices out of upstream package changes.
-5. After any package overlay change, regenerate the workspace, reconcretize affected roots with forced root replacement and dependency reuse, and run the generated lockfile verifier.
+5. For diagnosis in an unaccepted workspace, copy the complete reviewed recipe and support files using the offline quickstart; regeneration is not required. Recover affected candidate locks with an appropriate reuse policy, inspect the graph, run the lock verifier and package/consumer tests, and carry the correction back to authored content. Apply the runbook's new-release rule before adopting semantic changes; preserve reviewed locks and release inputs.
 6. Validate both the shared GCC and platform-compiler surfaces. A fix proven under GCC is not automatically proven under CCE, AOCC, or Intel.
 7. Record the exact system, compiler, environment, Spack commit, package-repository commit, lockfile hash, and build log with an upstream report.
 8. Remove overlays directly when their retirement gate is met. The project is pre-v1 and does not retain legacy overlay paths.
