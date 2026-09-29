@@ -573,6 +573,10 @@
           ],
           "description": "GPU facts when present; explicit null when this class has no GPU."
         },
+        "build_resources": {
+          "$ref": "#/$defs/build_resources",
+          "description": "Limits and passive activity observed for the inspector process in this node class. Omission means no resource observation was available."
+        },
         "build_stage": {
           "type": "array",
           "description": "Writable fast paths for this class.",
@@ -621,6 +625,54 @@
         }
       },
       "required": ["role", "cpu", "gpu", "build_stage"],
+      "additionalProperties": false
+    },
+    "build_resources": {
+      "type": "object",
+      "description": "Session-scoped execution limits. Absent fields are unknown; *_unlimited is emitted only when no finite limit was found in the readable hierarchy.",
+      "properties": {
+        "scope": { "const": "inspector_process" },
+        "cgroup_version": { "type": "string", "enum": ["v1", "v2"] },
+        "cpu_quota_cores": { "type": "number", "exclusiveMinimum": 0 },
+        "cpu_quota_unlimited": { "const": true },
+        "allowed_cpus": { "type": "integer", "minimum": 1 },
+        "cpu_throttled_periods_delta": { "type": "integer", "minimum": 0 },
+        "memory_max_bytes": { "type": "integer", "minimum": 0 },
+        "memory_max_unlimited": { "const": true },
+        "memory_high_bytes": { "type": "integer", "minimum": 0 },
+        "memory_high_unlimited": { "const": true },
+        "pids_max": { "type": "integer", "minimum": 0 },
+        "pids_unlimited": { "const": true },
+        "io_limits": {
+          "type": "array",
+          "description": "Finite limits by block device; an empty array means the controller was readable and exposed no finite limits.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "device": { "type": "string", "pattern": "^[0-9]+:[0-9]+$" },
+              "read_bps": { "type": "integer", "minimum": 0 },
+              "write_bps": { "type": "integer", "minimum": 0 },
+              "read_iops": { "type": "integer", "minimum": 0 },
+              "write_iops": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["device"],
+            "anyOf": [
+              { "required": ["read_bps"] },
+              { "required": ["write_bps"] },
+              { "required": ["read_iops"] },
+              { "required": ["write_iops"] }
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["scope"],
+      "allOf": [
+        { "not": { "required": ["cpu_quota_cores", "cpu_quota_unlimited"] } },
+        { "not": { "required": ["memory_max_bytes", "memory_max_unlimited"] } },
+        { "not": { "required": ["memory_high_bytes", "memory_high_unlimited"] } },
+        { "not": { "required": ["pids_max", "pids_unlimited"] } }
+      ],
       "additionalProperties": false
     },
     "gpu_block": {

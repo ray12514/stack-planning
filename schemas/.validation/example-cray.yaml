@@ -89,7 +89,7 @@ node_types:
       writable: true
       throughput_class: medium
   cpu_compute:
-    role: runtime
+    role: both
     description: CPU compute partition, Zen3
     cpu:
       detected: zen3
@@ -110,7 +110,7 @@ node_types:
       visibility: compute-only
       writable: true
   gpu_compute_mi250x:
-    role: runtime
+    role: both
     description: GPU compute, MI250X (gfx90a), Zen3 host
     cpu:
       detected: zen3
@@ -127,7 +127,7 @@ node_types:
       writable: true
       throughput_class: fast
   gpu_compute_mi300a:
-    role: runtime
+    role: both
     description: GPU compute, MI300A (gfx942), Zen4 host
     cpu:
       detected: zen4

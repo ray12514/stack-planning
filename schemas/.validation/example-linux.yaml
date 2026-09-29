@@ -76,13 +76,19 @@ node_types:
       alternates:
       - zen2
     gpu: null
+    build_resources:
+      scope: inspector_process
+      cgroup_version: v2
+      cpu_quota_cores: 2
+      allowed_cpus: 8
+      cpu_throttled_periods_delta: 3
     build_stage:
     - path: $tempdir/$user/spack-stage
       visibility: shared
       writable: true
       throughput_class: medium
   cpu_compute:
-    role: runtime
+    role: both
     description: Compute partition, Zen3
     cpu:
       detected: zen3

@@ -251,6 +251,25 @@ Per-node probes run once for each node class that matters to builds or runtime.
 | CPU | detected arch, preferred target, alternates. |
 | GPU | vendor, driver version, toolkit ceiling, arch label such as `gfx90a` or `sm_90`. |
 | Build stage | writable candidates, visibility, free space, inode data, mount options. |
+| Build resources | Current inspection session's visible CPU quota and allowed CPUs, memory and process limits, per-device I/O ceilings, and passive CPU throttling observed while probing. Missing controls remain unknown. These are observations, not permission to build or a prediction of future allocations. |
+
+Resource observations are scoped to the inspector process and the account,
+cgroup, and allocation in which it ran. A node class may give another user or
+job different limits. The profile carries these reviewable facts; builders
+recheck their own live session before using them for a recommendation. CPU
+quota is distinct from the number of CPUs allowed by affinity. A finite quota
+in a visible ancestor cgroup constrains the process even if its own cgroup says
+`max`. An inaccessible ancestor may impose a tighter limit, so finite values
+from a partial hierarchy are observed ceilings. Throttling counters are sampled
+passively across the existing node probe; an increase means the sampled cgroup
+was throttled during that window,
+not that the inspector itself caused it. No load test runs on login nodes.
+
+`role` is operator-supplied permission/capability, not inferred from resource
+limits. A compute node used for package installation is `both` when it also
+runs payloads. A login node may remain `build_host` for bootstrap and
+concretization even when an installation there is discouraged. Site build
+policy and the login-versus-compute decision belong to the builder.
 
 ## CLI Contract
 
@@ -261,9 +280,9 @@ cluster-inspector profile \
   --system example-cray \
   --hints systems/example-cray/inspector-hints.yaml \
   --node-type login=this:role=build_host \
-  --node-type cpu_compute=srun:partition=cpu_compute:role=runtime \
-  --node-type gpu_compute_mi250x=srun:partition=gpu,constraint=mi250x:role=runtime \
-  --node-type gpu_compute_mi300a=srun:partition=gpu,constraint=mi300a:role=runtime \
+  --node-type cpu_compute=srun:partition=cpu_compute:role=both \
+  --node-type gpu_compute_mi250x=srun:partition=gpu,constraint=mi250x:role=both \
+  --node-type gpu_compute_mi300a=srun:partition=gpu,constraint=mi300a:role=both \
   --output systems/example-cray/profile.yaml
 ```
 
@@ -277,7 +296,7 @@ cluster-inspector probe-system \
 
 cluster-inspector probe-node \
   --node-type gpu_compute_mi250x \
-  --role runtime \
+  --role both \
   --output probes/gpu_compute_mi250x.yaml
 
 cluster-inspector merge \

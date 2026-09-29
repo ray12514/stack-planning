@@ -237,6 +237,20 @@ module enumeration.
 | `node_types.<name>.build_stage[*].free_inodes` | probe-node | `df -Pi <path>`. | integer inode count | `probed` | omit |
 | `node_types.<name>.build_stage[*].mount_opts` | probe-node | `findmnt -n -o OPTIONS --target <path>`. | list of options | `probed` | empty list |
 | `node_types.<name>.build_stage[*].throughput_class` | probe-node | Filesystem type + optional tiny write/read timing. | `fast`, `medium`, `slow`, `unknown` | `inferred` | `unknown` |
+| `node_types.<name>.build_resources.scope` | probe-node | Fixed `inspector_process` scope for the current account/session/allocation. | enum | `probed` | required |
+| `node_types.<name>.build_resources.cpu_quota_cores` | probe-node | Read v2 `cpu.max` or v1 CFS quota/period along the process's cgroup ancestry; retain the tightest finite quota. | positive core count | `probed` | omit when unknown or unlimited; `cpu_quota_unlimited` is true only when all readable levels are unlimited |
+| `node_types.<name>.build_resources.allowed_cpus` | probe-node | Read the effective process CPU affinity list in `/proc/self/status`, which reflects cpuset restrictions. | positive integer count | `probed` | omit when unreadable |
+| `node_types.<name>.build_resources.memory_max_bytes`, `memory_high_bytes`, `pids_max` | probe-node | Read visible cgroup hierarchy limits (v2 for all three; v1 for memory max and pids max). | nonnegative integers | `probed` | omit when unknown or unlimited; corresponding `*_unlimited` true only when verified |
+| `node_types.<name>.build_resources.io_limits` | probe-node | Read v2 `io.max` or v1 throttle files; retain finite per-device ceilings. | device-keyed records | `probed` | omit if inaccessible; empty list means read successfully with no finite ceilings |
+| `node_types.<name>.build_resources.cpu_throttled_periods_delta` | probe-node | Read `cpu.stat` before and after ordinary node probes. | nonnegative count | `probed` | omit if unavailable or counters reset |
+
+Resource fields absent from `build_resources` are unknown unless a matching
+`*_unlimited` flag explicitly says no finite limit was observed. A zero
+throttling delta is only evidence about this probe window. It is not proof
+that a later build cannot be throttled. `io_limits` are device facts and do
+not by themselves identify which build-stage path uses that device. Builders
+should inspect their current session and compare limits with planned job and
+package concurrency; Cluster Inspector does not choose a build context.
 
 CPU target detection must not require an external `archspec` installation at
 runtime. A small bundled architecture mapping is acceptable and easier to make
