@@ -4,28 +4,28 @@ Date: 2026-10-06. Target: Linux x86-64 with glibc. Build method: upstream source
 
 ## Download onto the test machine
 
-The current alpha host is [ray12514/stack-planning on GitHub](https://github.com/ray12514/stack-planning/tree/codex/node-build-resources/docs/standalone-hardening), branch **`codex/node-build-resources`**. The runbooks live in `docs/standalone-hardening/`. This repository is private; use a GitHub account with access. `stack-content` is a separate repository and does not contain these standalone runbooks.
+The current alpha host is [ray12514/stack-planning on GitHub](https://github.com/ray12514/stack-planning/tree/codex/node-build-resources/docs/standalone-hardening), branch **`codex/node-build-resources`**. The runbooks live in `docs/standalone-hardening/`. This repository is public; HTTPS cloning and archive downloads require no GitHub sign-in. `stack-content` is a separate, private repository and does not contain these standalone runbooks.
 
 ### Clone with Git
 
-With an authorized SSH key configured:
+Clone over HTTPS:
 
 ```bash
 git clone --branch codex/node-build-resources --single-branch \
-  git@github.com:ray12514/stack-planning.git stack-planning-hardening
+  https://github.com/ray12514/stack-planning.git stack-planning-hardening
 cd stack-planning-hardening/docs/standalone-hardening
 less README.md
 ```
 
-For HTTPS, first run `gh auth login --hostname github.com --git-protocol https` and `gh auth setup-git`, then use `https://github.com/ray12514/stack-planning.git` as the clone URL. In an existing checkout, fetch and switch to `codex/node-build-resources` before reading the runbooks. Record `git rev-parse HEAD` with the trial results so the procedure version is reproducible.
+In an existing checkout, fetch and switch to `codex/node-build-resources` before reading the runbooks. Record `git rev-parse HEAD` with the trial results so the procedure version is reproducible.
 
 ### Download an archive
 
-On a machine with GitHub CLI access, download the branch snapshot without cloning:
+Download the branch snapshot with curl:
 
 ```bash
-gh api 'repos/ray12514/stack-planning/tarball/codex%2Fnode-build-resources' \
-  > stack-planning-hardening.tar.gz
+curl -fL --retry 3 -o stack-planning-hardening.tar.gz \
+  https://codeload.github.com/ray12514/stack-planning/tar.gz/refs/heads/codex/node-build-resources
 sha256sum stack-planning-hardening.tar.gz > stack-planning-hardening.tar.gz.sha256
 mkdir stack-planning-hardening
 tar -xzf stack-planning-hardening.tar.gz --strip-components=1 \
@@ -34,7 +34,7 @@ cd stack-planning-hardening/docs/standalone-hardening
 less README.md
 ```
 
-The GitHub branch page also offers **Code → Download ZIP** when signed in. Extract the archive and open `docs/standalone-hardening/README.md`. Retain the archive and its checksum with the results. For a fixed snapshot, use the full commit SHA instead of the branch reference in the archive URL.
+The GitHub branch page also offers **Code → Download ZIP**. Extract the archive and open `docs/standalone-hardening/README.md`. Retain the archive and its checksum with the results. For a fixed snapshot, use `https://codeload.github.com/ray12514/stack-planning/tar.gz/FULL_COMMIT_SHA` with the recorded commit SHA in place of `FULL_COMMIT_SHA`.
 
 ### Transfer to an offline machine
 
