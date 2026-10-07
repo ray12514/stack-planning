@@ -49,7 +49,7 @@ The environment names the compiler for provenance. These are run-only checks; th
 
 ## 3. Create the test definition
 
-Initially `COMPARATORS=reference`. After installing selected removal variants, use e.g. `COMPARATORS=reference,minus-stack,stack-strong`. ReFrame expands the workload/comparator combinations. `minus-fortify` and `minus-init` are skipped for Fortran LAPACK because they do not create a meaningful Fortran contrast.
+Initially `COMPARATORS=reference`. After installing selected listed-set removals, use e.g. `COMPARATORS=reference,minus-stack,minus-fortify,minus-relro,minus-now`. ReFrame expands the workload/comparator combinations. `minus-fortify` is skipped for Fortran LAPACK; the extended set also skips `minus-init` for LAPACK. Use [07](07-consumer-pie.md) for the executable PIE comparison.
 
 The primary HDF5 metric shown in the table is write/create/close. Read timing is retained in each summary and raw CSV. FFTW's primary metric is execution; planning is retained separately. One full/comparator check includes the warmups and all `PAIRS` independent timing pairs.
 
@@ -73,6 +73,9 @@ WORKLOADS = {
     'hdf5-chunked': ('hdf5', 'hdf5-fixed', 'write_create_close', ['@FILE@','16777216','65536','0'], False),
     'lapack-small': ('lapack', 'lapack-fixed', 'lu_solve', ['128','50'], False),
     'lapack-large': ('lapack', 'lapack-fixed', 'lu_solve', ['1024','3'], False),
+    'fft-pie': ('fftw', 'fftw-fixed', 'process_elapsed', ['1','1024','100','1','estimate'], False),
+    'hdf5-pie': ('hdf5', 'hdf5-fixed', 'process_elapsed', ['@FILE@','16777216','0','0'], False),
+    'lapack-pie': ('lapack', 'lapack-fixed', 'process_elapsed', ['128','1'], False),
     'fft-mpi': ('fftw-mpi', 'fftw-mpi-fixed', 'execution_maxrank', ['64','100','estimate'], True),
     'hdf5-collective': ('hdf5-mpi', 'hdf5-mpi-fixed', 'write_collective_maxrank', ['@FILE@','8388608','collective'], True),
     'hdf5-independent': ('hdf5-mpi', 'hdf5-mpi-fixed', 'write_independent_maxrank', ['@FILE@','8388608','independent'], True)
@@ -104,6 +107,9 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
     @run_before('run')
     def prepare(self):
         package, driver, phase, arguments, mpi = WORKLOADS[self.workload]
+        consumer = self.workload in ('fft-pie','hdf5-pie','lapack-pie')
+        self.skip_if(consumer != (self.comparator == 'minus-pie'),
+                     'PIE workloads require minus-pie; library workloads use library variants')
         self.skip_if(package == 'lapack' and self.comparator in ('minus-fortify','minus-init'),
                      'Control does not apply to Fortran LAPACK')
         session = os.environ['RUN_ID']
@@ -119,6 +125,9 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
             'TRIAL_ROOT': str(ROOT), 'GCC_LIB_DIRS': os.environ['GCC_LIB_DIRS'],
             'RESULT_ROOT': str(ROOT/'results'/'reframe'/session/'paired'),
             'COMPARE': self.comparator, 'PAIRS': os.environ.get('PAIRS','10'),
+            'HARDENING_SET': os.environ.get('HARDENING_SET','listed'),
+            'FORTIFY_LEVEL': os.environ.get('FORTIFY_LEVEL','2'),
+            'COMPARE_EXECUTABLE': str(ROOT/'bench'/f'{package}-minus-pie') if consumer else '',
             'MPI_NP': os.environ.get('MPI_NP','2') if mpi else '0',
             'OMP_NUM_THREADS': '1', 'OPENBLAS_NUM_THREADS': '1', 'MKL_NUM_THREADS': '1'
         }

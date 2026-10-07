@@ -191,12 +191,13 @@ For an existing CMake, instead set `CMAKE` and `CTEST` to its absolute driver pa
 
 ```bash
 export CPU_TARGET=x86-64
-export FORTIFY_LEVEL=3
+export HARDENING_SET=listed
+export FORTIFY_LEVEL=2
 export CF_MODE=full
 {
   printf '%s\n' 'set -euo pipefail'
   for name in TRIAL_ROOT JOBS GCC_PREFIX BINUTILS_PREFIX GCC_LIB_DIRS CMAKE CTEST \
-              CPU_TARGET FORTIFY_LEVEL CF_MODE; do
+              CPU_TARGET HARDENING_SET FORTIFY_LEVEL CF_MODE; do
     printf 'export %s=%q\n' "$name" "${!name}"
   done
   cat <<'ENV'
@@ -210,4 +211,4 @@ ENV
 } > "$TRIAL_ROOT/env.sh"
 ```
 
-In a new Bash shell, `source /absolute/path/to/hardening-trial/env.sh`, then follow [01 — Common profiles](01-common.md). If FORTIFY 3 or control-flow protection fails qualification, update the explicit environment choice as described there before building any variants.
+In a new Bash shell, `source /absolute/path/to/hardening-trial/env.sh`, then follow [01 — Common profiles](01-common.md). `HARDENING_SET=listed` selects the supplied strong-stack/FORTIFY-2/RELRO/NOW profile, with PIE on benchmark executables. The optional broader experiment requires an explicit `extended` choice in 01. If the listed controls fail qualification, resolve that failure before building variants.

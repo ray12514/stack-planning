@@ -4,34 +4,64 @@ Prerequisite: [00 — GCC bootstrap](00-gcc-bootstrap.md). Execute these setup b
 
 ## 1. Create explicit profiles
 
-GCC 12.5.0 does not have `-fhardened`. Spell out the controls. The full profile deliberately starts with `-fstack-protector-all`; `stack-strong` tests the narrower alternative. FORTIFY and local automatic initialization apply to C/C++, not to LAPACK's Fortran array operations. `_GLIBCXX_ASSERTIONS` applies only to C++ code using libstdc++; it is recorded here but the initial C-only payloads do not exercise it.
+The default **listed** set matches the flags supplied for the white-paper discussion. GCC 12.5.0 does not have `-fhardened`; the flags are explicit. `full` means all applicable controls in the selected set. FORTIFY applies to supported C/C++ libc calls; it does not add Fortran array-bounds checks.
+
+| Output | Compile controls in `full` | Link controls in `full` |
+|---|---|---|
+| FFTW/HDF5 shared C libraries | `-fPIC -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2` | `-Wl,-z,relro -Wl,-z,now` |
+| LAPACK shared Fortran library | `-fPIC -fstack-protector-strong` | `-Wl,-z,relro -Wl,-z,now` |
+| Fixed C benchmark executables | `-fPIE -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2` | `-pie -Wl,-z,relro -Wl,-z,now` |
+| Fixed Fortran benchmark executable | `-fPIE -fstack-protector-strong` | `-pie -Wl,-z,relro -Wl,-z,now` |
+
+`-U_FORTIFY_SOURCE` clears an inherited definition before setting level 2. All arms retain the same `-O3`, CPU target, warnings, library PIC, and non-executable stack. RELRO/NOW are passed through the GCC driver to GNU ld using **`-Wl,-z,...`**, not `-WL` or `-d`. The paired library measurements keep the full benchmark executable fixed. [07](07-consumer-pie.md) measures executable PIE separately with the full libraries fixed.
+
+The earlier broader trial remains available as `HARDENING_SET=extended`. It adds all-function stack protection, stack-clash protection, C/C++ local initialization, x86 compiler control-flow protection, and C++ libstdc++ assertions, with an explicitly selected FORTIFY level. Those additions are separate research controls; the supplied list does not establish that they are required.
 
 | Profile | Change relative to full |
 |---|---|
-| `full` | All applicable controls in this runbook |
+| `full` | All applicable controls in the selected listed or extended set |
 | `reference` | All variable controls disabled; optimization, PIC, warnings, and non-executable stack retained |
-| `stack-strong` | Replace stack protection for every function with strong stack protection |
+| `stack-all` | Optional: replace strong stack protection with all-function protection |
 | `minus-stack` | Disable stack protector |
 | `minus-fortify` | Disable C/C++ FORTIFY |
-| `minus-clash` | Disable stack-clash protection |
-| `minus-init` | Disable C/C++ automatic local initialization |
-| `minus-cf` | Disable x86 compiler control-flow protection |
+| `stack-strong` | Extended set only: replace all-function protection with strong protection |
+| `minus-clash` | Extended set only: disable stack-clash protection |
+| `minus-init` | Extended set only: disable C/C++ automatic local initialization |
+| `minus-cf` | Extended set only: disable x86 compiler control-flow protection |
 | `minus-relro` | Disable RELRO, retain eager binding |
 | `minus-now` | Disable eager binding, retain RELRO |
 | `minus-pie` | Consumer executable only: disable PIE, retain the full library and other controls |
 
-PIC remains on for shared libraries. A non-executable stack remains on throughout; there is no executable-stack timing arm. `-fcf-protection=full` is compiler-generated x86 CET support, not proof that hardware shadow-stack enforcement is active. Record processor, kernel, loader, and ELF properties; do not label its delta as isolated hardware SHSTK overhead.
+PIC remains on for shared libraries. A non-executable stack remains on throughout. In the extended experiment, `-fcf-protection=full` is compiler-generated x86 CET support, not proof that hardware shadow-stack enforcement is active.
 
 ```bash
 source "$TRIAL_ROOT/env.sh"
 cat > "$TRIAL_ROOT/profiles.sh" <<'SH'
 profile_flags() {
     local p=${1:?profile required}
-    local stack=-fstack-protector-all clash=-fstack-clash-protection
-    local cf="-fcf-protection=$CF_MODE" init=-ftrivial-auto-var-init=zero
+    local mode=${HARDENING_SET:-listed}
+    local stack=-fstack-protector-strong clash=-fno-stack-clash-protection
+    local cf=-fcf-protection=none init=-ftrivial-auto-var-init=uninitialized
     local fortify="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=$FORTIFY_LEVEL"
-    local assertions=-D_GLIBCXX_ASSERTIONS
+    local assertions=-U_GLIBCXX_ASSERTIONS
     local relro=-Wl,-z,relro now=-Wl,-z,now pie=-fPIE pielink=-pie
+    case "$mode" in
+      listed)
+        if test "$FORTIFY_LEVEL" != 2; then
+          printf '%s\n' 'The listed set requires FORTIFY_LEVEL=2.' >&2; return 1
+        fi ;;
+      extended)
+        stack=-fstack-protector-all; clash=-fstack-clash-protection
+        cf="-fcf-protection=$CF_MODE"; init=-ftrivial-auto-var-init=zero
+        assertions=-D_GLIBCXX_ASSERTIONS ;;
+      *) printf 'Unknown HARDENING_SET: %s\n' "$mode" >&2; return 1 ;;
+    esac
+    case "$p" in
+      stack-strong|minus-clash|minus-init|minus-cf)
+        if test "$mode" != extended; then
+          printf 'Profile %s requires HARDENING_SET=extended.\n' "$p" >&2; return 1
+        fi ;;
+    esac
     case "$p" in
       full) ;;
       reference)
@@ -40,6 +70,7 @@ profile_flags() {
         fortify=-U_FORTIFY_SOURCE; assertions=-U_GLIBCXX_ASSERTIONS
         relro=-Wl,-z,norelro; now=-Wl,-z,lazy; pie=-fno-pie; pielink=-no-pie ;;
       stack-strong) stack=-fstack-protector-strong ;;
+      stack-all) stack=-fstack-protector-all ;;
       minus-stack) stack=-fno-stack-protector ;;
       minus-fortify) fortify=-U_FORTIFY_SOURCE ;;
       minus-clash) clash=-fno-stack-clash-protection ;;
@@ -60,14 +91,17 @@ profile_flags() {
     CPPFLAGS=''
     SHARED_LDFLAGS="$relro $now -Wl,-z,noexecstack"
     EXE_CFLAGS="$BASE_OPT $C_CONTROL $pie"
+    EXE_CXXFLAGS="$EXE_CFLAGS $assertions"
     EXE_FFLAGS="$BASE_OPT $F_CONTROL $pie"
     EXE_LDFLAGS="$SHARED_LDFLAGS $pielink"
     export CFLAGS CXXFLAGS FFLAGS FCFLAGS CPPFLAGS
 }
-LIB_PROFILES=(full reference stack-strong minus-stack minus-fortify minus-clash
-              minus-init minus-cf minus-relro minus-now)
-LAPACK_PROFILES=(full reference stack-strong minus-stack minus-clash minus-cf
-                 minus-relro minus-now)
+LIB_PROFILES=(full reference minus-stack minus-fortify minus-relro minus-now)
+LAPACK_PROFILES=(full reference minus-stack minus-relro minus-now)
+if test "${HARDENING_SET:-listed}" = extended; then
+    LIB_PROFILES+=(stack-strong minus-clash minus-init minus-cf)
+    LAPACK_PROFILES+=(stack-strong minus-clash minus-cf)
+fi
 SH
 source "$TRIAL_ROOT/profiles.sh"
 ```
@@ -98,13 +132,14 @@ cp "$TRIAL_ROOT/bench/probes/probe.c" "$TRIAL_ROOT/bench/probes/probe.cc"
 for p in "${LIB_PROFILES[@]}" minus-pie; do
     profile_flags "$p"
     read -r -a cargs <<< "$EXE_CFLAGS"
+    read -r -a cxxargs <<< "$EXE_CXXFLAGS"
     read -r -a largs <<< "$EXE_LDFLAGS"
     read -r -a fargs <<< "$EXE_FFLAGS"
     {
-      declare -p CFLAGS CXXFLAGS FFLAGS SHARED_LDFLAGS EXE_CFLAGS EXE_FFLAGS EXE_LDFLAGS
+      declare -p CFLAGS CXXFLAGS FFLAGS SHARED_LDFLAGS EXE_CFLAGS EXE_CXXFLAGS EXE_FFLAGS EXE_LDFLAGS
       "$CC" -Werror "${cargs[@]}" "$TRIAL_ROOT/bench/probes/probe.c" \
         "${largs[@]}" -o "$TRIAL_ROOT/bench/probes/c-$p"
-      "$CXX" -Werror "${cargs[@]}" "$TRIAL_ROOT/bench/probes/probe.cc" \
+      "$CXX" -Werror "${cxxargs[@]}" "$TRIAL_ROOT/bench/probes/probe.cc" \
         "${largs[@]}" -o "$TRIAL_ROOT/bench/probes/cxx-$p"
       "$FC" -Werror "${fargs[@]}" "$TRIAL_ROOT/bench/gcc-fortran-smoke.f90" \
         "${largs[@]}" -o "$TRIAL_ROOT/bench/probes/f-$p"
@@ -119,7 +154,11 @@ for p in "${LIB_PROFILES[@]}" minus-pie; do
 done
 ```
 
-If FORTIFY 3 is rejected or downgraded, set `FORTIFY_LEVEL=2` in `env.sh`, re-source it, and rerun qualification. Name results with the selected level. GCC's acceptance of a macro alone is insufficient. If another control is unsupported, stop and define a reduced profile explicitly before starting the matrix; do not silently change only one package. For x86 control-flow protection, `CF_MODE=none` means the full profile omits that protection and `minus-cf` has no meaningful contrast.
+The listed set requires implemented FORTIFY level 2. GCC's acceptance of a macro alone is insufficient. If a listed control is unsupported, resolve the failure or define a separately named, reduced experiment before starting the matrix. Do not silently omit it from `full`.
+
+For the optional broader experiment, choose a **new trial root** before building and set `HARDENING_SET=extended`, `FORTIFY_LEVEL=3`, and `CF_MODE=full` in its `env.sh`. If its FORTIFY 3 qualification fails, explicitly select 2 and record the choice. If `CF_MODE=none`, omit the no-op `minus-cf` comparison. Re-source `profiles.sh` after changing the set so its variant arrays match. These settings do not alter already compiled binaries.
+
+The previous version of these runbooks used `full` for the broader set. Existing builds/results from that version must retain their old identity. Rebuild under a new root for the listed set; do not combine the old full libraries with new reference/removal builds.
 
 Expected artifact distinctions: full probe executable is ELF `DYN`/PIE; reference and minus-PIE are `EXEC`. Full has a `GNU_RELRO` segment and a `BIND_NOW`/`NOW` dynamic flag; minus-RELRO lacks the former, minus-NOW lacks the latter. `GNU_STACK` should not have execute permission in any arm. GNU properties and `endbr64` disassembly help inspect CET code generation, but object property merging and runtime enablement also matter. Stack-protector and `_chk` symbols may occur only when the package actually needs them; their absence alone is not proof the flags were lost.
 
@@ -143,9 +182,11 @@ Do not use shell success as the only flag audit: look at actual compile/link com
 
 The package runbooks create one fixed driver each. Drivers print CSV rows `phase,seconds,error` and fail on a correctness error. The harness switches the library path, warms each variant once, alternates the order within each independent pair, retains raw results, and computes a bootstrap interval for the geometric mean of paired runtime ratios. It uses Python's standard library only. Ten pairs are a pilot; increase `PAIRS` when variability leaves the chosen regression threshold unresolved.
 
+Every run also records `process_elapsed`, including process launch, dynamic loading, the workload, correctness checks, output capture, and exit. Inspect it alongside kernel phases when assessing startup-sensitive controls such as NOW. The [PIE procedure](07-consumer-pie.md) uses a second caller and keeps both arms on the full libraries; its summary records that scope explicitly.
+
 ```bash
 cat > "$TRIAL_ROOT/bench/paired.py" <<'PY'
-import csv, json, math, os, pathlib, random, shlex, statistics, subprocess, sys
+import csv, json, math, os, pathlib, random, shlex, statistics, subprocess, sys, time
 package, executable, case, *args = sys.argv[1:]
 root = pathlib.Path(os.environ['TRIAL_ROOT'])
 comparator = os.environ.get('COMPARE', 'reference')
@@ -155,6 +196,11 @@ if pairs < 2:
 profiles = ('full', comparator)
 if comparator == 'full':
     raise SystemExit('COMPARE must differ from full')
+other_executable = os.environ.get('COMPARE_EXECUTABLE', '')
+if other_executable and comparator != 'minus-pie':
+    raise SystemExit('COMPARE_EXECUTABLE is reserved for the minus-pie consumer test')
+drivers = {'full': executable, comparator: other_executable or executable}
+library_profiles = {p: 'full' if other_executable else p for p in profiles}
 envs = {}
 mpi_np = int(os.environ.get('MPI_NP', '0'))
 launcher = []
@@ -168,7 +214,7 @@ if mpi_np:
             launcher += ['-x', name]
     launcher += shlex.split(os.environ.get('MPI_EXTRA_ARGS', ''))
 for profile in profiles:
-    prefix = root / 'install' / package / profile / 'lib'
+    prefix = root / 'install' / package / library_profiles[profile] / 'lib'
     if not prefix.is_dir():
         raise SystemExit(f'Missing installed variant: {prefix}')
     env = os.environ.copy()
@@ -183,18 +229,20 @@ raw = outdir / 'raw.csv'
 if raw.exists():
     raise SystemExit(f'Results already exist: {raw}; select a new case label')
 for profile in profiles:
-    proc = subprocess.run(['ldd', executable], env=envs[profile], text=True,
+    proc = subprocess.run(['ldd', drivers[profile]], env=envs[profile], text=True,
                           capture_output=True, check=True)
     (outdir / f'loaded-{profile}.txt').write_text(proc.stdout + proc.stderr)
     if 'not found' in proc.stdout:
         raise SystemExit(f'Missing runtime dependency for {profile}')
-    if str(root / 'install' / package / profile) not in proc.stdout:
+    if str(root / 'install' / package / library_profiles[profile]) not in proc.stdout:
         raise SystemExit(f'ldd did not select the requested {package}/{profile} library')
 def run(profile):
-    proc = subprocess.run([*launcher, executable, *args], env=envs[profile], text=True,
+    started = time.perf_counter()
+    proc = subprocess.run([*launcher, drivers[profile], *args], env=envs[profile], text=True,
                           capture_output=True)
+    process_elapsed = time.perf_counter() - started
     with (outdir / 'driver.log').open('a') as f:
-        f.write(f'profile={profile} args={args!r}\n{proc.stdout}{proc.stderr}\n')
+        f.write(f'profile={profile} driver={drivers[profile]} args={args!r}\n{proc.stdout}{proc.stderr}\n')
     proc.check_returncode()
     rows = []
     for phase, seconds, error in csv.reader(proc.stdout.splitlines()):
@@ -204,6 +252,9 @@ def run(profile):
         rows.append((phase, seconds, error))
     if not rows or len({r[0] for r in rows}) != len(rows):
         raise RuntimeError('Missing or duplicate measurement phase')
+    if 'process_elapsed' in {r[0] for r in rows}:
+        raise RuntimeError('Reserved process_elapsed phase')
+    rows.append(('process_elapsed', process_elapsed, 0.0))
     return rows
 for profile in profiles:
     run(profile)
@@ -239,6 +290,10 @@ for phase in sorted(phases):
                       'bootstrap_95_percent_interval': [100*(samples[250]-1),
                                                         100*(samples[9749]-1)]}
 record = {'package': package, 'case': case, 'comparator': comparator,
+          'hardening_set': os.environ.get('HARDENING_SET', 'listed'),
+          'fortify_level': int(os.environ.get('FORTIFY_LEVEL', '2')),
+          'scope': 'consumer-pie' if other_executable else 'library',
+          'driver_by_profile': drivers, 'library_profile_by_arm': library_profiles,
           'driver': executable, 'args': args, 'launcher': launcher, 'phases': summary}
 (outdir / 'summary.json').write_text(json.dumps(record, indent=2) + '\n')
 print(json.dumps(record, indent=2))
@@ -255,6 +310,7 @@ Set a CPU list actually assigned to the job. `taskset` constrains execution; it 
 export CPUSET=0   # replace with a CPU assigned to this allocation
 export PAIRS=10
 export COMPARE=reference
+unset COMPARE_EXECUTABLE
 export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
@@ -265,4 +321,4 @@ taskset -pc $$ >> "$TRIAL_ROOT/logs/execution-cpu.txt"
 
 Run each package's timing commands first for `COMPARE=reference`. Then select an installed removal variant and a new case label or comparator directory. A positive `full_runtime_increase_percent` means full was slower than that comparator; a negative value means it was faster. All numbers are elapsed runtime changes, not throughput-loss percentages.
 
-For an executable/consumer comparison, compile the same driver source once per profile with `EXE_CFLAGS` or `EXE_FFLAGS` and `EXE_LDFLAGS`, linking the same full library for the PIE-only experiment. Measure whole-process elapsed time separately from driver kernel phases. PIE removal does not change a shared library's PIC requirement. Do not feed those differently built executables to the fixed-driver comparison and call the result a library-only cost.
+For an executable/consumer comparison, follow [07](07-consumer-pie.md), which compiles the same driver source with `EXE_CFLAGS` or `EXE_FFLAGS` and `EXE_LDFLAGS`, linking the same full library for the PIE-only experiment. Measure whole-process elapsed time separately from driver kernel phases. PIE removal does not change a shared library's PIC requirement. Do not feed those differently built executables to the fixed-driver comparison and call the result a library-only cost.

@@ -2,6 +2,8 @@
 
 Date: 2026-10-06. Target: Linux x86-64 with glibc. Build method: upstream source, outside Spack. These procedures have been checked against source/build documentation and locally checked for shell syntax; the target Linux builds and performance trial have not been executed.
 
+Profile update 2026-10-07: the default now matches the supplied list: **strong stack protection, FORTIFY level 2, RELRO/NOW, and executable PIE**. The exact settings and injection points are in [01](01-common.md) and each package's build section. The earlier broader set is an explicit `extended` experiment. Use a new trial root if you already built the earlier full profile; changing the environment does not rebuild old binaries.
+
 ## Download onto the test machine
 
 The current alpha host is [ray12514/stack-planning on GitHub](https://github.com/ray12514/stack-planning/tree/codex/node-build-resources/docs/standalone-hardening), branch **`codex/node-build-resources`**. The runbooks live in `docs/standalone-hardening/`. This repository is public; HTTPS cloning and archive downloads require no GitHub sign-in. `stack-content` is a separate, private repository and does not contain these standalone runbooks.
@@ -95,8 +97,9 @@ The terminal and `console.log` show correctness status, full/reference seconds, 
 | [04 — LAPACK 3.12.1](04-lapack.md) | Shared LAPACK variants, one fixed reference BLAS, correctness tests, and LU solve measurements |
 | [05 — Parallel FFTW and HDF5](05-parallel.md) | MPI-enabled variants, distributed FFTs, and collective/independent parallel HDF5 I/O |
 | [06 — ReFrame driver and reports](06-reframe.md) | Paired comparisons, correctness gates, terminal performance tables, raw CSV, and JSON reports |
+| [07 — Executable PIE comparison](07-consumer-pie.md) | PIE versus non-PIE callers with full libraries fixed, reporting whole-process elapsed time |
 
-Run 00 and 01 once, then 02–04 for serial packages. Run 00b after qualifying the profiles in 01, then 05 for parallel packages. Use 06 to drive and report either suite after its variants and fixed callers are installed. Start with `full` and `reference`; use the removal variants to explain a reproducible difference. Each removal starts from `full`, not from the previous removal. `stack-strong` tests a less comprehensive stack protector without removing it entirely.
+Run 00 and 01 once, then 02–04 for serial packages. Run 00b after qualifying the profiles in 01, then 05 for parallel packages. Use 06 to drive and report either suite after its variants and fixed callers are installed, and 07 for executable PIE. Start with `full` and `reference`; each removal starts from `full`. `stack-all` is an optional stronger-stack comparison. Extended-set controls require a separate, explicitly labelled trial root.
 
 Versions match the current trial roster. Binutils 2.44 is a runbook pin; it is not claimed to be the binutils version used by every existing trial. CMake 3.31.12 matches the roster's build-tool pin. HDF5 2.1.0 is the selected trial input, not a recommendation to replace it with the current upstream release.
 
@@ -104,9 +107,9 @@ The initial workloads cover serial CPU and I/O costs. FFTW threads are built and
 
 ## What the trial answers
 
-The full profile uses stack protection for all functions, FORTIFY in C/C++, stack-clash protection, automatic local initialization in C/C++, x86 control-flow protection, RELRO, and eager symbol binding. Executable PIE is tested with separately compiled consuming executables. PIC and a non-executable stack stay enabled in all arms. Compiler warnings stay fixed across arms.
+The listed full profile uses `-fstack-protector-strong`, C/C++ `-D_FORTIFY_SOURCE=2`, `-Wl,-z,relro`, and `-Wl,-z,now`. Benchmark executables use `-fPIE -pie`; shared libraries retain `-fPIC`. PIC, a non-executable stack, optimization, and warnings stay fixed across library arms.
 
-This is a broad, applicable production-hardening experiment. Sanitizers, Fortran bounds diagnostics, CFI requiring another compiler, and mutually exclusive controls are separate experiments. A measured removal may justify a package-specific decision; it does not establish a universal performance exemption or STIG compliance.
+The optional extended set adds controls described in 01. Sanitizers and Fortran bounds diagnostics are separate experiments. The [HPCMP policy alignment note](../hpcmp_compiler_hardening_policy_alignment_v1.md) explains the public program model and why central flag configuration alone does not establish STIG compliance. A measured removal may support a package-specific decision; it does not establish a universal performance exemption.
 
 The primary package comparisons use one fixed benchmark executable while switching its loaded library. That isolates package changes. A separate consumer comparison changes executable hardening too; those results must be labelled separately. For LAPACK the fixed BLAS rule is particularly important.
 
@@ -116,6 +119,6 @@ The primary package comparisons use one fixed benchmark executable while switchi
 * A bootstrap C/C++ compiler or a compatible approved GCC binary installation when no compiler exists.
 * A compute allocation, build parallelism, and one recorded CPU target. The default is `x86-64`, portable across x86-64 nodes; select `x86-64-v3` only when every execution node supports it. Do not use `-march=native` on a different login-node CPU.
 * A test filesystem directory, CPU affinity list within the allocation, and an acceptable regression threshold chosen before results.
-* FORTIFY level 3 when qualification succeeds. If the target glibc cannot implement it, explicitly select level 2 and label the full profile accordingly.
+* `HARDENING_SET=listed` and `FORTIFY_LEVEL=2` for the supplied list. Qualify compiler acceptance and actual artifacts before measurements; select the extended set only for a separate experiment.
 
 No system compiler or system library is replaced by these procedures. Installed trial prefixes and logs remain available for reruns. Use a new build directory/prefix when changing flags or prerequisites; these commands refuse to reuse a package build directory.

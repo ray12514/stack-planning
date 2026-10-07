@@ -39,6 +39,8 @@ Check the upstream numerical test summary as well as CTest status. Some LAPACK t
 
 ## 2. Build the LAPACK matrix against that BLAS
 
+For the listed `full` set, [01](01-common.md) generates **`-fPIC -fstack-protector-strong`** in `FFLAGS` and **`-Wl,-z,relro -Wl,-z,now`** in `SHARED_LDFLAGS`. The CMake arguments below pass them explicitly. `_FORTIFY_SOURCE` does not add Fortran array bounds protection and is not applied to LAPACK's Fortran source. The fixed solve executable uses **`-fPIE`** and **`-pie`**, with its PIE comparison in [07](07-consumer-pie.md).
+
 Start with `full reference`. Later select missing entries from `LAPACK_PROFILES`. FORTIFY and automatic C/C++ initialization removal are omitted because they do not protect Fortran LAPACK operations. CBLAS/LAPACKE bindings are a separate experiment.
 
 ```bash
@@ -153,7 +155,7 @@ taskset -c "$CPUSET" python3 "$TRIAL_ROOT/bench/paired.py" \
 sha256sum --check "$TRIAL_ROOT/logs/blas-fixed/library.sha256"
 ```
 
-Build missing variants such as `minus-stack`, `stack-strong`, `minus-clash`, or `minus-cf`; repeat with the same matrix size/repeats and the selected `COMPARE`. Check each `loaded-*.txt` result for the fixed BLAS as well as the intended LAPACK. Because much of the factorization runs in BLAS, a small change here means a small change in this LAPACK-only rebuild scope; it does not establish that rebuilding BLAS with hardening has no cost.
+Build missing listed-set variants such as `minus-stack`, `minus-relro`, or `minus-now`; repeat with the same matrix size/repeats and the selected `COMPARE`. `stack-all` is an optional stronger-stack comparison; `minus-clash`, `minus-cf`, and `stack-strong` belong to the extended experiment. Check each `loaded-*.txt` result for the fixed BLAS as well as the intended LAPACK. Because much of the factorization runs in BLAS, a small change here means a small change in this LAPACK-only rebuild scope; it does not establish that rebuilding BLAS with hardening has no cost.
 
 To evaluate the whole numerical library closure, run a separately labelled matrix rebuilding both reference BLAS and LAPACK with the same profile. To evaluate a vendor BLAS deployment, first select one approved provider and keep it fixed. QR/eigensolver timing and CBLAS/LAPACKE consumer timing are additional workloads; do not generalize this LU result to them without running them.
 
