@@ -114,6 +114,8 @@ in `runbook.md`; system-specific commands belong in Stack Content system notes.
 
 ## Research and evidence
 
+Standalone compiler-hardening experiments have a separate [build and test runbook index](standalone-hardening/README.md): GCC 12.5 bootstrap, FFTW/HDF5/LAPACK variants, Open MPI + UCX, paired benchmarks, and ReFrame reports, all outside Spack.
+
 These notes record evidence or earlier decision preparation. They are not
 operator procedures and do not override the current model.
 
