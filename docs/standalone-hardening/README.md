@@ -6,6 +6,8 @@ Profile update 2026-10-07: the default now matches the supplied list: **strong s
 
 Environment update 2026-10-08: begin with [build environment and system dependencies](00-build-environment.md). Required site master modules and the existing Slurm/fabric installation are retained; explicit executable/runtime paths prevent inherited AOCC and MPI selections from contaminating the private builds. UCX and Open MPI are private source builds, not the site's installed UCX/MPI.
 
+The [Slurm campaign plan](08-slurm-campaign.md) defines hypotheses and the actual ReFrame matrix, including serial/threaded cases, small-dataset HDF5, startup/PIE comparisons, and 1/2/4/8-node MPI runs. It generates sequential batch submission and collects all phase results into a CSV. The bootstrap seed defaults to the installed `/usr/bin/gcc` and `/usr/bin/g++`; payloads use private GCC 12.5. Regenerate/recompile the updated callers and ReFrame files before running this campaign.
+
 ## Download onto the test machine
 
 The current alpha host is [ray12514/stack-planning on GitHub](https://github.com/ray12514/stack-planning/tree/codex/node-build-resources/docs/standalone-hardening), branch **`codex/node-build-resources`**. The runbooks live in `docs/standalone-hardening/`. This repository is public; HTTPS cloning and archive downloads require no GitHub sign-in. `stack-content` is a separate, private repository and does not contain these standalone runbooks.
@@ -61,6 +63,7 @@ Use a Bash shell on the Linux build/test system. Follow the command blocks in th
 3. Follow 01 to create and qualify the explicit flags before package builds.
 4. Build the serial package variants and fixed callers with 02–04. Build and qualify Open MPI + UCX with 00b, then follow 05 for parallel FFTW/HDF5.
 5. Follow 06 sections 1–3 to install ReFrame and create its configuration and checks. Use its serial or parallel launch procedure inside a compute allocation.
+6. Follow 07 to build PIE comparators, then 08 for the hypotheses, expanded matrix, Slurm sequence and data collection. Supply the site's master-module setup, account, partition/node constraint, I/O directory and resource limits.
 
 After the serial builds and ReFrame setup, this runs the three-package pilot. Replace the root, CPU, and I/O directory with the trial's chosen values:
 
@@ -101,6 +104,7 @@ The terminal and `console.log` show correctness status, full/reference seconds, 
 | [05 — Parallel FFTW and HDF5](05-parallel.md) | MPI-enabled variants, distributed FFTs, and collective/independent parallel HDF5 I/O |
 | [06 — ReFrame driver and reports](06-reframe.md) | Paired comparisons, correctness gates, terminal performance tables, raw CSV, and JSON reports |
 | [07 — Executable PIE comparison](07-consumer-pie.md) | PIE versus non-PIE callers with full libraries fixed, reporting whole-process elapsed time |
+| [08 — Slurm campaign and hypotheses](08-slurm-campaign.md) | Predeclared comparisons, serial/threaded and 1/2/4/8-node matrix, Slurm submission, placement verification, and all-phase CSV collection |
 
 Run 00 and 01 once, then 02–04 for serial packages. Run 00b after qualifying the profiles in 01, then 05 for parallel packages. Use 06 to drive and report either suite after its variants and fixed callers are installed, and 07 for executable PIE. Start with `full` and `reference`; each removal starts from `full`. `stack-all` is an optional stronger-stack comparison. Extended-set controls require a separate, explicitly labelled trial root.
 

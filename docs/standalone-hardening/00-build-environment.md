@@ -23,7 +23,7 @@ type -a gcc g++ clang clang++ mpicc mpirun srun salloc || true
 
 Do not infer that the installed AOCC MPI is compatible by changing `OMPI_CC` or another wrapper override. Open MPI wrappers are generated for the compiler used to build that installation, and C++/Fortran compatibility is particularly compiler-dependent. This trial builds its own MPI against its own GCC. [Open MPI v4 wrapper documentation](https://www.open-mpi.org/faq/?category=mpi-apps)
 
-AOCC's C/C++ drivers may be a bootstrap seed if they pass the GCC prerequisite and seed tests in 00. Record their absolute paths and only the runtime directories they need. They are removed from the trial's executable/library search paths after GCC activation. If no usable seed exists, use the compatible transferred-toolchain route in 00.
+Use the installed `/usr/bin/gcc` and `/usr/bin/g++` as the bootstrap seed when both exist and pass the prerequisite and seed tests in 00. Record their versions. The resulting private GCC 12.5 drives the payload builds. AOCC's C/C++ drivers are an alternative seed only when needed and qualified, with their required runtime directories recorded. If no usable seed exists, use the compatible transferred-toolchain route in 00.
 
 ## 2. Select explicit search paths
 
@@ -40,9 +40,9 @@ export TRIAL_SITE_LIB_DIRS=''
 export TRIAL_SITE_PKGCONFIG_DIRS=''
 export TRIAL_SITE_CMAKE_PREFIXES=''
 
-# Only for a local GCC bootstrap; use the actual gcc/g++ or clang/clang++ paths.
-export SEED_CC=/absolute/path/to/seed/bin/clang
-export SEED_CXX=/absolute/path/to/seed/bin/clang++
+# System GCC is the seed, not the payload compiler version being tested.
+export SEED_CC=/usr/bin/gcc
+export SEED_CXX=/usr/bin/g++
 export TRIAL_SEED_LIB_DIRS=''
 # Set this to the specific seed runtime directories if its binaries need them.
 ```

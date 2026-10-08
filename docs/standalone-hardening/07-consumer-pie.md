@@ -74,6 +74,6 @@ REFRAME="$TRIAL_ROOT/tools/reframe-venv/bin/reframe"
 
 The primary phase is `process_elapsed`. Positive runtime change means the PIE caller took longer than the non-PIE caller. The harness verifies that **both arms load the full package libraries**, records both caller paths, and labels the summary `scope=consumer-pie`. Kernel phase timings remain in the raw CSV and summary but cannot be substituted for the whole-process PIE comparison.
 
-The wall-clock measurement includes process-launch and output-capture costs; it is not an isolated loader microbenchmark. Use enough pairs and inspect variability. The larger HDF5 or numerical workload can mask a small startup effect; the small FFT case provides a complementary scenario.
+The wall-clock measurement includes process-launch and output-capture costs; it is not an isolated loader microbenchmark. Use enough pairs and inspect variability. These cases use short workloads (HDF5 contains 128 doubles) to make startup effects more visible. A larger deployment workload can mask a small startup effect and needs a separately labelled comparison.
 
 Return to `COMPARATORS=reference` and ordinary workload names for library comparisons. ReFrame sets the caller override only for the PIE workloads. For manual use of `paired.py`, set `COMPARE=minus-pie` and `COMPARE_EXECUTABLE` to the corresponding `*-minus-pie` path; unset `COMPARE_EXECUTABLE` before returning to library tests.

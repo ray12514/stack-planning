@@ -2,7 +2,7 @@
 
 Prerequisites: [00 — GCC](00-gcc-bootstrap.md), [01 — profiles/harness](01-common.md), and [00b — Open MPI + UCX](00b-openmpi-ucx.md). These are separate `fftw-mpi` and `hdf5-mpi` matrices. They use GCC 12.5.0 through the same qualified Open MPI 4.1.8 wrappers, with one fixed UCX 1.16.0 installation. LAPACK remains a serial library; MPI consumers can be tested separately.
 
-Build in an allocation sized for compilation and correctness tests. Run distributed timings in one two-node allocation with one rank per node initially. `mpirun` is launched by the paired harness; do not wrap the harness with one-CPU `taskset` for multi-rank jobs. Open MPI performs the recorded rank binding.
+Build in an allocation sized for compilation and correctness tests. The commands here are a two-node qualification/pilot. [08](08-slurm-campaign.md) supplies the planned 1/2/4/8-node campaign and optional denser rank placement. `mpirun` is launched by the paired harness; do not wrap the harness with one-CPU `taskset` for multi-rank jobs. Open MPI performs the recorded rank binding. Regenerate/recompile these callers and the placement header from 00b before using the campaign's placement checks.
 
 ```bash
 source "$TRIAL_ROOT/env.sh"
@@ -55,9 +55,11 @@ cat > "$TRIAL_ROOT/bench/fftw_mpi_bench.c" <<'C'
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "mpi_placement.h"
 static void fail(void) { MPI_Abort(MPI_COMM_WORLD,1); exit(1); }
 int main(int argc,char **argv) {
     MPI_Init(&argc,&argv);
+    trial_mpi_placement();
     int rank; MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     if(argc!=4) fail();
     ptrdiff_t n=(ptrdiff_t)atoll(argv[1]); int reps=atoi(argv[2]);
@@ -177,10 +179,12 @@ cat > "$TRIAL_ROOT/bench/hdf5_mpi_bench.c" <<'C'
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "mpi_placement.h"
 static void fail(void) { MPI_Abort(MPI_COMM_WORLD,1); exit(1); }
 #define CHECK(x) do { if((x)<0) { fprintf(stderr,"HDF5 failure: %s\n",#x); fail(); } } while(0)
 int main(int argc,char **argv) {
     MPI_Init(&argc,&argv);
+    trial_mpi_placement();
     int rank,size; MPI_Comm_rank(MPI_COMM_WORLD,&rank); MPI_Comm_size(MPI_COMM_WORLD,&size);
     if(argc!=4) fail();
     size_t n=(size_t)strtoull(argv[2],0,10);

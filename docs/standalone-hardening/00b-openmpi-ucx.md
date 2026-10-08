@@ -161,12 +161,56 @@ The wrapper commands must name the private GCC 12.5.0 drivers. Wrapper compile f
 Use a two-node scheduler allocation; for Slurm, obtain it with the site's account/partition options, for example `salloc -N 2 -n 2 -t 00:30:00`. Use `mpirun` within that allocation. Do not bypass the scheduler with an unapproved host list. The prefix/source/result paths must exist at the same absolute paths on both nodes.
 
 ```bash
+cat > "$TRIAL_ROOT/bench/mpi_placement.h" <<'C'
+#ifndef TRIAL_MPI_PLACEMENT_H
+#define TRIAL_MPI_PLACEMENT_H
+#include <mpi.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+static void trial_mpi_placement(void) {
+    int rank,size,len; char host[MPI_MAX_PROCESSOR_NAME]={0};
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank); MPI_Comm_size(MPI_COMM_WORLD,&size);
+    MPI_Get_processor_name(host,&len);
+    char *hosts=rank==0 ? calloc((size_t)size,MPI_MAX_PROCESSOR_NAME) : NULL;
+    if(rank==0 && !hosts) MPI_Abort(MPI_COMM_WORLD,1);
+    MPI_Gather(host,MPI_MAX_PROCESSOR_NAME,MPI_CHAR,hosts,MPI_MAX_PROCESSOR_NAME,
+               MPI_CHAR,0,MPI_COMM_WORLD);
+    if(rank==0) {
+        int nodes=0;
+        const char *en=getenv("TRIAL_EXPECTED_NODES"), *er=getenv("RANKS_PER_NODE");
+        int expected=en ? atoi(en) : 0, rpn=er ? atoi(er) : 0;
+        if((en && expected<1) || (er && rpn<1)) MPI_Abort(MPI_COMM_WORLD,1);
+        for(int i=0;i<size;i++) {
+            const char *h=hosts+(size_t)i*MPI_MAX_PROCESSOR_NAME;
+            fprintf(stderr,"MPI_PLACEMENT rank=%d host=%s\n",i,h);
+            int first=1, count=0;
+            for(int j=0;j<size;j++) {
+                if(!strcmp(h,hosts+(size_t)j*MPI_MAX_PROCESSOR_NAME)) {
+                    count++; if(j<i) first=0;
+                }
+            }
+            if(first) {
+                nodes++;
+                if(rpn && count!=rpn) MPI_Abort(MPI_COMM_WORLD,1);
+            }
+        }
+        fprintf(stderr,"MPI_PLACEMENT nodes=%d ranks=%d\n",nodes,size);
+        if(expected && nodes!=expected) MPI_Abort(MPI_COMM_WORLD,1);
+        free(hosts);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+}
+#endif
+C
 cat > "$TRIAL_ROOT/bench/mpi-smoke.c" <<'C'
 #include <mpi.h>
 #include <stdio.h>
+#include "mpi_placement.h"
 int main(int argc,char **argv) {
     int rank,size,sum,provided;
     MPI_Init_thread(&argc,&argv,MPI_THREAD_FUNNELED,&provided);
+    trial_mpi_placement();
     MPI_Comm_rank(MPI_COMM_WORLD,&rank); MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Allreduce(&rank,&sum,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
     if(provided<MPI_THREAD_FUNNELED || sum!=size*(size-1)/2) MPI_Abort(MPI_COMM_WORLD,1);

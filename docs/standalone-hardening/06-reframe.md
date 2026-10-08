@@ -4,6 +4,8 @@ ReFrame drives the tests against the already-built package variants. It runs the
 
 The configuration below runs locally **inside an existing scheduler allocation**. Serial checks constrain the caller to `CPUSET`; parallel checks use the fixed Open MPI + UCX launcher and mapping. This keeps paired runs on the same allocation instead of submitting a different allocation for each hardening arm. Use ReFrame's serial execution policy so workloads do not compete for CPUs or the test filesystem.
 
+[08 — Slurm campaign](08-slurm-campaign.md) defines the hypotheses, expanded workload matrix, 1/2/4/8-node sequence, batch submission, placement checks, and collection of all phase results. The interactive commands below remain a small pilot. ReFrame drives prebuilt variants; the campaign does not build packages during timing.
+
 ## 1. Install a pinned ReFrame in a private environment
 
 Python 3.10 or later is required. ReFrame is independent of GCC's bootstrap. On a connected staging host, prepare wheels for this Python/platform, then transfer them if the target cannot reach PyPI. No Python libraries are installed into the system environment.
@@ -69,16 +71,27 @@ WORKLOADS = {
     'fft-small': ('fftw', 'fftw-fixed', 'execution', ['1','1024','50000','1','estimate'], False),
     'fft-large': ('fftw', 'fftw-fixed', 'execution', ['1','1048576','30','1','estimate'], False),
     'fft-3d': ('fftw', 'fftw-fixed', 'execution', ['3','64','100','1','estimate'], False),
+    'fft-plan': ('fftw', 'fftw-fixed', 'planning', ['3','64','1','1','measure'], False),
+    'fft-threads': ('fftw', 'fftw-fixed', 'execution', ['1','1048576','30','@THREADS@','estimate'], False),
     'hdf5-contiguous': ('hdf5', 'hdf5-fixed', 'write_create_close', ['@FILE@','16777216','0','0'], False),
     'hdf5-chunked': ('hdf5', 'hdf5-fixed', 'write_create_close', ['@FILE@','16777216','65536','0'], False),
+    'hdf5-small': ('hdf5', 'hdf5-fixed', 'write_create_close', ['@FILE@','8192','0','0'], False),
+    'hdf5-metadata': ('hdf5', 'hdf5-fixed', 'write_create_close', ['@FILE@','128','0','0','1000'], False),
     'lapack-small': ('lapack', 'lapack-fixed', 'lu_solve', ['128','50'], False),
     'lapack-large': ('lapack', 'lapack-fixed', 'lu_solve', ['1024','3'], False),
+    'fft-startup': ('fftw', 'fftw-fixed', 'process_elapsed', ['1','1024','100','1','estimate'], False),
+    'hdf5-startup': ('hdf5', 'hdf5-fixed', 'process_elapsed', ['@FILE@','128','0','0'], False),
+    'lapack-startup': ('lapack', 'lapack-fixed', 'process_elapsed', ['128','1'], False),
     'fft-pie': ('fftw', 'fftw-fixed', 'process_elapsed', ['1','1024','100','1','estimate'], False),
-    'hdf5-pie': ('hdf5', 'hdf5-fixed', 'process_elapsed', ['@FILE@','16777216','0','0'], False),
+    'hdf5-pie': ('hdf5', 'hdf5-fixed', 'process_elapsed', ['@FILE@','128','0','0'], False),
     'lapack-pie': ('lapack', 'lapack-fixed', 'process_elapsed', ['128','1'], False),
     'fft-mpi': ('fftw-mpi', 'fftw-mpi-fixed', 'execution_maxrank', ['64','100','estimate'], True),
-    'hdf5-collective': ('hdf5-mpi', 'hdf5-mpi-fixed', 'write_collective_maxrank', ['@FILE@','8388608','collective'], True),
-    'hdf5-independent': ('hdf5-mpi', 'hdf5-mpi-fixed', 'write_independent_maxrank', ['@FILE@','8388608','independent'], True)
+    'fft-mpi-small': ('fftw-mpi', 'fftw-mpi-fixed', 'execution_maxrank', ['32','200','estimate'], True),
+    'fft-mpi-large': ('fftw-mpi', 'fftw-mpi-fixed', 'execution_maxrank', ['128','30','estimate'], True),
+    'fft-mpi-plan': ('fftw-mpi', 'fftw-mpi-fixed', 'planning_maxrank', ['64','1','measure'], True),
+    'hdf5-collective': ('hdf5-mpi', 'hdf5-mpi-fixed', 'write_collective_maxrank', ['@FILE@','@MPI_ELEMENTS@','collective'], True),
+    'hdf5-independent': ('hdf5-mpi', 'hdf5-mpi-fixed', 'write_independent_maxrank', ['@FILE@','@MPI_ELEMENTS@','independent'], True),
+    'hdf5-mpi-small': ('hdf5-mpi', 'hdf5-mpi-fixed', 'write_collective_maxrank', ['@FILE@','@MPI_SMALL_ELEMENTS@','collective'], True)
 }
 SELECTED = os.environ.get('WORKLOADS', 'fft-small,hdf5-contiguous,lapack-small').split(',')
 COMPARATORS = os.environ.get('COMPARATORS', 'reference').split(',')
@@ -117,7 +130,28 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
         if not io_dir.is_dir():
             raise ValueError('IO_DIR must be a dedicated existing trial directory')
         filename = io_dir / f'reframe-{self.workload}-{self.comparator}-{session}.h5'
-        arguments = [str(filename) if a == '@FILE@' else a for a in arguments]
+        ranks = int(os.environ.get('MPI_NP','2')) if mpi else 0
+        scaling = 'none'
+        replacements = {'@FILE@': str(filename), '@THREADS@': os.environ.get('FFT_THREADS','4')}
+        if mpi:
+            if ranks<1:
+                raise ValueError('MPI_NP must be positive')
+            scaling = 'strong'
+            if package == 'hdf5-mpi':
+                scaling = os.environ.get('HDF5_SCALING_MODE','strong')
+                if scaling not in ('strong','weak'):
+                    raise ValueError('HDF5_SCALING_MODE must be strong or weak')
+                for marker, global_name, rank_name, default_global, default_rank in (
+                    ('@MPI_ELEMENTS@','MPI_GLOBAL_ELEMENTS','MPI_ELEMENTS_PER_RANK',16777216,8388608),
+                    ('@MPI_SMALL_ELEMENTS@','MPI_GLOBAL_SMALL_ELEMENTS','MPI_SMALL_ELEMENTS_PER_RANK',8192,1024)):
+                    total = int(os.environ.get(global_name,str(default_global)))
+                    if scaling == 'strong' and (total<ranks or total%ranks):
+                        raise ValueError('Global HDF5 elements must divide evenly across ranks')
+                    count = total//ranks if scaling == 'strong' else int(os.environ.get(rank_name,str(default_rank)))
+                    if not 1<=count<=33554432:
+                        raise ValueError('Per-rank HDF5 size is outside caller limits')
+                    replacements[marker] = str(count)
+        arguments = [replacements.get(a,a) for a in arguments]
         self._phase = phase
         command = [str(ROOT/'bench'/'paired.py'), package,
                    str(ROOT/'bench'/driver), self.workload, *arguments]
@@ -129,9 +163,14 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
             'HARDENING_SET': os.environ.get('HARDENING_SET','listed'),
             'FORTIFY_LEVEL': os.environ.get('FORTIFY_LEVEL','2'),
             'COMPARE_EXECUTABLE': str(ROOT/'bench'/f'{package}-minus-pie') if consumer else '',
-            'MPI_NP': os.environ.get('MPI_NP','2') if mpi else '0',
+            'MPI_NP': str(ranks), 'SCALING_MODE': scaling, 'IO_DIR': str(io_dir),
+            'PRIMARY_PHASE': phase,
             'OMP_NUM_THREADS': '1', 'OPENBLAS_NUM_THREADS': '1', 'MKL_NUM_THREADS': '1'
         }
+        for name in ('CAMPAIGN_ID','TRIAL_RUN_LABEL','TRIAL_EXPECTED_NODES',
+                     'RANKS_PER_NODE','CPUSET','THREAD_CPUSET','TRIAL_REGRESSION_LIMIT_PERCENT'):
+            if name in os.environ:
+                self.env_vars[name] = os.environ[name]
         if mpi:
             for name in ('MPI_PREFIX','MPI_LIB_DIRS','MPI_MAP','OMPI_MCA_io',
                          'OMPI_MCA_plm','OMPI_MCA_ras'):
@@ -143,8 +182,9 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
             self.executable_opts = [shlex.quote(arg) for arg in command]
         else:
             self.executable = 'taskset'
+            cpuset = os.environ['THREAD_CPUSET'] if self.workload == 'fft-threads' else os.environ['CPUSET']
             self.executable_opts = [shlex.quote(arg) for arg in
-                                    ['-c', os.environ['CPUSET'], 'python3', *command]]
+                                    ['-c', cpuset, 'python3', *command]]
 
     @sanity_function
     def measurements_completed(self):

@@ -186,7 +186,7 @@ Every run also records `process_elapsed`, including process launch, dynamic load
 
 ```bash
 cat > "$TRIAL_ROOT/bench/paired.py" <<'PY'
-import csv, json, math, os, pathlib, random, shlex, statistics, subprocess, sys, time
+import csv, json, math, os, pathlib, random, re, shlex, statistics, subprocess, sys, time
 package, executable, case, *args = sys.argv[1:]
 root = pathlib.Path(os.environ['TRIAL_ROOT'])
 comparator = os.environ.get('COMPARE', 'reference')
@@ -209,7 +209,7 @@ if mpi_np:
                 '-np', str(mpi_np), '--map-by', os.environ.get('MPI_MAP', 'ppr:1:node'),
                 '--bind-to', 'core', '--mca', 'pml', 'ucx', '--mca', 'btl', '^uct',
                 '-x', 'PATH', '-x', 'LD_LIBRARY_PATH', '-x', 'OMPI_MCA_io']
-    for name in ('UCX_TLS', 'UCX_NET_DEVICES'):
+    for name in ('UCX_TLS', 'UCX_NET_DEVICES','TRIAL_EXPECTED_NODES','RANKS_PER_NODE'):
         if name in os.environ:
             launcher += ['-x', name]
     launcher += shlex.split(os.environ.get('MPI_EXTRA_ARGS', ''))
@@ -245,6 +245,11 @@ def run(profile):
     with (outdir / 'driver.log').open('a') as f:
         f.write(f'profile={profile} driver={drivers[profile]} args={args!r}\n{proc.stdout}{proc.stderr}\n')
     proc.check_returncode()
+    if mpi_np and os.environ.get('TRIAL_EXPECTED_NODES'):
+        placement = re.findall(r'MPI_PLACEMENT nodes=(\d+) ranks=(\d+)', proc.stderr)
+        expected = (int(os.environ['TRIAL_EXPECTED_NODES']), mpi_np)
+        if len(placement)!=1 or tuple(map(int,placement[0]))!=expected:
+            raise RuntimeError('Missing or incorrect MPI placement evidence; rebuild/qualify the caller')
     rows = []
     for phase, seconds, error in csv.reader(proc.stdout.splitlines()):
         seconds, error = float(seconds), float(error)
@@ -291,6 +296,11 @@ for phase in sorted(phases):
                       'bootstrap_95_percent_interval': [100*(samples[250]-1),
                                                         100*(samples[9749]-1)]}
 record = {'package': package, 'case': case, 'comparator': comparator,
+          'primary_phase': os.environ.get('PRIMARY_PHASE',''),
+          'context': {name: os.environ.get(name, '') for name in (
+              'CAMPAIGN_ID','RUN_ID','TRIAL_RUN_LABEL','TRIAL_EXPECTED_NODES','RANKS_PER_NODE',
+              'MPI_NP','MPI_MAP','SCALING_MODE','IO_DIR','CPUSET','THREAD_CPUSET',
+              'SLURM_JOB_ID','SLURM_JOB_NODELIST','TRIAL_REGRESSION_LIMIT_PERCENT')},
           'hardening_set': os.environ.get('HARDENING_SET', 'listed'),
           'fortify_level': int(os.environ.get('FORTIFY_LEVEL', '2')),
           'scope': 'consumer-pie' if other_executable else 'library',

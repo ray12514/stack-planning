@@ -9,7 +9,7 @@
 
 The trial measures the incremental cost of compiler hardening on FFT, I/O, and numerical software. The ISSM is the security reviewer, not an application under test. Published measurements and their limits are recorded in [the companion evidence note](standalone_compiler_hardening_performance_evidence_v1.md).
 
-The executable procedures are in the [standalone runbooks](standalone-hardening/README.md), including GCC bootstrap when 12.5 is absent, package builds, fixed callers, MPI/UCX qualification, and [ReFrame execution/reporting](standalone-hardening/06-reframe.md). The starter workloads are complex FFTs, contiguous/chunked HDF5 I/O, and LU solve; the broader workloads below are later coverage extensions.
+The executable procedures are in the [standalone runbooks](standalone-hardening/README.md), including GCC bootstrap when 12.5 is absent, package builds, fixed callers, MPI/UCX qualification, and [ReFrame execution/reporting](standalone-hardening/06-reframe.md). The [Slurm campaign](standalone-hardening/08-slurm-campaign.md) specifies hypotheses, complex serial/threaded/MPI FFTs, small-dataset and bulk HDF5 I/O, LU solve, short process/PIE comparisons, and 1/2/4/8-node runs. Real FFTs, QR/eigensolvers, compressed I/O and full application cases remain later coverage extensions.
 
 ## Package and compiler selection
 
