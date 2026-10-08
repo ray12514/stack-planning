@@ -4,6 +4,8 @@ Date: 2026-10-06. Target: Linux x86-64 with glibc. Build method: upstream source
 
 Profile update 2026-10-07: the default now matches the supplied list: **strong stack protection, FORTIFY level 2, RELRO/NOW, and executable PIE**. The exact settings and injection points are in [01](01-common.md) and each package's build section. The earlier broader set is an explicit `extended` experiment. Use a new trial root if you already built the earlier full profile; changing the environment does not rebuild old binaries.
 
+Environment update 2026-10-08: begin with [build environment and system dependencies](00-build-environment.md). Required site master modules and the existing Slurm/fabric installation are retained; explicit executable/runtime paths prevent inherited AOCC and MPI selections from contaminating the private builds. UCX and Open MPI are private source builds, not the site's installed UCX/MPI.
+
 ## Download onto the test machine
 
 The current alpha host is [ray12514/stack-planning on GitHub](https://github.com/ray12514/stack-planning/tree/codex/node-build-resources/docs/standalone-hardening), branch **`codex/node-build-resources`**. The runbooks live in `docs/standalone-hardening/`. This repository is public; HTTPS cloning and archive downloads require no GitHub sign-in. `stack-content` is a separate, private repository and does not contain these standalone runbooks.
@@ -55,7 +57,7 @@ rsync -av \
 Use a Bash shell on the Linux build/test system. Follow the command blocks in the runbooks below in order; the Markdown files are procedures, with heredocs that create the actual benchmark sources and ReFrame configuration under `TRIAL_ROOT`.
 
 1. Choose a writable absolute `TRIAL_ROOT` visible at the same path on execution nodes, with no whitespace in the path. Keep the downloaded documentation in its own folder.
-2. Follow 00 to bootstrap GCC 12.5.0 or install a compatible transferred toolchain. GCC 12.5 is assumed absent. A source bootstrap needs a working seed C/C++ compiler and OS development files; 00 covers the route when no compiler exists.
+2. Follow the environment procedure to establish required master modules and explicit search paths, then 00 to bootstrap GCC 12.5.0 or install a compatible transferred toolchain. GCC 12.5 is assumed absent. A source bootstrap needs a working seed C/C++ compiler and OS development files; 00 covers the route when no compiler exists.
 3. Follow 01 to create and qualify the explicit flags before package builds.
 4. Build the serial package variants and fixed callers with 02–04. Build and qualify Open MPI + UCX with 00b, then follow 05 for parallel FFTW/HDF5.
 5. Follow 06 sections 1–3 to install ReFrame and create its configuration and checks. Use its serial or parallel launch procedure inside a compute allocation.
@@ -89,6 +91,7 @@ The terminal and `console.log` show correctness status, full/reference seconds, 
 
 | Runbook | Outcome |
 |---|---|
+| [Build environment and system dependencies](00-build-environment.md) | Required master modules, explicit search paths, removal of inherited compiler/MPI overrides, and existing Slurm/fabric provenance |
 | [00 — Bootstrap GCC 12.5.0](00-gcc-bootstrap.md) | A private GCC C/C++/Fortran installation, binutils, CMake, verified package sources, and a reusable environment file |
 | [01 — Common hardening profiles and measurement](01-common.md) | Full profile, optimized reference, individual control removal, compiler qualification, and paired timing procedure |
 | [00b — Open MPI 4.1.8 + UCX 1.16.0](00b-openmpi-ucx.md) | One fixed GNU-built MPI/UCX installation, wrapper checks, and a two-node transport qualification |
@@ -117,6 +120,7 @@ The primary package comparisons use one fixed benchmark executable while switchi
 
 * A writable absolute `TRIAL_ROOT`, visible on the compute node, with no whitespace in its path.
 * A bootstrap C/C++ compiler or a compatible approved GCC binary installation when no compiler exists.
+* Required master modules, the existing Slurm client directory, and explicit approved utility/runtime directories. Do not inherit an AOCC/MPI environment wholesale.
 * A compute allocation, build parallelism, and one recorded CPU target. The default is `x86-64`, portable across x86-64 nodes; select `x86-64-v3` only when every execution node supports it. Do not use `-march=native` on a different login-node CPU.
 * A test filesystem directory, CPU affinity list within the allocation, and an acceptable regression threshold chosen before results.
 * `HARDENING_SET=listed` and `FORTIFY_LEVEL=2` for the supplied list. Qualify compiler acceptance and actual artifacts before measurements; select the extended set only for a separate experiment.

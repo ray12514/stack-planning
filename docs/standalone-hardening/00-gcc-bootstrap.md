@@ -1,5 +1,7 @@
 # 00 — Bootstrap GCC 12.5.0 and stage sources
 
+Prerequisite: [build environment and system dependencies](00-build-environment.md). Keep the required site master modules and create its explicit `site-env.sh` baseline before this bootstrap.
+
 ## 1. Establish a bootstrap route
 
 GCC 12.5.0 is assumed absent. Building it from source still needs a working native C/C++ compiler supporting C++11, libc development headers/startup objects, and an assembler/linker. An existing Fortran compiler is not required for the normal three-stage bootstrap. See [GCC prerequisites](https://gcc.gnu.org/install/prerequisites.html) and [out-of-tree configuration](https://gcc.gnu.org/install/configure.html).
@@ -21,15 +23,22 @@ bash
 set -euo pipefail
 export TRIAL_ROOT=/absolute/path/to/hardening-trial
 export JOBS=4
-export SEED_CC=/absolute/path/to/seed/bin/gcc
-export SEED_CXX=/absolute/path/to/seed/bin/g++
+: "${SEED_CC:?Set the absolute seed C path in the environment procedure}"
+: "${SEED_CXX:?Set the absolute seed C++ path in the environment procedure}"
 case "$TRIAL_ROOT" in /*) ;; *) exit 1 ;; esac
 case "$TRIAL_ROOT" in *[[:space:]]*) exit 1 ;; esac
 mkdir -p "$TRIAL_ROOT"/{downloads,src,build,toolchains,tools,install,logs,bench,results}
 export GCC_PREFIX="$TRIAL_ROOT/toolchains/gcc-12.5.0"
 export BINUTILS_PREFIX="$TRIAL_ROOT/toolchains/binutils-2.44"
-unset CC CXX FC F77 CFLAGS CXXFLAGS FFLAGS FCFLAGS CPPFLAGS LDFLAGS
-unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH
+source "$TRIAL_ROOT/site-env.sh"
+# The seed is needed only for the bootstrap, not for the payload builds.
+export PATH="$(dirname "$SEED_CC"):$(dirname "$SEED_CXX"):$TRIAL_BASE_PATH"
+export LD_LIBRARY_PATH="$TRIAL_SITE_LIB_DIRS"
+if test -n "${TRIAL_SEED_LIB_DIRS:-}"; then
+    export LD_LIBRARY_PATH="$TRIAL_SEED_LIB_DIRS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
+if test -z "$LD_LIBRARY_PATH"; then unset LD_LIBRARY_PATH; fi
+hash -r
 for tool in make tar xz bzip2 bash awk sed diff sha256sum; do
     command -v "$tool"
 done
@@ -134,7 +143,8 @@ make install 2>&1 | tee "$TRIAL_ROOT/logs/gcc-install.log"
 ## 5. Activate GCC and establish its runtime paths
 
 ```bash
-export PATH="$GCC_PREFIX/bin:$BINUTILS_PREFIX/bin:$PATH"
+source "$TRIAL_ROOT/site-env.sh"
+export PATH="$GCC_PREFIX/bin:$BINUTILS_PREFIX/bin:$TRIAL_BASE_PATH"
 export CC="$GCC_PREFIX/bin/gcc"
 export CXX="$GCC_PREFIX/bin/g++"
 export FC="$GCC_PREFIX/bin/gfortran"
@@ -143,7 +153,8 @@ test "$("$CXX" -dumpfullversion)" = 12.5.0
 test "$("$FC" -dumpfullversion)" = 12.5.0
 export GCC_LIB_DIRS
 GCC_LIB_DIRS="$(dirname "$("$FC" -print-file-name=libgfortran.so)"):$(dirname "$("$CXX" -print-file-name=libstdc++.so)"):$(dirname "$("$CC" -print-file-name=libgcc_s.so.1)")"
-export LD_LIBRARY_PATH="$GCC_LIB_DIRS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="$GCC_LIB_DIRS${TRIAL_SITE_LIB_DIRS:+:$TRIAL_SITE_LIB_DIRS}"
+hash -r
 "$CC" -v 2> "$TRIAL_ROOT/logs/gcc-identity.txt"
 "$CC" -print-prog-name=as >> "$TRIAL_ROOT/logs/gcc-identity.txt"
 "$CC" -print-prog-name=ld >> "$TRIAL_ROOT/logs/gcc-identity.txt"
@@ -201,12 +212,13 @@ export CF_MODE=full
     printf 'export %s=%q\n' "$name" "${!name}"
   done
   cat <<'ENV'
-export PATH="$GCC_PREFIX/bin:$BINUTILS_PREFIX/bin:$PATH"
+source "$TRIAL_ROOT/site-env.sh"
+export PATH="$GCC_PREFIX/bin:$BINUTILS_PREFIX/bin:$TRIAL_BASE_PATH"
 export CC="$GCC_PREFIX/bin/gcc"
 export CXX="$GCC_PREFIX/bin/g++"
 export FC="$GCC_PREFIX/bin/gfortran"
-export LD_LIBRARY_PATH="$GCC_LIB_DIRS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH
+export LD_LIBRARY_PATH="$GCC_LIB_DIRS${TRIAL_SITE_LIB_DIRS:+:$TRIAL_SITE_LIB_DIRS}"
+hash -r
 ENV
 } > "$TRIAL_ROOT/env.sh"
 ```

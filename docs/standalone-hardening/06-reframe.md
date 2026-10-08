@@ -123,6 +123,7 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
                    str(ROOT/'bench'/driver), self.workload, *arguments]
         self.env_vars = {
             'TRIAL_ROOT': str(ROOT), 'GCC_LIB_DIRS': os.environ['GCC_LIB_DIRS'],
+            'TRIAL_SITE_LIB_DIRS': os.environ.get('TRIAL_SITE_LIB_DIRS',''),
             'RESULT_ROOT': str(ROOT/'results'/'reframe'/session/'paired'),
             'COMPARE': self.comparator, 'PAIRS': os.environ.get('PAIRS','10'),
             'HARDENING_SET': os.environ.get('HARDENING_SET','listed'),
@@ -132,7 +133,8 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
             'OMP_NUM_THREADS': '1', 'OPENBLAS_NUM_THREADS': '1', 'MKL_NUM_THREADS': '1'
         }
         if mpi:
-            for name in ('MPI_PREFIX','MPI_LIB_DIRS','MPI_MAP','OMPI_MCA_io'):
+            for name in ('MPI_PREFIX','MPI_LIB_DIRS','MPI_MAP','OMPI_MCA_io',
+                         'OMPI_MCA_plm','OMPI_MCA_ras'):
                 self.env_vars[name] = os.environ[name]
             for name in ('MPI_EXTRA_ARGS','UCX_TLS','UCX_NET_DEVICES'):
                 if name in os.environ:

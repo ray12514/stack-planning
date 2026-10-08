@@ -220,7 +220,8 @@ for profile in profiles:
     env = os.environ.copy()
     runtime = os.environ.get('MPI_LIB_DIRS', '')
     env['LD_LIBRARY_PATH'] = ':'.join(x for x in
-        (str(prefix), runtime, os.environ['GCC_LIB_DIRS']) if x)
+        (str(prefix), runtime, os.environ['GCC_LIB_DIRS'],
+         os.environ.get('TRIAL_SITE_LIB_DIRS', '')) if x)
     envs[profile] = env
 result_root = pathlib.Path(os.environ.get('RESULT_ROOT', str(root / 'results')))
 outdir = result_root / package / case / comparator

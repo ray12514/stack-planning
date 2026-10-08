@@ -2,6 +2,21 @@
 
 Run after [00 — GCC bootstrap](00-gcc-bootstrap.md) and [01 — profile qualification](01-common.md), before the MPI FFTW/HDF5 builds. These versions match `cse-pilot/site-values.example.yaml`. Build this dependency stack once and keep it unchanged across all package variants. This isolates FFTW/HDF5 hardening; measuring MPI/UCX hardening itself would require a separate matrix.
 
+## System and trial components
+
+| Component | This procedure uses |
+|---|---|
+| GCC/binutils | Private installations created by 00 |
+| Open MPI 4.1.8 | Private source build using the private GCC C/C++/Fortran drivers |
+| UCX 1.16.0 | Private source build; Open MPI receives its exact prefix through `--with-ucx` |
+| Slurm | Existing site clients, allocation, configuration, and daemons; no Slurm source build or update |
+| PMIx, hwloc, libevent | Open MPI's bundled copies; site versions are not selected |
+| libc, development files, fabric drivers and optional verbs/rdmacm | Existing approved OS/site prerequisites; no package installation or driver changes |
+
+The versions preserve the CSE trial comparison; they are not a claim that 4.1.8 is the newest or universally preferred MPI. This standalone recipe uses `mpirun` inside the site's Slurm allocation. It does not duplicate the full CSE Spack MPI spec or add direct `srun --mpi=...` application launch with a site PMI/PMIx library. Direct launch would require separate site integration and qualification. [Open MPI v4 Slurm integration](https://www.open-mpi.org/faq/?category=slurm)
+
+Follow [the environment procedure](00-build-environment.md) to retain required master modules while removing inherited AOCC/MPI paths and overrides. Rebuild from fresh directories when changing the environment; existing configure/CMake caches can retain old dependency paths.
+
 ## 1. Stage exact MPI sources
 
 Use Open MPI's official release archive, not GitHub's automatically generated source snapshot. Stage/transfer these like the other sources when the test system is offline.
@@ -67,7 +82,7 @@ mkdir -p "$build" "$TRIAL_ROOT/logs/ucx-fixed"
   make install 2>&1 | tee "$TRIAL_ROOT/logs/ucx-fixed/install.log"
   cp config.log "$TRIAL_ROOT/logs/ucx-fixed/config.log"
 )
-export LD_LIBRARY_PATH="$UCX_PREFIX/lib:$GCC_LIB_DIRS"
+export LD_LIBRARY_PATH="$UCX_PREFIX/lib:$GCC_LIB_DIRS${TRIAL_SITE_LIB_DIRS:+:$TRIAL_SITE_LIB_DIRS}"
 "$UCX_PREFIX/bin/ucx_info" -v > "$TRIAL_ROOT/logs/ucx-fixed/version.txt"
 "$UCX_PREFIX/bin/ucx_info" -d > "$TRIAL_ROOT/logs/ucx-fixed/devices.txt"
 ```
@@ -76,7 +91,7 @@ Review configure warnings for unrecognized options and confirm threading support
 
 ## 4. Build Open MPI once against UCX
 
-The example assumes Slurm, as in the existing trial examples. For another scheduler, replace `--with-slurm` with its supported configuration before building. Open MPI supplies bundled hwloc, libevent, and PMIx, so their development packages are not assumed present. ROMIO is enabled and selected consistently for the HDF5 MPI-IO phase.
+The example assumes Slurm, as in the existing trial examples. Confirm the recorded `SLURM_BINDIR` contains the existing site's `srun` and `salloc`; preserve `SLURM_*` settings from the allocation and required master modules. `--with-slurm` requests Open MPI's Slurm integration; it does not install Slurm. For another scheduler, replace that configuration before building. Open MPI supplies bundled hwloc, libevent, and PMIx, so their development packages are not assumed present. ROMIO is enabled and selected consistently for the HDF5 MPI-IO phase.
 
 ```bash
 profile_flags full
@@ -103,28 +118,43 @@ mkdir -p "$build" "$TRIAL_ROOT/logs/openmpi-fixed"
 )
 export MPI_LIB_DIRS="$MPI_PREFIX/lib:$UCX_PREFIX/lib"
 {
+  printf '%s\n' 'source "$TRIAL_ROOT/env.sh"'
   for name in MPI_PREFIX UCX_PREFIX MPI_LIB_DIRS; do
     printf 'export %s=%q\n' "$name" "${!name}"
   done
   cat <<'ENV'
-export PATH="$MPI_PREFIX/bin:$UCX_PREFIX/bin:$PATH"
-export LD_LIBRARY_PATH="$MPI_LIB_DIRS:$GCC_LIB_DIRS"
+export PATH="$MPI_PREFIX/bin:$UCX_PREFIX/bin:$GCC_PREFIX/bin:$BINUTILS_PREFIX/bin:$TRIAL_BASE_PATH"
+export LD_LIBRARY_PATH="$MPI_LIB_DIRS:$GCC_LIB_DIRS${TRIAL_SITE_LIB_DIRS:+:$TRIAL_SITE_LIB_DIRS}"
 export OMPI_MCA_pml=ucx
 export OMPI_MCA_btl='^uct'
 export OMPI_MCA_io=romio321
+export OMPI_MCA_plm=slurm
+export OMPI_MCA_ras=slurm
+hash -r
 ENV
 } > "$TRIAL_ROOT/mpi-env.sh"
 source "$TRIAL_ROOT/mpi-env.sh"
 "$MPI_PREFIX/bin/ompi_info" --all > "$TRIAL_ROOT/logs/openmpi-fixed/info.txt"
 "$MPI_PREFIX/bin/ompi_info" --param pml ucx
 "$MPI_PREFIX/bin/ompi_info" --param io all
+"$MPI_PREFIX/bin/ompi_info" --param plm slurm
+"$MPI_PREFIX/bin/ompi_info" --param ras slurm
 "$MPI_PREFIX/bin/mpicc" --showme:command
 "$MPI_PREFIX/bin/mpicc" --showme:compile
 "$MPI_PREFIX/bin/mpicc" --showme:link
 "$MPI_PREFIX/bin/mpifort" --showme:command
+test "$(command -v mpirun)" = "$MPI_PREFIX/bin/mpirun"
+test "$(command -v mpicc)" = "$MPI_PREFIX/bin/mpicc"
+test "$("$MPI_PREFIX/bin/mpicc" --showme:command)" = "$CC"
+test "$("$MPI_PREFIX/bin/mpifort" --showme:command)" = "$FC"
+ldd "$MPI_PREFIX/bin/mpirun" > "$TRIAL_ROOT/logs/openmpi-fixed/launcher-libraries.txt"
+ldd "$MPI_PREFIX/lib/openmpi/mca_pml_ucx.so" \
+  > "$TRIAL_ROOT/logs/openmpi-fixed/ucx-component-libraries.txt"
 ```
 
-The wrapper commands must name the private GCC 12.5.0 drivers. Wrapper compile flags must not force an experiment control into every consuming package: hardening Open MPI itself should not silently inject its hardening flags into callers. Inspect the wrapper-data files and `--showme:*` output. If flags are injected, correct the wrapper configuration and requalify before the package matrix. Verify the `ucx` PML and `romio321` I/O components are present; `ompi_info` success alone is not a data-transfer test.
+The wrapper commands must name the private GCC 12.5.0 drivers. Wrapper compile flags must not force an experiment control into every consuming package: hardening Open MPI itself should not silently inject its hardening flags into callers. Inspect the wrapper-data files and `--showme:*` output. If flags are injected, correct the wrapper configuration and requalify before the package matrix. Verify the `ucx` PML, `romio321` I/O, and Slurm launch/allocation components are present. The UCX component's `ldd` output must resolve `libucp`, `libuct`, `libucs`, and other UCX libraries to the private UCX prefix, with no missing dependencies or site MPI/AOCC substitutions. Inspect any user/site MCA parameter files for component-path overrides. `ompi_info` success alone is not a data-transfer test.
+
+`mpi-env.sh` reestablishes the explicit baseline before activating MPI. Set recorded `UCX_TLS`, `UCX_NET_DEVICES`, and any deliberate runtime tuning **after** sourcing it. The Slurm component selections require a real allocation and prevent a successful SSH fallback from concealing missing Slurm integration. Keep these choices identical across package arms.
 
 ## 5. Verify two-node execution before benchmarking
 
