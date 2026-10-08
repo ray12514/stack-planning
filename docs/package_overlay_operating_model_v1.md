@@ -45,6 +45,17 @@ inventory and the selected environment's overlay solve checks. Startup control
 refresh may deliver these repair controls while preserving a stale inventory;
 it does not silently register the changed recipes.
 
+Permission maintenance follows the operation's output boundary. Concretization
+repairs only selected environment and recovery files; overlay edits repair
+recipes and their journal. Build/fetch/module batches repair owned shared
+output at batch exit under the finite-operation lock. Status and shell exit
+check declared roots without recursively repairing outputs. With writers
+stopped, each owner runs `cse-build login
+permissions` before another builder resumes. The release `verify` gate checks
+owned and foreign-owned entries without repair. Installed prefixes retain
+Spack's package permission policy. An overlay inventory error does not imply a
+permission defect. Scoped repair never clears an inventory or pending-solve gate.
+
 All locks are inspected for recipe impact, but only the explicitly selected
 lock is reconcretized. Affected unselected locks are flagged for their later
 build; existing installed prefixes/modules remain usable. Resume reuses matching
