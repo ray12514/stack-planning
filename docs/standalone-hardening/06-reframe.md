@@ -53,7 +53,7 @@ The environment names the compiler for provenance. These are run-only checks; th
 
 Initially `COMPARATORS=reference`. After installing selected listed-set removals, use e.g. `COMPARATORS=reference,minus-stack,minus-fortify,minus-relro,minus-now`. ReFrame expands the workload/comparator combinations. `minus-fortify` is skipped for Fortran LAPACK; the extended set also skips `minus-init` for LAPACK. Use [07](07-consumer-pie.md) for the executable PIE comparison.
 
-The primary HDF5 metric shown in the table is write/create/close. Read timing is retained in each summary and raw CSV. FFTW's primary metric is execution; planning is retained separately. One full/comparator check includes the warmups and all `PAIRS` independent timing pairs.
+The primary HDF5 metric shown in the table is write/create/close. Read timing is retained in each summary and raw CSV. FFTW's primary metric is execution; planning is retained separately. One full/comparator check includes the warmups and all `PAIRS` fresh process pairs within the same allocation. Kernel iterations within a process and MPI ranks are not additional statistical samples. Arithmetic means and sample standard deviations are retained in summaries; the terminal's headline remains the paired geometric mean and its interval.
 
 ```bash
 cat > "$TRIAL_ROOT/reframe/hardening.py" <<'PY'
@@ -167,7 +167,7 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
             'PRIMARY_PHASE': phase,
             'OMP_NUM_THREADS': '1', 'OPENBLAS_NUM_THREADS': '1', 'MKL_NUM_THREADS': '1'
         }
-        for name in ('CAMPAIGN_ID','TRIAL_RUN_LABEL','TRIAL_EXPECTED_NODES',
+        for name in ('CAMPAIGN_ID','TRIAL_RUN_LABEL','TRIAL_REPLICATE_ID','TRIAL_EXPECTED_NODES',
                      'RANKS_PER_NODE','CPUSET','THREAD_CPUSET','TRIAL_REGRESSION_LIMIT_PERCENT'):
             if name in os.environ:
                 self.env_vars[name] = os.environ[name]

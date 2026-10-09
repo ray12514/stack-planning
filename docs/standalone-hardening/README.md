@@ -14,6 +14,8 @@ The [Slurm campaign plan](08-slurm-campaign.md) defines hypotheses and the actua
 
 The [results presentation plan](09-results-presentation.md) includes a five-page PDF draft, illustrative plots, native ReFrame history options and a possible Grafana route. All example chart values are invented; use the collected campaign outputs for actual performance conclusions.
 
+The [repeatability plan](08-slurm-campaign.md#repeatability-and-a-manageable-first-assessment) starts with a 10-pair qualification pilot, then 20 pairs per case across three allocations on the initial 1/2-node coverage. Seek different homogeneous hosts and record actual placement. `ALLOCATION_REPEATS` controls batch repetitions; summaries and CSV retain arithmetic means/sample standard deviations alongside the paired effect and interval. Regenerate `paired.py`, ReFrame definitions, batch scripts and the collector from 01/06/08 to use these additions; this update does not require rebuilding unchanged library/caller binaries. Keep allocation estimates separate in the report.
+
 ## Download onto the test machine
 
 The current alpha host is [ray12514/stack-planning on GitHub](https://github.com/ray12514/stack-planning/tree/codex/node-build-resources/docs/standalone-hardening), branch **`codex/node-build-resources`**. The runbooks live in `docs/standalone-hardening/`. This repository is public; HTTPS cloning and archive downloads require no GitHub sign-in. `stack-content` is a separate, private repository and does not contain these standalone runbooks.

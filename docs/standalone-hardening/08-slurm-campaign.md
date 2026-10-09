@@ -38,9 +38,37 @@ Do not sum removal percentages: controls can interact. The library and caller co
 
 Default node counts are **1, 2, 4, and 8**, initially one rank per node. One-node MPI separates MPI/library effects from communication between nodes. An optional four-ranks-per-node lane tests more local concurrency; it is a separately labelled placement, not a continuation of the one-rank lane. The initial maximum is 32 ranks, compatible with the 32³ FFT's slab distribution. Scaling curves across allocations also depend on actual node/fabric conditions; the hardening contrast is paired within each allocation.
 
-The single-node job runs library cases and then PIE cases. Each MPI job runs one node-count/rank-layout/scaling condition sequentially. MPI FFTs always hold global size fixed; the weak-scaling jobs run HDF5 only. Every ReFrame case warms both arms, then alternates full/comparator order over `PAIRS` independent process pairs. It retains all phases, including reads, planning, and whole-process time, even when the terminal table shows one primary phase.
+The single-node job runs library cases and then PIE cases. Each MPI job runs one node-count/rank-layout/scaling condition sequentially. MPI FFTs always hold global size fixed; the weak-scaling jobs run HDF5 only. Every ReFrame case warms both arms, then alternates full/comparator order over `PAIRS` fresh process pairs. It retains all phases, including reads, planning, and whole-process time, even when the terminal table shows one primary phase.
 
-Use ten pairs for a pilot. Inspect elapsed durations and variability before a confirmation campaign; use more pairs if the interval cannot resolve the agreed limit. Increase overly short kernel repetitions symmetrically and record the new inputs/procedure snapshot. Keep short startup cases short. Replicate an apparent regression in a new allocation with the same node class and configuration. No finite sweep proves that every scale or application is unaffected.
+### Repeatability and a manageable first assessment
+
+Use three levels of repetition and keep their counts separate:
+
+| Level | What repeats | What it establishes |
+|---|---|---|
+| Kernel iterations | A driver's FFT/LU loop or dataset operations inside one process | Enough timed work to reduce timer noise; one process result, not one statistical sample per iteration |
+| Process pairs | A fresh full and reference invocation on the same allocated CPU/rank layout | The paired hardening comparison within that allocation; `PAIRS=20` means 20 observations from 40 timed invocations plus two untimed warmups |
+| Allocation repeats | New Slurm jobs, with recorded actual hosts | Sensitivity to time/environment, and to hosts when different nodes are actually assigned; `ALLOCATION_REPEATS` controls this level |
+
+These counts are practical starting budgets, not a guarantee of statistical power:
+
+| Stage | Pairs per case | Allocation repeats | Initial coverage |
+|---|---|---|---|
+| Qualification/pilot | 10 | 1 | `reference`, serial/threaded and 1/2-node MPI, one rank per node, strong scaling; verify correctness, durations and noise |
+| First assessment | 20 | 3 | The same conditions; retain each allocation's estimate, interval and spread separately |
+| Focused follow-up | Predetermined from pilot variability and useful precision | At least 3 for the selected condition | Only unresolved or repeatable interesting cases, relevant control removals, or 4/8-node and weak-scaling questions |
+
+For the first assessment, seek **at least two distinct physical hosts of the same CPU/node class** for the serial runs and at least two distinct node sets for each multi-node condition, with jobs at more than one time. Different hosts matter even for a single-core test: frequency, firmware, memory placement, and shared activity can differ. Keep full/reference paired on the same host and allocated CPU within every pair; do not place the two arms on different nodes. Keep the compiler, libraries, inputs, affinity, thread/rank layout, filesystem and cache/durability policy fixed. Record core placement and node inventory. Homogeneous nodes establish this node class's scope; test another architecture as a separate series.
+
+`ALLOCATION_REPEATS=3` submits three separate allocations per condition but does **not** guarantee different hosts. Inspect `allocated-hosts.txt`, the CSV's `node_list`, and Slurm accounting. If all repeats use the same hosts, label them as repetition on those hosts and schedule additional selected runs on different site-approved nodes using the site's allocation controls. Do not claim a check across nodes from job count alone. A simultaneous multi-node FFT/MPI run changes the workload's scale; it does not replace repeating a serial workload on another host.
+
+Use the pilot to choose timed work long enough for stable kernel measurements, increasing repetitions symmetrically and recording changed arguments. Keep startup cases short, because process cost is their subject. For noisy HDF5 shared-storage cases, add the already-supported dedicated local-storage case or repeat at another time; preserve cache/durability labels. Do not drop slow observations merely because they weaken the conclusion. Keep failed/invalid measurements with reasons and rerun the complete affected condition after a documented procedural fault.
+
+Before the first assessment, fix its workload/phase list, pair and allocation counts, and any operational slowdown limit. Complete that planned batch before interpreting it. If precision remains inadequate, define a separate follow-up batch with a fixed larger budget and report both batches; do not keep sampling until an interval happens to cross a desired boundary. More repetitions of one noisy allocation do not replace checks on other hosts. Primary `full/reference` comparisons answer the overall cost question; removals and secondary phases identify possible causes and stay exploratory.
+
+Report per-allocation paired geometric mean changes and 95% intervals, absolute times, arithmetic mean/sample standard deviation, process-pair count, allocation count and distinct-host count. Show the three allocation estimates as separate points or rows. Do not pool their process pairs, average interval endpoints, or multiply the sample count by kernel iterations or MPI ranks to create a combined interval. A future combined analysis must account for allocation/node grouping. Consistent estimates support a bounded finding; disagreement across allocations calls for investigation. An interval including zero means a zero effect is compatible with these observations, not that overhead is proved absent. No finite sweep proves every scale or application is unaffected.
+
+The distinction between repetitions inside runs and across sessions follows measurement practice in [NIST's defensive-code experiment, section 6.6](https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.1860.pdf) and [Kalibera and Jones on performance effect-size intervals](https://www.cs.kent.ac.uk/pubs/2012/3233/content.pdf). These sources support preserving levels of variability; they do not prescribe the trial's 10/20-pair or three-allocation budgets.
 
 ## 3. Prepare the campaign inputs
 
@@ -65,6 +93,7 @@ export CAMPAIGN_COMPARATORS=reference
 export NODE_COUNTS='1 2 4 8'
 export RANK_LAYOUTS='1'  # optional separate lane: '1 4'
 export RUN_WEAK=1 PAIRS=10 TRIAL_WALLTIME=02:00:00 TRIAL_EXCLUSIVE=1
+export ALLOCATION_REPEATS=1  # qualification; use 3 for the first assessment
 export TRIAL_REGRESSION_LIMIT_PERCENT=''  # agree a workload limit before results, or leave descriptive
 test -f "$TRIAL_MODULE_SETUP"
 mkdir -p "$SHARED_IO_DIR" "$TRIAL_ROOT/reframe"
@@ -111,7 +140,8 @@ export TRIAL_EXPECTED_NODES=${2:?node count} RANKS_PER_NODE=${3:?ranks per node}
 source "$TRIAL_MODULE_SETUP"
 source "$TRIAL_ROOT/env.sh"
 export REFRAME="$TRIAL_ROOT/tools/reframe-venv/bin/reframe"
-export TRIAL_RUN_LABEL="$phase-n${TRIAL_EXPECTED_NODES}-rpn${RANKS_PER_NODE}"
+export TRIAL_REPLICATE_ID=${TRIAL_REPLICATE_ID:-1}
+export TRIAL_RUN_LABEL="$phase-n${TRIAL_EXPECTED_NODES}-rpn${RANKS_PER_NODE}-rep${TRIAL_REPLICATE_ID}"
 dest="$TRIAL_ROOT/results/campaigns/$CAMPAIGN_ID/$TRIAL_RUN_LABEL-$SLURM_JOB_ID"
 mkdir -p "$dest"
 test "${SLURM_JOB_NUM_NODES:?}" -eq "$TRIAL_EXPECTED_NODES"
@@ -186,6 +216,7 @@ cat > "$TRIAL_ROOT/reframe/submit-campaign.sh" <<'SH'
 #!/bin/bash
 set -euo pipefail
 : "${SLURM_ACCOUNT:?}" "${SLURM_PARTITION:?}" "${TRIAL_MODULE_SETUP:?}" "${SHARED_IO_DIR:?}"
+export ALLOCATION_REPEATS=${ALLOCATION_REPEATS:-1}
 test -f "$TRIAL_MODULE_SETUP"
 if test -n "${TRIAL_MPI_TUNING:-}"; then test -f "$TRIAL_MPI_TUNING"; fi
 source "$TRIAL_MODULE_SETUP"
@@ -213,8 +244,10 @@ test "${#nodes_list[@]}" -gt 0 && test "${#layouts[@]}" -gt 0
 for n in "${nodes_list[@]}"; do case "$n" in 1|2|4|8) ;; *) exit 2 ;; esac; done
 for r in "${layouts[@]}"; do case "$r" in 1|4) ;; *) exit 2 ;; esac; done
 python3 - <<'PY'
-import math, os
+import math, os, re
 if int(os.environ['PAIRS'])<2: raise SystemExit('PAIRS must be at least two')
+if not re.fullmatch(r'[1-9][0-9]*',os.environ['ALLOCATION_REPEATS']):
+    raise SystemExit('ALLOCATION_REPEATS must be a positive decimal integer without leading zeros')
 limit=os.environ.get('TRIAL_REGRESSION_LIMIT_PERCENT','')
 if limit and (not math.isfinite(float(limit)) or float(limit)<0):
     raise SystemExit('The agreed regression limit must be finite and nonnegative')
@@ -226,14 +259,14 @@ mkdir -p "$dir"
 python3 - "$dir/inputs.json" <<'PY'
 import json, os, pathlib, sys
 names=('CAMPAIGN_ID','CAMPAIGN_COMPARATORS','NODE_COUNTS','RANK_LAYOUTS','RUN_WEAK',
-       'PAIRS','TRIAL_WALLTIME','TRIAL_EXCLUSIVE','TRIAL_REGRESSION_LIMIT_PERCENT',
+       'PAIRS','ALLOCATION_REPEATS','TRIAL_WALLTIME','TRIAL_EXCLUSIVE','TRIAL_REGRESSION_LIMIT_PERCENT',
        'SLURM_ACCOUNT','SLURM_PARTITION','SLURM_CONSTRAINT','SHARED_IO_DIR',
        'TRIAL_LOCAL_IO_DIR','TRIAL_MODULE_SETUP','TRIAL_MPI_TUNING',
        'MPI_GLOBAL_ELEMENTS','MPI_GLOBAL_SMALL_ELEMENTS',
        'MPI_ELEMENTS_PER_RANK','MPI_SMALL_ELEMENTS_PER_RANK')
 pathlib.Path(sys.argv[1]).write_text(json.dumps({n:os.environ.get(n,'') for n in names},indent=2)+'\n')
 PY
-printf 'job_id\tphase\tnodes\tranks_per_node\n' > "$dir/jobs.tsv"
+printf 'job_id\tphase\tnodes\tranks_per_node\treplicate\n' > "$dir/jobs.tsv"
 common=(--parsable --account="$SLURM_ACCOUNT" --partition="$SLURM_PARTITION"
         --time="$TRIAL_WALLTIME" --export=ALL --chdir="$TRIAL_ROOT")
 if test -n "${SLURM_CONSTRAINT:-}"; then common+=(--constraint="$SLURM_CONSTRAINT"); fi
@@ -242,20 +275,23 @@ dependency=()
 submit() {
     local phase=$1 nodes=$2 rpn=$3 cpus=$4 response id
     response=$("$SLURM_BINDIR/sbatch" "${common[@]}" ${dependency[@]+"${dependency[@]}"} \
-      --job-name="hardening-$phase-${nodes}n-${rpn}rpn" \
+      --job-name="hardening-$phase-${nodes}n-${rpn}rpn-rep$TRIAL_REPLICATE_ID" \
       --nodes="$nodes" --ntasks="$((nodes*rpn))" --ntasks-per-node="$rpn" \
       --cpus-per-task="$cpus" --output="$dir/%j.out" --error="$dir/%j.err" \
       "$TRIAL_ROOT/reframe/campaign-job.sh" "$phase" "$nodes" "$rpn")
     id=${response%%;*}
     [[ "$id" =~ ^[0-9]+$ ]]
-    printf '%s\t%s\t%s\t%s\n' "$id" "$phase" "$nodes" "$rpn" >> "$dir/jobs.tsv"
+    printf '%s\t%s\t%s\t%s\t%s\n' "$id" "$phase" "$nodes" "$rpn" "$TRIAL_REPLICATE_ID" >> "$dir/jobs.tsv"
     dependency=(--dependency="afterok:$id" --kill-on-invalid-dep=yes)
 }
-submit serial 1 1 4
-for rpn in "${layouts[@]}"; do
-    for nodes in "${nodes_list[@]}"; do
-        submit mpi-strong "$nodes" "$rpn" 1
-        if test "${RUN_WEAK:-1}" = 1; then submit mpi-weak "$nodes" "$rpn" 1; fi
+for ((repeat=1; repeat<=ALLOCATION_REPEATS; repeat++)); do
+    export TRIAL_REPLICATE_ID=$repeat
+    submit serial 1 1 4
+    for rpn in "${layouts[@]}"; do
+        for nodes in "${nodes_list[@]}"; do
+            submit mpi-strong "$nodes" "$rpn" 1
+            if test "${RUN_WEAK:-1}" = 1; then submit mpi-weak "$nodes" "$rpn" 1; fi
+        done
     done
 done
 printf 'Campaign: %s\nManifest: %s/jobs.tsv\n' "$CAMPAIGN_ID" "$dir"
@@ -264,7 +300,15 @@ chmod +x "$TRIAL_ROOT/reframe/submit-campaign.sh"
 /bin/bash "$TRIAL_ROOT/reframe/submit-campaign.sh"
 ```
 
-For a smaller qualification campaign, first set `NODE_COUNTS='1 2'`, `RUN_WEAK=0`, and `CAMPAIGN_COMPARATORS=reference`. Then submit the full 1/2/4/8-node campaign with the chosen pairs and comparators. Submitting is asynchronous; it is not evidence that the jobs completed. Use the printed campaign ID for collection. Keep the trial tree fixed while jobs are queued/running; do not rebuild callers/libraries or edit generated configurations mid-campaign. Retain the procedure commit SHA with `inputs.json`. Cancel an unwanted queued campaign with the site's normal `scancel` procedure using its manifest's job IDs.
+For qualification, set `NODE_COUNTS='1 2'`, `RUN_WEAK=0`, `CAMPAIGN_COMPARATORS=reference`, `PAIRS=10`, and `ALLOCATION_REPEATS=1`: this submits three jobs. After inspecting that pilot, the following settings submit nine jobs for the first assessment, with 20 pairs per case and three allocation repeats. An assessment job still includes the serial/threaded/startup/PIE groups defined above; repeat selected narrower cases through 06 when investigating a particular observation.
+
+```bash
+export NODE_COUNTS='1 2' RANK_LAYOUTS='1' RUN_WEAK=0
+export CAMPAIGN_COMPARATORS=reference PAIRS=20 ALLOCATION_REPEATS=3
+/bin/bash "$TRIAL_ROOT/reframe/submit-campaign.sh"
+```
+
+Expand to 4/8 nodes, weak scaling, or control removals when those answer a remaining question. Repeating the default full nine-job scale sweep three times submits 27 jobs, so set the coverage deliberately before submission. Submitting is asynchronous; it is not evidence that jobs completed. Use the printed campaign ID for collection. Keep the trial tree fixed while jobs are queued/running; do not rebuild callers/libraries or edit generated configurations mid-campaign. Retain the procedure commit SHA with `inputs.json`. Cancel an unwanted queued campaign with the site's normal `scancel` procedure using its manifest's job IDs.
 
 ## 6. Collect and interpret every phase
 
@@ -277,10 +321,11 @@ root=pathlib.Path(os.environ['TRIAL_ROOT'])
 campaign=sys.argv[1]
 dest=root/'results'/'campaigns'/campaign
 if not dest.is_dir(): raise SystemExit('Unknown campaign')
-fields=['session','run_label','job_id','nodes','ranks_per_node','ranks','scaling','io_dir',
+fields=['session','run_label','job_id','replicate','node_list','nodes','ranks_per_node','ranks','scaling','io_dir',
         'package','workload','comparator','scope','phase','primary','pairs',
         'full_seconds','comparator_seconds','runtime_increase_percent','ci_low','ci_high',
-        'limit_percent','interpretation','summary_path']
+        'full_seconds_mean','full_seconds_stdev','comparator_seconds_mean','comparator_seconds_stdev',
+        'paired_change_stdev_percent_points','limit_percent','interpretation','summary_path']
 rows=[]
 for path in sorted((root/'results'/'reframe').glob('*/paired/*/*/*/summary.json')):
     result=json.loads(path.read_text()); context=result.get('context',{})
@@ -296,11 +341,15 @@ for path in sorted((root/'results'/'reframe').glob('*/paired/*/*/*/summary.json'
             interpretation=('below_limit' if high<=threshold else
                             'regression_above_limit' if low>threshold else 'inconclusive')
         rows.append(dict(zip(fields,[context.get('RUN_ID'),context.get('TRIAL_RUN_LABEL'),context.get('SLURM_JOB_ID'),
+            context.get('TRIAL_REPLICATE_ID'),context.get('SLURM_JOB_NODELIST'),
             context.get('TRIAL_EXPECTED_NODES'),context.get('RANKS_PER_NODE'),context.get('MPI_NP'),
             context.get('SCALING_MODE'),context.get('IO_DIR'),result['package'],result['case'],
             result['comparator'],result['scope'],phase,primary,value['pairs'],
             value['full_runtime_seconds_geomean'],value['comparator_runtime_seconds_geomean'],
-            value['full_runtime_increase_percent'],low,high,limit,interpretation,str(path)])))
+            value['full_runtime_increase_percent'],low,high,
+            value['full_runtime_seconds_mean'],value['full_runtime_seconds_stdev'],
+            value['comparator_runtime_seconds_mean'],value['comparator_runtime_seconds_stdev'],
+            value['paired_runtime_increase_stdev_percent_points'],limit,interpretation,str(path)])))
 if not rows: raise SystemExit('No completed paired results for this campaign')
 with (dest/'phases.csv').open('w',newline='') as f:
     writer=csv.DictWriter(f,fieldnames=fields); writer.writeheader(); writer.writerows(rows)

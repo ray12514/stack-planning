@@ -16,7 +16,7 @@ For this experiment, native historical comparisons complement the paired analysi
 
 | View | Audience question | Data and presentation |
 |---|---|---|
-| Workload comparison | Does full hardening meet the agreed runtime limit? | One point and 95% interval per workload's declared primary phase, full/reference only. Show zero and the actual predeclared limit. |
+| Workload comparison | Does full hardening meet the agreed runtime limit? | One point and 95% interval per allocation and workload's declared primary phase, full/reference only. Show zero and the actual predeclared limit. |
 | Node scaling | Does the effect change across nodes? | Absolute full/reference elapsed time beside paired runtime change and interval; facet by workload, scaling mode and ranks per node. |
 | Control attribution | Which control warrants investigation? | Full versus each named removal, for one workload and phase. Keep executable PIE in a separate panel with full libraries fixed. |
 | Campaign history | Has a comparable condition changed over time? | One point per campaign/allocation, uncertainty, missing-run markers and change annotations. Exclude incompatible conditions. |
@@ -26,6 +26,10 @@ For this experiment, native historical comparisons complement the paired analysi
 ![Illustrative workload comparison with interval bars and an example limit](figures/reframe-presentation/workload-comparison-illustrative.png)
 
 Explain the metric before interpreting the colors: `100 * (geometric mean of paired full/reference runtime ratios - 1)`. Positive means the hardened arm took longer. It is an elapsed-runtime change, not a throughput-loss percentage. The horizontal bars show the existing paired-bootstrap 95% interval. In the figure, four cases meet the illustrative limit, one exceeds it, and one is inconclusive; those counts describe invented examples only.
+
+For the [first assessment in 08](08-slurm-campaign.md#repeatability-and-a-manageable-first-assessment), show three allocation estimates for each condition, labelled with replicate/job and actual node identities. Each point summarizes 20 process pairs in its own allocation. State the number of distinct hosts/node sets and show disagreements instead of averaging them away. The pilot's 10 pairs establish initial feasibility; the 20-pair, three-allocation assessment is a bounded screening budget, not a promise to detect an arbitrary small effect. Report observed direction, magnitude and uncertainty without a for/against-hardening verdict.
+
+Arithmetic mean and sample standard deviation in seconds describe each arm's timing spread. The paired-change standard deviation is in percentage points. Use them in a supporting table or appendix; the headline effect remains the paired geometric mean and its interval. Standard deviation is not an error bar for the mean. Kernel loop counts and MPI ranks do not increase the reported process-pair sample count. An interval describes within-allocation variation; a combined interval across allocations would require an analysis that preserves the allocation/node grouping.
 
 Use text labels as well as color. An upper endpoint at or below an agreed limit supports meeting that limit for the recorded condition; a lower endpoint above it supports exceeding it; an interval crossing it is inconclusive. If no limit was declared, show estimates and intervals with a descriptive status. A detectable small change can still meet the limit. An interval containing zero does not prove zero overhead.
 
@@ -57,9 +61,10 @@ The current collector in [08](08-slurm-campaign.md#6-collect-and-interpret-every
 |---|---|
 | `package`, `workload`, `comparator`, `scope`, `phase`, `primary` | Select headline full/reference primary rows and label every panel. Keep exploratory phases/removals separate. |
 | `full_seconds`, `comparator_seconds`, `runtime_increase_percent`, `ci_low`, `ci_high`, `pairs` | Absolute-time plots, paired-effect plots and interval captions. |
+| `full_seconds_mean`, `full_seconds_stdev`, `comparator_seconds_mean`, `comparator_seconds_stdev`, `paired_change_stdev_percent_points` | Descriptive timing/spread table; keep arithmetic means distinct from the geometric headline metric. |
 | `nodes`, `ranks`, `ranks_per_node`, `scaling`, `io_dir` | Partition comparable conditions; never average across scales or filesystems. |
 | `limit_percent`, `interpretation` | Show the predeclared decision rule; leave an unset limit descriptive. |
-| `session`, `run_label`, `job_id`, `summary_path` | Link a figure point back to its source summary and run. |
+| `session`, `run_label`, `job_id`, `replicate`, `node_list`, `summary_path` | Link an allocation point back to its source summary and actual placement; count distinct physical hosts from inventory/expanded host lists. |
 | Raw pairs, JSON reports, Slurm accounting and campaign manifest | Diagnose noise, reconcile failures/skips/cancelled jobs, and establish expected versus completed coverage. |
 | Source/build logs, ELF checks and node inventory | Record what was built, whether controls were applied, and where it ran. |
 
@@ -112,6 +117,6 @@ Use a bounded sentence once actual data exists: “For [workload, scale and stor
 
 The project exposes direction through [issues](https://github.com/reframe-hpc/reframe/issues), [pull requests](https://github.com/reframe-hpc/reframe/pulls), and [milestones](https://github.com/reframe-hpc/reframe/milestones); no separate maintained feature roadmap was found in the reviewed official sources. On 2026-10-09, open milestones included **4.10.5**, **4.11**, and **5.0**. This metadata indicates intended scope, not promised delivery. The detailed [roadmap research](../reframe_roadmap_and_tooling_research_v1.md) records current themes and source links.
 
-For this trial, the next useful additions are an expected-matrix completeness gate, immutable build identities, guarded cross-campaign comparisons, independent-allocation replication, and a portable report snapshot. Pairing, bootstrap intervals and correctness/placement checks already exist. Possible generic upstream proposals include typed provenance/export fields, uncertainty-aware comparison hooks, baseline-compatibility guards and plot/report templates. These are suggestions to discuss with maintainers, not announced upstream work; first establish which gaps cannot be addressed in a suite or report adapter.
+For this trial, the next useful additions are an expected-matrix completeness gate, immutable build identities, guarded cross-campaign comparisons, an analysis respecting allocation/node grouping, and a portable report snapshot. Pairing, bootstrap intervals, descriptive spread, repeated-allocation submission and correctness/placement checks already exist. Possible generic upstream proposals include typed provenance/export fields, uncertainty-aware comparison hooks, baseline-compatibility guards and plot/report templates. These are suggestions to discuss with maintainers, not announced upstream work; first establish which gaps cannot be addressed in a suite or report adapter.
 
 Further research: [reporting/history/integration findings](../reframe_reporting_and_history_research_v1.md), [roadmap and tooling findings](../reframe_roadmap_and_tooling_research_v1.md). The examples above are ready to show as a proposed reporting design; replace them with validated actual outputs before presenting performance conclusions.

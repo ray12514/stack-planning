@@ -180,7 +180,7 @@ Do not use shell success as the only flag audit: look at actual compile/link com
 
 ## 4. Create the paired timing harness
 
-The package runbooks create one fixed driver each. Drivers print CSV rows `phase,seconds,error` and fail on a correctness error. The harness switches the library path, warms each variant once, alternates the order within each independent pair, retains raw results, and computes a bootstrap interval for the geometric mean of paired runtime ratios. It uses Python's standard library only. Ten pairs are a pilot; increase `PAIRS` when variability leaves the chosen regression threshold unresolved.
+The package runbooks create one fixed driver each. Drivers print CSV rows `phase,seconds,error` and fail on a correctness error. The harness switches the library path, warms each variant once, alternates full/comparator order across fresh process pairs, retains raw results, and computes a bootstrap interval for the geometric mean of paired runtime ratios. It also records arithmetic means and sample standard deviations in seconds for each arm, plus the sample standard deviation of pairwise runtime changes in percentage points. It uses Python's standard library only. Ten pairs are a pilot; [08](08-slurm-campaign.md#repeatability-and-a-manageable-first-assessment) defines repetitions across allocations and nodes.
 
 Every run also records `process_elapsed`, including process launch, dynamic loading, the workload, correctness checks, output capture, and exit. Inspect it alongside kernel phases when assessing startup-sensitive controls such as NOW. The [PIE procedure](07-consumer-pie.md) uses a second caller and keeps both arms on the full libraries; its summary records that scope explicitly.
 
@@ -283,11 +283,20 @@ if any(set(values[p]) != phases for values in data.values() for p in profiles):
 rng = random.Random(20261006)
 summary = {}
 for phase in sorted(phases):
-    logs = [math.log(v['full'][phase] / v[comparator][phase]) for v in data.values()]
+    full_times = [v['full'][phase] for v in data.values()]
+    comparator_times = [v[comparator][phase] for v in data.values()]
+    ratios = [a/b for a,b in zip(full_times, comparator_times)]
+    logs = [math.log(r) for r in ratios]
     ratio = math.exp(statistics.mean(logs))
     samples = sorted(math.exp(statistics.mean(rng.choices(logs, k=pairs)))
                      for _ in range(10000))
     summary[phase] = {'pairs': pairs, 'runtime_ratio_full_over_comparator': ratio,
+                      'full_runtime_seconds_mean': statistics.mean(full_times),
+                      'full_runtime_seconds_stdev': statistics.stdev(full_times),
+                      'comparator_runtime_seconds_mean': statistics.mean(comparator_times),
+                      'comparator_runtime_seconds_stdev': statistics.stdev(comparator_times),
+                      'paired_runtime_increase_stdev_percent_points': statistics.stdev(
+                          [100*(r-1) for r in ratios]),
                       'full_runtime_seconds_geomean': math.exp(statistics.mean(
                           math.log(v['full'][phase]) for v in data.values())),
                       'comparator_runtime_seconds_geomean': math.exp(statistics.mean(
@@ -298,7 +307,7 @@ for phase in sorted(phases):
 record = {'package': package, 'case': case, 'comparator': comparator,
           'primary_phase': os.environ.get('PRIMARY_PHASE',''),
           'context': {name: os.environ.get(name, '') for name in (
-              'CAMPAIGN_ID','RUN_ID','TRIAL_RUN_LABEL','TRIAL_EXPECTED_NODES','RANKS_PER_NODE',
+              'CAMPAIGN_ID','RUN_ID','TRIAL_RUN_LABEL','TRIAL_REPLICATE_ID','TRIAL_EXPECTED_NODES','RANKS_PER_NODE',
               'MPI_NP','MPI_MAP','SCALING_MODE','IO_DIR','CPUSET','THREAD_CPUSET',
               'SLURM_JOB_ID','SLURM_JOB_NODELIST','TRIAL_REGRESSION_LIMIT_PERCENT')},
           'hardening_set': os.environ.get('HARDENING_SET', 'listed'),
@@ -311,7 +320,7 @@ print(json.dumps(record, indent=2))
 PY
 ```
 
-The interval is a pilot statistical summary, not a guarantee against scheduler/filesystem drift. Inspect pair order, outliers, and raw results. Choose more repetitions or better controlled workloads when needed; do not declare zero cost merely because an interval includes zero.
+The interval describes variation among the recorded process pairs within this allocation and assumes those pairs are sufficiently comparable, rather than dominated by persistent drift. Fresh processes on one host still share its hardware and environment; the interval does not quantify differences across nodes or allocations. Inspect pair order, drift, and raw results before interpreting it. Standard deviation describes measurement spread; it is not the confidence interval or a separate count of independent samples. Follow the staged replication plan in 08; do not declare zero cost merely because an interval includes zero.
 
 ## 5. Run inside one compute allocation
 
