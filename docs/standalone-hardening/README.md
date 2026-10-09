@@ -12,6 +12,8 @@ If GCC's prerequisite download is blocked, use the [direct HTTPS downloads and o
 
 The [Slurm campaign plan](08-slurm-campaign.md) defines hypotheses and the actual ReFrame matrix, including serial/threaded cases, small-dataset HDF5, startup/PIE comparisons, and 1/2/4/8-node MPI runs. It generates sequential batch submission and collects all phase results into a CSV. The bootstrap seed defaults to the installed `/usr/bin/gcc` and `/usr/bin/g++`; payloads use private GCC 12.5. Regenerate/recompile the updated callers and ReFrame files before running this campaign.
 
+The [results presentation plan](09-results-presentation.md) includes a five-page PDF draft, illustrative plots, native ReFrame history options and a possible Grafana route. All example chart values are invented; use the collected campaign outputs for actual performance conclusions.
+
 ## Download onto the test machine
 
 The current alpha host is [ray12514/stack-planning on GitHub](https://github.com/ray12514/stack-planning/tree/codex/node-build-resources/docs/standalone-hardening), branch **`codex/node-build-resources`**. The runbooks live in `docs/standalone-hardening/`. This repository is public; HTTPS cloning and archive downloads require no GitHub sign-in. `stack-content` is a separate, private repository and does not contain these standalone runbooks.
@@ -109,6 +111,7 @@ The terminal and `console.log` show correctness status, full/reference seconds, 
 | [06 — ReFrame driver and reports](06-reframe.md) | Paired comparisons, correctness gates, terminal performance tables, raw CSV, and JSON reports |
 | [07 — Executable PIE comparison](07-consumer-pie.md) | PIE versus non-PIE callers with full libraries fixed, reporting whole-process elapsed time |
 | [08 — Slurm campaign and hypotheses](08-slurm-campaign.md) | Predeclared comparisons, serial/threaded and 1/2/4/8-node matrix, Slurm submission, placement verification, and all-phase CSV collection |
+| [09 — Results presentation](09-results-presentation.md) | Illustrative PDF and plots, audience narrative, result-to-figure mapping, history options and Grafana design |
 
 Run 00 and 01 once, then 02–04 for serial packages. Run 00b after qualifying the profiles in 01, then 05 for parallel packages. Use 06 to drive and report either suite after its variants and fixed callers are installed, and 07 for executable PIE. Start with `full` and `reference`; each removal starts from `full`. `stack-all` is an optional stronger-stack comparison. Extended-set controls require a separate, explicitly labelled trial root.
 
