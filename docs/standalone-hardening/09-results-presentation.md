@@ -65,10 +65,13 @@ The current collector in [08](08-slurm-campaign.md#6-collect-and-interpret-every
 | `nodes`, `ranks`, `ranks_per_node`, `scaling`, `io_dir` | Partition comparable conditions; never average across scales or filesystems. |
 | `limit_percent`, `interpretation` | Show the predeclared decision rule; leave an unset limit descriptive. |
 | `session`, `run_label`, `job_id`, `replicate`, `node_list`, `summary_path` | Link an allocation point back to its source summary and actual placement; count distinct physical hosts from inventory/expanded host lists. |
+| `allocation_mode`, `repeat_scope`, `allocated_node_list`, `allocation_nodes`, `step_id` | Distinguish [single-allocation rounds/subsets](10-single-allocation.md) from separate allocations; selected hosts are in `node_list`. |
 | Raw pairs, JSON reports, Slurm accounting and campaign manifest | Diagnose noise, reconcile failures/skips/cancelled jobs, and establish expected versus completed coverage. |
 | Source/build logs, ELF checks and node inventory | Record what was built, whether controls were applied, and where it ran. |
 
 Before plotting, validate numeric values, interval ordering, positive runtimes, comparator identity and the planned grouping keys. Reject accidental duplicate result cells; retain deliberate repeated allocations as separate observations. Reconcile expected, completed, failed, skipped, cancelled and not-applicable cases. The existing CSV contains completed summaries only, so it cannot supply a complete coverage panel by itself. Never represent absent rows as zero overhead or report all-green coverage from ReFrame PASS alone.
+
+For the single-allocation mode, show per-host/group/round points and explicitly state that they share one allocation. Read CPU concurrency from the retained input/plan settings and keep it fixed for comparisons. Larger-than-available scales marked `skipped_capacity` in `allocation-plan.json` are untested. That plan tracks worker completion; reconcile the ReFrame testcase reports for full workload coverage. Compare additional independent allocations as a separate level of repetition.
 
 Preserve `report.json`, the raw paired data, the campaign input manifest, procedure commit, build/source identities and the rendered snapshot together. Add a machine-readable join for immutable identities and workload arguments before producing automatic historical trends; not every required comparability field is currently a column in `phases.csv`. Keep compiler-hardening verification and runtime interpretation separate: a low runtime cost is not a finding that a protection is ineffective or a STIG compliance decision.
 

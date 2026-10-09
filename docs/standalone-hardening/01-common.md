@@ -250,6 +250,13 @@ def run(profile):
         expected = (int(os.environ['TRIAL_EXPECTED_NODES']), mpi_np)
         if len(placement)!=1 or tuple(map(int,placement[0]))!=expected:
             raise RuntimeError('Missing or incorrect MPI placement evidence; rebuild/qualify the caller')
+    selected_hosts = os.environ.get('TRIAL_SELECTED_HOSTS', '')
+    if mpi_np and selected_hosts:
+        ranks = re.findall(r'MPI_PLACEMENT rank=(\d+) host=(\S+)', proc.stderr)
+        actual_hosts = {host.split('.')[0] for _,host in ranks}
+        expected_hosts = {host.split('.')[0] for host in selected_hosts.split(',')}
+        if len(ranks)!=mpi_np or {int(rank) for rank,_ in ranks}!=set(range(mpi_np)) or actual_hosts!=expected_hosts:
+            raise RuntimeError('MPI ranks did not run on the selected host subset')
     rows = []
     for phase, seconds, error in csv.reader(proc.stdout.splitlines()):
         seconds, error = float(seconds), float(error)
@@ -309,7 +316,9 @@ record = {'package': package, 'case': case, 'comparator': comparator,
           'context': {name: os.environ.get(name, '') for name in (
               'CAMPAIGN_ID','RUN_ID','TRIAL_RUN_LABEL','TRIAL_REPLICATE_ID','TRIAL_EXPECTED_NODES','RANKS_PER_NODE',
               'MPI_NP','MPI_MAP','SCALING_MODE','IO_DIR','CPUSET','THREAD_CPUSET',
-              'SLURM_JOB_ID','SLURM_JOB_NODELIST','TRIAL_REGRESSION_LIMIT_PERCENT')},
+              'TRIAL_SELECTED_HOSTS','TRIAL_ALLOCATION_MODE','TRIAL_REPEAT_SCOPE',
+              'SLURM_JOB_ID','SLURM_JOB_NODELIST','SLURM_JOB_NUM_NODES','SLURM_STEP_ID',
+              'TRIAL_REGRESSION_LIMIT_PERCENT')},
           'hardening_set': os.environ.get('HARDENING_SET', 'listed'),
           'fortify_level': int(os.environ.get('FORTIFY_LEVEL', '2')),
           'scope': 'consumer-pie' if other_executable else 'library',

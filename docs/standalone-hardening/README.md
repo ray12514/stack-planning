@@ -16,6 +16,8 @@ The [results presentation plan](09-results-presentation.md) includes a five-page
 
 The [repeatability plan](08-slurm-campaign.md#repeatability-and-a-manageable-first-assessment) starts with a 10-pair qualification pilot, then 20 pairs per case across three allocations on the initial 1/2-node coverage. Seek different homogeneous hosts and record actual placement. `ALLOCATION_REPEATS` controls batch repetitions; summaries and CSV retain arithmetic means/sample standard deviations alongside the paired effect and interval. Regenerate `paired.py`, ReFrame definitions, batch scripts and the collector from 01/06/08 to use these additions; this update does not require rebuilding unchanged library/caller binaries. Keep allocation estimates separate in the report.
 
+[10 — Single allocation campaign](10-single-allocation.md) adds a second mode: reserve 8/4/2 nodes once, run serial cases on each host and MPI on selected subsets, and repeat predetermined rounds. CPU cases can run concurrently on different hosts; HDF5/MPI cases are sequential. Smaller reservations explicitly record unavailable scales. The separate-job campaign in 08 remains the fallback. Regenerate the paired harness, ReFrame definitions and collector from 01/06/08 for selected-host verification/metadata, then generate the new scripts in 10. Qualified unchanged libraries/callers need no recompilation.
+
 ## Download onto the test machine
 
 The current alpha host is [ray12514/stack-planning on GitHub](https://github.com/ray12514/stack-planning/tree/codex/node-build-resources/docs/standalone-hardening), branch **`codex/node-build-resources`**. The runbooks live in `docs/standalone-hardening/`. This repository is public; HTTPS cloning and archive downloads require no GitHub sign-in. `stack-content` is a separate, private repository and does not contain these standalone runbooks.
@@ -72,6 +74,7 @@ Use a Bash shell on the Linux build/test system. Follow the command blocks in th
 4. Build the serial package variants and fixed callers with 02–04. Build and qualify Open MPI + UCX with 00b, then follow 05 for parallel FFTW/HDF5.
 5. Follow 06 sections 1–3 to install ReFrame and create its configuration and checks. Use its serial or parallel launch procedure inside a compute allocation.
 6. Follow 07 to build PIE comparators, then 08 for the hypotheses, expanded matrix, Slurm sequence and data collection. Supply the site's master-module setup, account, partition/node constraint, I/O directory and resource limits.
+7. Optionally use 10 to run selected nodes/rounds inside one allocation; retain 08 for separate jobs and checks across independent allocations.
 
 After the serial builds and ReFrame setup, this runs the three-package pilot. Replace the root, CPU, and I/O directory with the trial's chosen values:
 
@@ -114,6 +117,7 @@ The terminal and `console.log` show correctness status, full/reference seconds, 
 | [07 — Executable PIE comparison](07-consumer-pie.md) | PIE versus non-PIE callers with full libraries fixed, reporting whole-process elapsed time |
 | [08 — Slurm campaign and hypotheses](08-slurm-campaign.md) | Predeclared comparisons, serial/threaded and 1/2/4/8-node matrix, Slurm submission, placement verification, and all-phase CSV collection |
 | [09 — Results presentation](09-results-presentation.md) | Illustrative PDF and plots, audience narrative, result-to-figure mapping, history options and Grafana design |
+| [10 — Single allocation campaign](10-single-allocation.md) | Optional 8/4/2-node reservation, host/subset rotation, repeated rounds, CPU concurrency, serial I/O/MPI steps and capacity/failure records |
 
 Run 00 and 01 once, then 02–04 for serial packages. Run 00b after qualifying the profiles in 01, then 05 for parallel packages. Use 06 to drive and report either suite after its variants and fixed callers are installed, and 07 for executable PIE. Start with `full` and `reference`; each removal starts from `full`. `stack-all` is an optional stronger-stack comparison. Extended-set controls require a separate, explicitly labelled trial root.
 

@@ -168,7 +168,8 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
             'OMP_NUM_THREADS': '1', 'OPENBLAS_NUM_THREADS': '1', 'MKL_NUM_THREADS': '1'
         }
         for name in ('CAMPAIGN_ID','TRIAL_RUN_LABEL','TRIAL_REPLICATE_ID','TRIAL_EXPECTED_NODES',
-                     'RANKS_PER_NODE','CPUSET','THREAD_CPUSET','TRIAL_REGRESSION_LIMIT_PERCENT'):
+                     'RANKS_PER_NODE','CPUSET','THREAD_CPUSET','TRIAL_REGRESSION_LIMIT_PERCENT',
+                     'TRIAL_SELECTED_HOSTS','TRIAL_ALLOCATION_MODE','TRIAL_REPEAT_SCOPE'):
             if name in os.environ:
                 self.env_vars[name] = os.environ[name]
         if mpi:
@@ -185,6 +186,8 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
             cpuset = os.environ['THREAD_CPUSET'] if self.workload == 'fft-threads' else os.environ['CPUSET']
             self.executable_opts = [shlex.quote(arg) for arg in
                                     ['-c', cpuset, 'python3', *command]]
+        # ReFrame emits these values into shell export statements.
+        self.env_vars = {name: shlex.quote(value) for name,value in self.env_vars.items()}
 
     @sanity_function
     def measurements_completed(self):

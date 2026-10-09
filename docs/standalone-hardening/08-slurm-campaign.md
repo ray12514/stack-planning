@@ -2,6 +2,8 @@
 
 Use this after the builds, artifact checks, MPI qualification, and ReFrame setup in 00–07. The campaign measures the supplied hardening profile's runtime cost and correctness on the recorded workloads. Security properties are checked through build commands and artifacts in 01; a small or undetectable runtime change does not imply that a protection does nothing.
 
+This is the **separate-job campaign**, retained as the fallback and for repeated allocations. [10](10-single-allocation.md) adds the optional single-allocation controller for node subsets and repeated rounds. Both modes use the same paired harness, ReFrame definitions, package binaries and collector.
+
 ## 1. Hypotheses and comparisons
 
 These are hypotheses to test on the target system, not predicted benchmark percentages.
@@ -141,6 +143,8 @@ source "$TRIAL_MODULE_SETUP"
 source "$TRIAL_ROOT/env.sh"
 export REFRAME="$TRIAL_ROOT/tools/reframe-venv/bin/reframe"
 export TRIAL_REPLICATE_ID=${TRIAL_REPLICATE_ID:-1}
+export TRIAL_ALLOCATION_MODE=separate-jobs TRIAL_REPEAT_SCOPE=allocation
+unset TRIAL_SELECTED_HOSTS
 export TRIAL_RUN_LABEL="$phase-n${TRIAL_EXPECTED_NODES}-rpn${RANKS_PER_NODE}-rep${TRIAL_REPLICATE_ID}"
 dest="$TRIAL_ROOT/results/campaigns/$CAMPAIGN_ID/$TRIAL_RUN_LABEL-$SLURM_JOB_ID"
 mkdir -p "$dest"
@@ -321,7 +325,8 @@ root=pathlib.Path(os.environ['TRIAL_ROOT'])
 campaign=sys.argv[1]
 dest=root/'results'/'campaigns'/campaign
 if not dest.is_dir(): raise SystemExit('Unknown campaign')
-fields=['session','run_label','job_id','replicate','node_list','nodes','ranks_per_node','ranks','scaling','io_dir',
+fields=['session','run_label','job_id','replicate','repeat_scope','allocation_mode',
+        'node_list','allocated_node_list','allocation_nodes','step_id','nodes','ranks_per_node','ranks','scaling','io_dir',
         'package','workload','comparator','scope','phase','primary','pairs',
         'full_seconds','comparator_seconds','runtime_increase_percent','ci_low','ci_high',
         'full_seconds_mean','full_seconds_stdev','comparator_seconds_mean','comparator_seconds_stdev',
@@ -341,7 +346,9 @@ for path in sorted((root/'results'/'reframe').glob('*/paired/*/*/*/summary.json'
             interpretation=('below_limit' if high<=threshold else
                             'regression_above_limit' if low>threshold else 'inconclusive')
         rows.append(dict(zip(fields,[context.get('RUN_ID'),context.get('TRIAL_RUN_LABEL'),context.get('SLURM_JOB_ID'),
-            context.get('TRIAL_REPLICATE_ID'),context.get('SLURM_JOB_NODELIST'),
+            context.get('TRIAL_REPLICATE_ID'),context.get('TRIAL_REPEAT_SCOPE'),context.get('TRIAL_ALLOCATION_MODE'),
+            context.get('TRIAL_SELECTED_HOSTS') or context.get('SLURM_JOB_NODELIST'),
+            context.get('SLURM_JOB_NODELIST'),context.get('SLURM_JOB_NUM_NODES'),context.get('SLURM_STEP_ID'),
             context.get('TRIAL_EXPECTED_NODES'),context.get('RANKS_PER_NODE'),context.get('MPI_NP'),
             context.get('SCALING_MODE'),context.get('IO_DIR'),result['package'],result['case'],
             result['comparator'],result['scope'],phase,primary,value['pairs'],
