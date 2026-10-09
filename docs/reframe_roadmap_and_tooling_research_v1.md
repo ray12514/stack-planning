@@ -1,6 +1,6 @@
 # ReFrame roadmap and standalone trial tooling research
 
-**Research date:** 2026-10-09  
+**Research date:** 2026-10-09
 **Scope:** ReFrame release state, public project direction, and remaining additions for the standalone FFTW/HDF5/LAPACK compiler-hardening campaign described in [`docs/standalone-hardening`](standalone-hardening/README.md).
 
 ## Release state and existing history
