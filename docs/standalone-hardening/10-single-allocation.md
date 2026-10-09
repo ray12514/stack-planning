@@ -1,10 +1,12 @@
 # Single allocation campaign with selected nodes
 
-Use this optional mode after building and qualifying 00–07 and generating the inventory/collector from [08](08-slurm-campaign.md). One Slurm batch job holds **eight, four, or two homogeneous nodes** and runs a predetermined plan on subsets of those nodes. The [separate-job campaign](08-slurm-campaign.md) remains the fallback and the route for additional independent allocations. No Flux installation is needed.
+Use this optional mode after building and qualifying 00–06 and 11 and generating the inventory/collector from [08](08-slurm-campaign.md). One Slurm batch job holds **eight, four, or two homogeneous nodes** and runs a predetermined plan on subsets of those nodes. The [separate-job campaign](08-slurm-campaign.md) remains the fallback and the route for additional independent allocations. No Flux installation is needed.
+
+Use the complete-stack builds/reference callers in [11](11-stack-comparison.md) before the primary campaign. Set `TRIAL_SCOPE=stack`, `CAMPAIGN_COMPARATORS=reference`, `RUN_PIE=0`. Package/PIE attribution uses library scope in a later campaign; PIE callers are required only with `RUN_PIE=1`. This mode uses the same scopes as 08 and remains outside CI.
 
 ## 1. Scope and execution order
 
-Each round runs FFTW/LAPACK CPU cases and their PIE callers on every host, then HDF5 serial cases on every host, then the selected MPI scales. CPU cases can run concurrently on disjoint hosts; HDF5 and MPI conditions run sequentially. This avoids concurrent benchmark I/O/network traffic from this campaign. `process_elapsed` still includes launch/capture costs; classify these results with the recorded execution policy.
+Each round runs FFTW/LAPACK CPU cases (and PIE callers only for selected attribution) on every host, then HDF5 serial cases on every host, then the selected MPI scales. CPU cases can run concurrently on disjoint hosts; HDF5 and MPI conditions run sequentially. This avoids concurrent benchmark I/O/network traffic from this campaign. `process_elapsed` still includes launch/capture costs; classify these results with the recorded execution policy.
 
 For each MPI scale, split a rotated host list into disjoint groups. Eight nodes yield eight one-node groups, four two-node groups, two four-node groups and one eight-node group per rank layout. Rotate the list each round so pair/group composition changes where possible. The eight-node set itself remains the same. Both hardening arms always use the same selected hosts, cores and inputs. Existing MPI callers check rank counts and hostnames; the updated harness also rejects a launch on the wrong host subset.
 
@@ -89,11 +91,11 @@ case "$phase" in
   serial-cpu)
     run_group cpu fft-small,fft-large,fft-3d,fft-plan,fft-threads,lapack-small,lapack-large,fft-startup,lapack-startup \
       "$CAMPAIGN_COMPARATORS" "$SHARED_IO_DIR"
-    run_group cpu-pie fft-pie,lapack-pie minus-pie "$SHARED_IO_DIR" ;;
+    if test "${RUN_PIE:-0}" = 1; then run_group cpu-pie fft-pie,lapack-pie minus-pie "$SHARED_IO_DIR"; fi ;;
   serial-io)
     run_group io hdf5-small,hdf5-metadata,hdf5-contiguous,hdf5-chunked,hdf5-startup \
       "$CAMPAIGN_COMPARATORS" "$SHARED_IO_DIR"
-    run_group io-pie hdf5-pie minus-pie "$SHARED_IO_DIR"
+    if test "${RUN_PIE:-0}" = 1; then run_group io-pie hdf5-pie minus-pie "$SHARED_IO_DIR"; fi
     if test -n "${TRIAL_LOCAL_IO_DIR:-}"; then
       run_group local-io hdf5-small,hdf5-metadata,hdf5-contiguous,hdf5-chunked \
         "$CAMPAIGN_COMPARATORS" "$TRIAL_LOCAL_IO_DIR"
@@ -160,8 +162,19 @@ def configuration():
         for p in ['full',*comparators]:
             if package=='lapack' and p=='minus-fortify': continue
             if not (root/'install'/package/p/'lib').is_dir(): raise ValueError(f'Missing {package}/{p}')
-    for package in ('fftw','hdf5','lapack'):
-        if not os.access(root/'bench'/f'{package}-minus-pie',os.X_OK): raise ValueError('Missing PIE caller')
+    scope=env.get('TRIAL_SCOPE','stack');run_pie=env.get('RUN_PIE','0')
+    if scope not in ('stack','library') or run_pie not in ('0','1'): raise ValueError('Invalid scope/PIE selection')
+    config['scope'],config['RUN_PIE']=scope,int(run_pie)
+    if scope=='stack':
+        if comparators!=['reference'] or run_pie!='0': raise ValueError('Stack screen requires reference and no PIE attribution')
+        for path in (root/'mpi-env-reference.sh',root/'bench/rank-exec.sh',
+                     root/'install/blas/full/lib/libblas.so',root/'install/blas/reference/lib/libblas.so'):
+            if not path.is_file(): raise ValueError(f'Missing stack prerequisite: {path}')
+        for package in ('fftw','hdf5','lapack','fftw-mpi','hdf5-mpi'):
+            if not os.access(root/'bench'/f'{package}-reference',os.X_OK): raise ValueError('Missing reference caller')
+    if run_pie=='1':
+        for package in ('fftw','hdf5','lapack'):
+            if not os.access(root/'bench'/f'{package}-minus-pie',os.X_OK): raise ValueError('Missing PIE caller')
     return config
 
 def main():
@@ -287,6 +300,7 @@ export TRIAL_ROUNDS=${TRIAL_ROUNDS:-3} PAIRS=${PAIRS:-20}
 export TRIAL_CPU_PARALLEL=${TRIAL_CPU_PARALLEL:-1} RUN_WEAK=${RUN_WEAK:-0}
 export NODE_COUNTS=${NODE_COUNTS:-'1 2 4 8'} RANK_LAYOUTS=${RANK_LAYOUTS:-1}
 export CAMPAIGN_COMPARATORS=${CAMPAIGN_COMPARATORS:-reference}
+export TRIAL_SCOPE=${TRIAL_SCOPE:-stack} RUN_PIE=${RUN_PIE:-0}
 export TRIAL_EXCLUSIVE=${TRIAL_EXCLUSIVE:-1}
 export CAMPAIGN_ID="single-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 dest="$TRIAL_ROOT/results/campaigns/$CAMPAIGN_ID"
@@ -295,7 +309,7 @@ python3 "$TRIAL_ROOT/reframe/allocation-controller.py" --validate > "$dest/valid
 python3 - "$dest/inputs.json" <<'PY'
 import json, os, pathlib, sys
 names=('CAMPAIGN_ID','TRIAL_ALLOCATION_NODES','TRIAL_ROUNDS','PAIRS','TRIAL_CPU_PARALLEL',
-       'NODE_COUNTS','RANK_LAYOUTS','RUN_WEAK','CAMPAIGN_COMPARATORS','TRIAL_EXCLUSIVE',
+       'NODE_COUNTS','RANK_LAYOUTS','RUN_WEAK','CAMPAIGN_COMPARATORS','TRIAL_SCOPE','RUN_PIE','TRIAL_PROCEDURE_COMMIT','TRIAL_EXCLUSIVE',
        'TRIAL_WALLTIME','TRIAL_REGRESSION_LIMIT_PERCENT','SLURM_ACCOUNT','SLURM_PARTITION',
        'SLURM_CONSTRAINT','TRIAL_MODULE_SETUP','TRIAL_MPI_TUNING','SHARED_IO_DIR','TRIAL_LOCAL_IO_DIR',
        'MPI_GLOBAL_ELEMENTS','MPI_GLOBAL_SMALL_ELEMENTS','MPI_ELEMENTS_PER_RANK','MPI_SMALL_ELEMENTS_PER_RANK')

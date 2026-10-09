@@ -2,7 +2,7 @@
 
 ReFrame drives the tests against the already-built package variants. It runs the paired timing harness from [01](01-common.md), checks that the measurements completed correctly, extracts runtimes and changes, and prints a performance table. Raw paired CSV, driver logs, loaded-library records, and JSON summaries are preserved. It does not need Spack.
 
-The configuration below runs locally **inside an existing scheduler allocation**. Serial checks constrain the caller to `CPUSET`; parallel checks use the fixed Open MPI + UCX launcher and mapping. This keeps paired runs on the same allocation instead of submitting a different allocation for each hardening arm. Use ReFrame's serial execution policy so workloads do not compete for CPUs or the test filesystem.
+The configuration below runs locally **inside an existing scheduler allocation**. Serial checks constrain the caller to `CPUSET`; parallel checks use matching Open MPI + UCX launchers in stack scope, or the fixed full launcher in library scope, with identical mapping. This keeps paired runs on the same allocation instead of submitting a different allocation for each hardening arm. Use ReFrame's serial execution policy so workloads do not compete for CPUs or the test filesystem.
 
 [08 — Slurm campaign](08-slurm-campaign.md) defines the hypotheses, expanded workload matrix, 1/2/4/8-node sequence, batch submission, placement checks, and collection of all phase results. The interactive commands below remain a small pilot. ReFrame drives prebuilt variants; the campaign does not build packages during timing.
 
@@ -51,6 +51,9 @@ The environment names the compiler for provenance. These are run-only checks; th
 
 ## 3. Create the test definition
 
+[11](11-stack-comparison.md) selects `TRIAL_SCOPE=stack` for the primary complete-profile comparison and builds reference callers. That mode changes the caller, package, matching MPI/UCX and reference-implementation BLAS together. `TRIAL_SCOPE=library` retains one full caller, full MPI/UCX and full BLAS for package attribution. The default here remains library scope so manual package commands retain that meaning. Explicitly select and record scope for every campaign. These are operator-driven Slurm runs outside CI.
+
+
 Initially `COMPARATORS=reference`. After installing selected listed-set removals, use e.g. `COMPARATORS=reference,minus-stack,minus-fortify,minus-relro,minus-now`. ReFrame expands the workload/comparator combinations. `minus-fortify` is skipped for Fortran LAPACK; the extended set also skips `minus-init` for LAPACK. Use [07](07-consumer-pie.md) for the executable PIE comparison.
 
 The primary HDF5 metric shown in the table is write/create/close. Read timing is retained in each summary and raw CSV. FFTW's primary metric is execution; planning is retained separately. One full/comparator check includes the warmups and all `PAIRS` fresh process pairs within the same allocation. Kernel iterations within a process and MPI ranks are not additional statistical samples. Arithmetic means and sample standard deviations are retained in summaries; the terminal's headline remains the paired geometric mean and its interval.
@@ -67,6 +70,8 @@ from reframe.core.builtins import parameter, run_after, run_before
 from reframe.core.builtins import sanity_function, performance_function
 
 ROOT = pathlib.Path(os.environ['TRIAL_ROOT'])
+SCOPE = os.environ.get('TRIAL_SCOPE', 'library')
+if SCOPE not in ('library','stack'): raise ValueError('Invalid TRIAL_SCOPE')
 WORKLOADS = {
     'fft-small': ('fftw', 'fftw-fixed', 'execution', ['1','1024','50000','1','estimate'], False),
     'fft-large': ('fftw', 'fftw-fixed', 'execution', ['1','1048576','30','1','estimate'], False),
@@ -114,13 +119,16 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
 
     @run_after('init')
     def describe(self):
-        self.tags = {'hardening', 'mpi' if WORKLOADS[self.workload][4] else 'serial'}
-        self.descr = f'{self.workload}: full vs {self.comparator}, paired measurements'
+        self.tags = {'hardening', SCOPE, 'mpi' if WORKLOADS[self.workload][4] else 'serial'}
+        self.descr = f'{self.workload}: full vs {self.comparator}, {SCOPE} scope'
 
     @run_before('run')
     def prepare(self):
         package, driver, phase, arguments, mpi = WORKLOADS[self.workload]
         consumer = self.workload in ('fft-pie','hdf5-pie','lapack-pie')
+        self.skip_if(SCOPE == 'stack' and consumer, 'PIE attribution is a separate library-scope follow-up')
+        if SCOPE == 'stack' and self.comparator != 'reference':
+            raise ValueError('Stack screening uses reference only')
         self.skip_if(consumer != (self.comparator == 'minus-pie'),
                      'PIE workloads require minus-pie; library workloads use library variants')
         self.skip_if(package == 'lapack' and self.comparator in ('minus-fortify','minus-init'),
@@ -162,12 +170,14 @@ class HardeningTrial(rfm.RunOnlyRegressionTest):
             'COMPARE': self.comparator, 'PAIRS': os.environ.get('PAIRS','10'),
             'HARDENING_SET': os.environ.get('HARDENING_SET','listed'),
             'FORTIFY_LEVEL': os.environ.get('FORTIFY_LEVEL','2'),
-            'COMPARE_EXECUTABLE': str(ROOT/'bench'/f'{package}-minus-pie') if consumer else '',
+            'TRIAL_SCOPE': SCOPE,
+            'COMPARE_EXECUTABLE': str(ROOT/'bench'/f'{package}-reference') if SCOPE == 'stack'
+                                  else str(ROOT/'bench'/f'{package}-minus-pie') if consumer else '',
             'MPI_NP': str(ranks), 'SCALING_MODE': scaling, 'IO_DIR': str(io_dir),
             'PRIMARY_PHASE': phase,
             'OMP_NUM_THREADS': '1', 'OPENBLAS_NUM_THREADS': '1', 'MKL_NUM_THREADS': '1'
         }
-        for name in ('CAMPAIGN_ID','TRIAL_RUN_LABEL','TRIAL_REPLICATE_ID','TRIAL_EXPECTED_NODES',
+        for name in ('TRIAL_PROCEDURE_COMMIT','CAMPAIGN_ID','TRIAL_RUN_LABEL','TRIAL_REPLICATE_ID','TRIAL_EXPECTED_NODES',
                      'RANKS_PER_NODE','CPUSET','THREAD_CPUSET','TRIAL_REGRESSION_LIMIT_PERCENT',
                      'TRIAL_SELECTED_HOSTS','TRIAL_ALLOCATION_MODE','TRIAL_REPEAT_SCOPE'):
             if name in os.environ:

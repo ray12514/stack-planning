@@ -11,7 +11,7 @@ Run in Bash. The source files and full callers were created in 02–04. All link
 ```bash
 source "$TRIAL_ROOT/env.sh"
 source "$TRIAL_ROOT/profiles.sh"
-export BLAS_PREFIX="$TRIAL_ROOT/install/blas-fixed"
+export BLAS_PREFIX="$TRIAL_ROOT/install/blas/full"
 profile_flags minus-pie
 read -r -a cargs <<< "$EXE_CFLAGS"
 read -r -a fargs <<< "$EXE_FFLAGS"

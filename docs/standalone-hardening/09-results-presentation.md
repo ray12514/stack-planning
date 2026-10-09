@@ -4,6 +4,9 @@ Date: 2026-10-09. Use this plan after collecting the campaign in [08](08-slurm-c
 
 The [five-page presentation draft](../../output/pdf/reframe-hardening-presentation-draft.pdf) and every example figure below use **invented values and intervals**. They demonstrate presentation choices, not measured or expected overhead. The **+5% example limit is not an agreed trial limit**. No target-system campaign results are included. The figures are PNGs for slides and SVGs for editable, sharp exports.
 
+
+Scope update: [11](11-stack-comparison.md) makes the first comparison `scope=stack`; it changes the trial-owned caller/packages/dependencies together. Earlier package plots/draft PDF illustrate library scope. Do not relabel those examples as whole-stack results. Report stack, library-only and consumer-PIE series separately. [12](12-osu-screen.md) adds native us/MB/s output; positive reported deterioration means latency increased or bandwidth decreased. Its native OSU CSV is separate from package runtime `phases.csv`.
+
 ## What ReFrame already provides
 
 ReFrame produces a JSON run report, configurable performance logs, and a terminal performance report. Database-backed history and comparison queries were added in **4.7**, whose package release was published on **2024-11-13**. This is the work described in the [FOSDEM 2025 performance analytics talk](https://archive.fosdem.org/2025/schedule/event/fosdem-2025-4755-adding-built-in-support-for-basic-performance-test-analytics-to-reframe/). The trial's **4.10.4** pin includes these features and was the newest stable release when checked on 2026-10-09. [ReFrame tutorial](https://reframe-hpc.readthedocs.io/en/stable/tutorial.html#inspecting-past-results), [CLI reference](https://reframe-hpc.readthedocs.io/en/stable/manpage.html#querying-past-results), [PyPI release metadata](https://pypi.org/pypi/reframe-hpc/json), [4.10.4 release](https://github.com/reframe-hpc/reframe/releases/tag/v4.10.4).
@@ -37,7 +40,7 @@ Use text labels as well as color. An upper endpoint at or below an agreed limit 
 
 ![Illustrative FFTW MPI strong scaling and paired runtime change](figures/reframe-presentation/node-scaling-illustrative.png)
 
-Plot elapsed seconds and relative change together: a small percentage on a long job can matter, while a larger percentage on a tiny job can have a small absolute cost. The example uses FFTW MPI maximum-rank execution time, a fixed global transform, and one rank per node. Real results must label transform/data size, total ranks, ranks per node, timer scope, and the fixed MPI/UCX build.
+Plot elapsed seconds and relative change together: a small percentage on a long job can matter, while a larger percentage on a tiny job can have a small absolute cost. The example uses FFTW MPI maximum-rank execution time, a fixed global transform, and one rank per node. Real results must label transform/data size, total ranks, ranks per node, timer scope, and the MPI/UCX identities and whether those dependencies changed between arms.
 
 Show HDF5 strong and weak scaling in separate plots. In strong scaling, the global data remains fixed; in weak scaling, data per rank remains fixed and global data grows. Also separate shared/local storage, collective/independent requests, warmed reads/writes and durable/buffered settings. Actual I/O-mode diagnostics would improve a future analysis; a request for collective I/O alone does not prove which optimizations were used.
 

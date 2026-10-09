@@ -1,12 +1,12 @@
 # 00b — Open MPI 4.1.8 with UCX 1.16.0 and GCC 12.5.0
 
-Run after [00 — GCC bootstrap](00-gcc-bootstrap.md) and [01 — profile qualification](01-common.md), before the MPI FFTW/HDF5 builds. These versions match `cse-pilot/site-values.example.yaml`. Build this dependency stack once and keep it unchanged across all package variants. This isolates FFTW/HDF5 hardening; measuring MPI/UCX hardening itself would require a separate matrix.
+Run after [00 — GCC bootstrap](00-gcc-bootstrap.md) and [01 — profile qualification](01-common.md), before the MPI FFTW/HDF5 builds. These versions match `cse-pilot/site-values.example.yaml`. Build the complete `full` stack first, then its matched `reference` stack. [11](11-stack-comparison.md) selects matching MPI/UCX and payload arms for the primary comparison. Later package-only investigations hold the full MPI/UCX stack fixed.
 
 ## Where profiles.sh comes from and what to run next
 
 `env.sh` is created by the GCC bootstrap in 00. **`profiles.sh` is created separately in [01, section 1](01-common.md#1-create-explicit-profiles)** by its `cat > "$TRIAL_ROOT/profiles.sh"` block. If GCC is already installed but that file is missing, run 01 section 1 and [section 2, compiler-flag qualification](01-common.md#2-qualify-flags-before-expensive-builds), then return here. There is no GCC rebuild for this step. Use the order **00 -> 01 -> 00b -> package builds**; the `00b` filename does not mean it precedes 01.
 
-The common setup defines full/reference/removal flag profiles, compiles small qualification probes with the existing GCC, and creates the paired-measurement helper used later. It does not rebuild GCC, change GCC's defaults/specs, or enable a compiler profiler. Calling `profile_flags full` selects variables passed to the subsequent package configure/build commands. Here, both UCX and Open MPI use that full profile once and remain fixed across the FFTW/HDF5 comparisons. The executable PIE settings are separate from shared-library PIC settings.
+The common setup defines full/reference/removal flag profiles, compiles small qualification probes with the existing GCC, and creates the paired-measurement helper used later. It does not rebuild GCC, change GCC's defaults/specs, or enable a compiler profiler. Calling `profile_flags full` selects variables passed to the subsequent package configure/build commands. Here, UCX and Open MPI are built with matching full/reference profiles. The full installation remains fixed only for the later package-only comparisons. The executable PIE settings are separate from shared-library PIC settings.
 
 After generating the file, confirm it loads in the build shell:
 
@@ -58,6 +58,7 @@ tar -xf ucx-1.16.0.tar.gz -C "$TRIAL_ROOT/src"
 tar -xf openmpi-4.1.8.tar.bz2 -C "$TRIAL_ROOT/src"
 export UCX_PREFIX="$TRIAL_ROOT/install/ucx-1.16.0-fixed"
 export MPI_PREFIX="$TRIAL_ROOT/install/openmpi-4.1.8-ucx-fixed"
+MPI_VARIANTS=(full reference)  # select only missing entries if full is already qualified
 ```
 
 Source references: [Open MPI 4.1 downloads](https://www.open-mpi.org/software/ompi/v4.1/), [UCX build and Open MPI integration](https://openucx.readthedocs.io/en/master/running.html).
@@ -78,51 +79,70 @@ UCX_TRANSPORT_ARGS=(--without-verbs --without-rdmacm)
 
 Leave UCX's runtime transport selection at its normal defaults initially. Record any later `UCX_TLS`/`UCX_NET_DEVICES` choices and apply them identically to both arms. A non-IB fabric requires its own supported UCX configuration; verify available transports rather than guessing from the machine's vendor name.
 
-## 3. Build UCX once
+## 3. Build matching UCX variants
 
-Use the full qualified hardening profile, fixed for every package arm. UCX's release configuration disables diagnostic instrumentation unrelated to this production experiment. If that fixed profile causes an MPI/UCX compatibility failure, resolve and record the chosen dependency profile before building any payloads.
+Build full first, then reference with the same transport choices and configure options. `autotools_flags` from 01 qualifies conditional executable PIE linking while Libtool retains library PIC. Keep its specs files with this immutable trial tree; they do not change GCC defaults. UCX's release configuration disables diagnostic instrumentation unrelated to this production experiment. If that fixed profile causes an MPI/UCX compatibility failure, resolve and record the chosen dependency profile before building any payloads.
 
 ```bash
-profile_flags full
-build="$TRIAL_ROOT/build/ucx-fixed"
-test ! -e "$build" && test ! -e "$UCX_PREFIX"
-mkdir -p "$build" "$TRIAL_ROOT/logs/ucx-fixed"
+for p in "${MPI_VARIANTS[@]}"; do
+mpi_profile_prefixes "$p"
+profile_flags "$p"
+autotools_flags "$p"
+tag=ucx-fixed
+if test "$p" = reference; then tag=ucx-reference; fi
+build="$TRIAL_ROOT/build/$tag"
+test ! -e "$build"
+    test ! -e "$UCX_PREFIX"
+mkdir -p "$build" "$TRIAL_ROOT/logs/$tag"
 (
   cd "$build"
-  CC="$CC" CXX="$CXX" CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" \
-    CPPFLAGS='' LDFLAGS="$SHARED_LDFLAGS" \
+  CC="$CC" CXX="$CXX" CFLAGS="$AUTOTOOLS_CFLAGS" CXXFLAGS="$AUTOTOOLS_CXXFLAGS" \
+    CPPFLAGS='' LDFLAGS="$AUTOTOOLS_LDFLAGS" \
     "$TRIAL_ROOT/src/ucx-1.16.0/contrib/configure-release" \
     --prefix="$UCX_PREFIX" --libdir="$UCX_PREFIX/lib" \
     --enable-shared --disable-static --enable-mt \
     --without-cuda --without-rocm --without-java --without-knem --without-xpmem \
     "${UCX_TRANSPORT_ARGS[@]}" \
-    2>&1 | tee "$TRIAL_ROOT/logs/ucx-fixed/configure.log"
-  make -j "$JOBS" V=1 2>&1 | tee "$TRIAL_ROOT/logs/ucx-fixed/build.log"
-  make check 2>&1 | tee "$TRIAL_ROOT/logs/ucx-fixed/check.log"
-  make install 2>&1 | tee "$TRIAL_ROOT/logs/ucx-fixed/install.log"
-  cp config.log "$TRIAL_ROOT/logs/ucx-fixed/config.log"
+    2>&1 | tee "$TRIAL_ROOT/logs/$tag/configure.log"
+  make -j "$JOBS" V=1 2>&1 | tee "$TRIAL_ROOT/logs/$tag/build.log"
+  make check 2>&1 | tee "$TRIAL_ROOT/logs/$tag/check.log"
+  make install 2>&1 | tee "$TRIAL_ROOT/logs/$tag/install.log"
+  cp config.log "$TRIAL_ROOT/logs/$tag/config.log"
 )
 export LD_LIBRARY_PATH="$UCX_PREFIX/lib:$GCC_LIB_DIRS${TRIAL_SITE_LIB_DIRS:+:$TRIAL_SITE_LIB_DIRS}"
-"$UCX_PREFIX/bin/ucx_info" -v > "$TRIAL_ROOT/logs/ucx-fixed/version.txt"
-"$UCX_PREFIX/bin/ucx_info" -d > "$TRIAL_ROOT/logs/ucx-fixed/devices.txt"
+"$UCX_PREFIX/bin/ucx_info" -v > "$TRIAL_ROOT/logs/$tag/version.txt"
+"$UCX_PREFIX/bin/ucx_info" -d > "$TRIAL_ROOT/logs/$tag/devices.txt"
+declare -p AUTOTOOLS_CFLAGS AUTOTOOLS_CXXFLAGS AUTOTOOLS_LDFLAGS UCX_TRANSPORT_ARGS > "$TRIAL_ROOT/logs/$tag/flags.txt"
+done
 ```
 
 Review configure warnings for unrecognized options and confirm threading support and the selected network transports in the built configuration. Testing requirements may vary by installed optional transport; retain failures and resolve them rather than ignoring the test result.
 
-## 4. Build Open MPI once against UCX
+## 4. Build matching Open MPI variants against UCX
 
 The example assumes Slurm, as in the existing trial examples. Confirm the recorded `SLURM_BINDIR` contains the existing site's `srun` and `salloc`; preserve `SLURM_*` settings from the allocation and required master modules. `--with-slurm` requests Open MPI's Slurm integration; it does not install Slurm. For another scheduler, replace that configuration before building. Open MPI supplies bundled hwloc, libevent, and PMIx, so their development packages are not assumed present. ROMIO is enabled and selected consistently for the HDF5 MPI-IO phase.
 
 ```bash
-profile_flags full
-build="$TRIAL_ROOT/build/openmpi-fixed"
-test ! -e "$build" && test ! -e "$MPI_PREFIX"
-mkdir -p "$build" "$TRIAL_ROOT/logs/openmpi-fixed"
+for p in "${MPI_VARIANTS[@]}"; do
+mpi_profile_prefixes "$p"
+profile_flags "$p"
+autotools_flags "$p"
+export LD_LIBRARY_PATH="$UCX_PREFIX/lib:$GCC_LIB_DIRS${TRIAL_SITE_LIB_DIRS:+:$TRIAL_SITE_LIB_DIRS}"
+tag=openmpi-fixed
+envfile="$TRIAL_ROOT/mpi-env.sh"
+if test "$p" = reference; then
+    tag=openmpi-reference
+    envfile="$TRIAL_ROOT/mpi-env-reference.sh"
+fi
+build="$TRIAL_ROOT/build/$tag"
+test ! -e "$build"
+    test ! -e "$MPI_PREFIX"
+mkdir -p "$build" "$TRIAL_ROOT/logs/$tag"
 (
   cd "$build"
-  CC="$CC" CXX="$CXX" FC="$FC" CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" \
-    FCFLAGS="$FFLAGS" FFLAGS="$FFLAGS" CPPFLAGS='' \
-    LDFLAGS="$SHARED_LDFLAGS -Wl,-rpath,$UCX_PREFIX/lib" \
+  CC="$CC" CXX="$CXX" FC="$FC" CFLAGS="$AUTOTOOLS_CFLAGS" CXXFLAGS="$AUTOTOOLS_CXXFLAGS" \
+    FCFLAGS="$AUTOTOOLS_FFLAGS" FFLAGS="$AUTOTOOLS_FFLAGS" CPPFLAGS='' \
+    LDFLAGS="$AUTOTOOLS_LDFLAGS -Wl,-rpath,$UCX_PREFIX/lib" \
     "$TRIAL_ROOT/src/openmpi-4.1.8/configure" \
     --prefix="$MPI_PREFIX" --libdir="$MPI_PREFIX/lib" \
     --with-ucx="$UCX_PREFIX" --with-hwloc=internal --with-libevent=internal \
@@ -130,11 +150,11 @@ mkdir -p "$build" "$TRIAL_ROOT/logs/openmpi-fixed"
     --enable-mpi-fortran=all --disable-mpi-cxx --disable-oshmem \
     --enable-shared --disable-static --without-cuda \
     --enable-mca-no-build=btl-uct \
-    2>&1 | tee "$TRIAL_ROOT/logs/openmpi-fixed/configure.log"
-  make -j "$JOBS" V=1 2>&1 | tee "$TRIAL_ROOT/logs/openmpi-fixed/build.log"
-  make check 2>&1 | tee "$TRIAL_ROOT/logs/openmpi-fixed/check.log"
-  make install 2>&1 | tee "$TRIAL_ROOT/logs/openmpi-fixed/install.log"
-  cp config.log "$TRIAL_ROOT/logs/openmpi-fixed/config.log"
+    2>&1 | tee "$TRIAL_ROOT/logs/$tag/configure.log"
+  make -j "$JOBS" V=1 2>&1 | tee "$TRIAL_ROOT/logs/$tag/build.log"
+  make check 2>&1 | tee "$TRIAL_ROOT/logs/$tag/check.log"
+  make install 2>&1 | tee "$TRIAL_ROOT/logs/$tag/install.log"
+  cp config.log "$TRIAL_ROOT/logs/$tag/config.log"
 )
 export MPI_LIB_DIRS="$MPI_PREFIX/lib:$UCX_PREFIX/lib"
 {
@@ -152,9 +172,9 @@ export OMPI_MCA_plm=slurm
 export OMPI_MCA_ras=slurm
 hash -r
 ENV
-} > "$TRIAL_ROOT/mpi-env.sh"
-source "$TRIAL_ROOT/mpi-env.sh"
-"$MPI_PREFIX/bin/ompi_info" --all > "$TRIAL_ROOT/logs/openmpi-fixed/info.txt"
+} > "$envfile"
+source "$envfile"
+"$MPI_PREFIX/bin/ompi_info" --all > "$TRIAL_ROOT/logs/$tag/info.txt"
 "$MPI_PREFIX/bin/ompi_info" --param pml ucx
 "$MPI_PREFIX/bin/ompi_info" --param io all
 "$MPI_PREFIX/bin/ompi_info" --param plm slurm
@@ -167,9 +187,12 @@ test "$(command -v mpirun)" = "$MPI_PREFIX/bin/mpirun"
 test "$(command -v mpicc)" = "$MPI_PREFIX/bin/mpicc"
 test "$("$MPI_PREFIX/bin/mpicc" --showme:command)" = "$CC"
 test "$("$MPI_PREFIX/bin/mpifort" --showme:command)" = "$FC"
-ldd "$MPI_PREFIX/bin/mpirun" > "$TRIAL_ROOT/logs/openmpi-fixed/launcher-libraries.txt"
+ldd "$MPI_PREFIX/bin/mpirun" > "$TRIAL_ROOT/logs/$tag/launcher-libraries.txt"
 ldd "$MPI_PREFIX/lib/openmpi/mca_pml_ucx.so" \
-  > "$TRIAL_ROOT/logs/openmpi-fixed/ucx-component-libraries.txt"
+  > "$TRIAL_ROOT/logs/$tag/ucx-component-libraries.txt"
+declare -p AUTOTOOLS_CFLAGS AUTOTOOLS_CXXFLAGS AUTOTOOLS_FFLAGS AUTOTOOLS_LDFLAGS > "$TRIAL_ROOT/logs/$tag/flags.txt"
+done
+source "$TRIAL_ROOT/mpi-env.sh"
 ```
 
 The wrapper commands must name the private GCC 12.5.0 drivers. Wrapper compile flags must not force an experiment control into every consuming package: hardening Open MPI itself should not silently inject its hardening flags into callers. Inspect the wrapper-data files and `--showme:*` output. If flags are injected, correct the wrapper configuration and requalify before the package matrix. Verify the `ucx` PML, `romio321` I/O, and Slurm launch/allocation components are present. The UCX component's `ldd` output must resolve `libucp`, `libuct`, `libucs`, and other UCX libraries to the private UCX prefix, with no missing dependencies or site MPI/AOCC substitutions. Inspect any user/site MCA parameter files for component-path overrides. `ompi_info` success alone is not a data-transfer test.
@@ -240,15 +263,23 @@ int main(int argc,char **argv) {
     MPI_Finalize(); return 0;
 }
 C
-"$MPI_PREFIX/bin/mpicc" "$TRIAL_ROOT/bench/mpi-smoke.c" \
-  -o "$TRIAL_ROOT/bench/mpi-smoke"
+export TRIAL_EXPECTED_NODES=2 RANKS_PER_NODE=1
+for p in full reference; do
+activate_mpi_profile "$p"
+profile_flags full  # one fixed qualification caller, not a benchmark arm
+read -r -a cargs <<< "$EXE_CFLAGS"
+read -r -a largs <<< "$EXE_LDFLAGS"
+"$MPI_PREFIX/bin/mpicc" "${cargs[@]}" "$TRIAL_ROOT/bench/mpi-smoke.c" \
+  "${largs[@]}" -o "$TRIAL_ROOT/bench/mpi-smoke-$p"
 "$MPI_PREFIX/bin/mpirun" -np 2 --map-by ppr:1:node --bind-to core \
   --report-bindings --mca pml ucx --mca btl '^uct' \
-  -x PATH -x LD_LIBRARY_PATH -x UCX_LOG_LEVEL=info \
-  "$TRIAL_ROOT/bench/mpi-smoke" \
-  2>&1 | tee "$TRIAL_ROOT/logs/openmpi-fixed/two-node-smoke.log"
+  -x PATH -x LD_LIBRARY_PATH -x TRIAL_EXPECTED_NODES -x RANKS_PER_NODE -x UCX_LOG_LEVEL=info \
+  "$TRIAL_ROOT/bench/mpi-smoke-$p" \
+  2>&1 | tee "$TRIAL_ROOT/logs/mpi-two-node-$p.log"
+done
+source "$TRIAL_ROOT/mpi-env.sh"
 ```
 
-Confirm distinct hostnames, the correct sum, and the selected UCX transport. UCX's informational logging is for qualification; remove it from timed runs. On each rank/node record `ucx_info -d`, `ldd` for the benchmark and the installed UCX PML component, and `ulimit -l`. Verify no system MPI/UCX is substituted. Keep runtime environment, transport/device selection, rank count, binding, and the MPI/UCX libraries fixed in all package comparisons. Do not add oversubscription to conceal an allocation mismatch.
+Confirm distinct hostnames, the correct sum, and the selected UCX transport. UCX's informational logging is for qualification; remove it from timed runs. On each rank/node record `ucx_info -d`, `ldd` for the benchmark and the installed UCX PML component, and `ulimit -l`. Verify no system MPI/UCX is substituted. Keep runtime environment, transport/device selection, rank count, binding, and the MPI/UCX libraries fixed in library-only comparisons. Stack scope in 11 selects matched full/reference dependency arms. Do not add oversubscription to conceal an allocation mismatch.
 
 Continue with [05 — Parallel FFTW and HDF5](05-parallel.md).

@@ -1,6 +1,6 @@
-# 05 — Parallel FFTW and HDF5 using fixed Open MPI + UCX
+# 05 — Parallel FFTW and HDF5 using matching Open MPI + UCX
 
-Prerequisites: [00 — GCC](00-gcc-bootstrap.md), [01 — profiles/harness](01-common.md), and [00b — Open MPI + UCX](00b-openmpi-ucx.md). These are separate `fftw-mpi` and `hdf5-mpi` matrices. They use GCC 12.5.0 through the same qualified Open MPI 4.1.8 wrappers, with one fixed UCX 1.16.0 installation. LAPACK remains a serial library; MPI consumers can be tested separately.
+Prerequisites: [00 — GCC](00-gcc-bootstrap.md), [01 — profiles/harness](01-common.md), and [00b — Open MPI + UCX](00b-openmpi-ucx.md). These are separate `fftw-mpi` and `hdf5-mpi` matrices. They use GCC 12.5.0 through qualified Open MPI 4.1.8 wrappers, with matching full/reference UCX 1.16.0 installations. The primary stack comparison changes both payload and dependencies; package-only follow-ups hold full MPI/UCX fixed. LAPACK remains a serial library; MPI consumers can be tested separately.
 
 Build in an allocation sized for compilation and correctness tests. The commands here are a two-node qualification/pilot. [08](08-slurm-campaign.md) supplies the planned 1/2/4/8-node campaign and optional denser rank placement. `mpirun` is launched by the paired harness; do not wrap the harness with one-CPU `taskset` for multi-rank jobs. Open MPI performs the recorded rank binding. Regenerate/recompile these callers and the placement header from 00b before using the campaign's placement checks.
 
@@ -19,15 +19,19 @@ unset UCX_LOG_LEVEL
 ```bash
 FFTW_MPI_VARIANTS=(full reference)
 for p in "${FFTW_MPI_VARIANTS[@]}"; do
+    activate_mpi_profile "$p"
     profile_flags "$p"
+    autotools_flags "$p"
     build="$TRIAL_ROOT/build/fftw-mpi-$p"
     prefix="$TRIAL_ROOT/install/fftw-mpi/$p"
-    test ! -e "$build" && test ! -e "$prefix"
+    test ! -e "$build"
+    test ! -e "$prefix"
     mkdir -p "$build" "$TRIAL_ROOT/logs/fftw-mpi/$p"
+    declare -p AUTOTOOLS_CFLAGS AUTOTOOLS_LDFLAGS MPI_PREFIX UCX_PREFIX > "$TRIAL_ROOT/logs/fftw-mpi/$p/flags.txt"
     (
       cd "$build"
-      CC="$CC" MPICC="$MPI_PREFIX/bin/mpicc" CFLAGS="$CFLAGS" CPPFLAGS='' \
-        LDFLAGS="$SHARED_LDFLAGS -Wl,-rpath,$MPI_PREFIX/lib" \
+      CC="$CC" MPICC="$MPI_PREFIX/bin/mpicc" CFLAGS="$AUTOTOOLS_CFLAGS" CPPFLAGS='' \
+        LDFLAGS="$AUTOTOOLS_LDFLAGS -Wl,-rpath,$MPI_PREFIX/lib" \
         "$TRIAL_ROOT/src/fftw-3.3.11/configure" --prefix="$prefix" \
         --enable-shared --disable-static --enable-threads --enable-sse2 \
         --enable-mpi --disable-fortran \
@@ -106,6 +110,7 @@ int main(int argc,char **argv) {
     MPI_Finalize(); return 0;
 }
 C
+activate_mpi_profile full
 profile_flags full
 read -r -a cargs <<< "$EXE_CFLAGS"
 read -r -a largs <<< "$EXE_LDFLAGS"
@@ -114,6 +119,15 @@ read -r -a largs <<< "$EXE_LDFLAGS"
   -L "$TRIAL_ROOT/install/fftw-mpi/full/lib" -lfftw3_mpi -lfftw3 -lm \
   -Wl,--enable-new-dtags -Wl,-rpath,"$TRIAL_ROOT/install/fftw-mpi/full/lib" \
   "${largs[@]}" -o "$TRIAL_ROOT/bench/fftw-mpi-fixed"
+```
+
+#### Optional FFTW package-only timings
+
+Complete 11/08's stack comparison first. These fixed-caller timings retain full MPI/UCX for later package attribution.
+
+```bash
+export TRIAL_SCOPE=library
+unset COMPARE_EXECUTABLE
 python3 "$TRIAL_ROOT/bench/paired.py" \
   fftw-mpi "$TRIAL_ROOT/bench/fftw-mpi-fixed" 2ranks-32cube-estimate 32 200  estimate
 python3 "$TRIAL_ROOT/bench/paired.py" \
@@ -131,17 +145,19 @@ C-only, compression/plugin/thread-safe options off, high-level library and paral
 ```bash
 HDF5_MPI_VARIANTS=(full reference)
 for p in "${HDF5_MPI_VARIANTS[@]}"; do
+    activate_mpi_profile "$p"
     profile_flags "$p"
     build="$TRIAL_ROOT/build/hdf5-mpi-$p"
     prefix="$TRIAL_ROOT/install/hdf5-mpi/$p"
-    test ! -e "$build" && test ! -e "$prefix"
+    test ! -e "$build"
+    test ! -e "$prefix"
     mkdir -p "$TRIAL_ROOT/logs/hdf5-mpi/$p"
     "$CMAKE" -S "$TRIAL_ROOT/src/hdf5-2.1.0" -B "$build" -G 'Unix Makefiles' \
       -DCMAKE_C_COMPILER="$MPI_PREFIX/bin/mpicc" -DMPI_C_COMPILER="$MPI_PREFIX/bin/mpicc" \
       -DMPIEXEC_EXECUTABLE="$MPI_PREFIX/bin/mpirun" -DMPIEXEC_MAX_NUMPROCS=2 \
       -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_C_FLAGS_RELEASE='' \
       -DCMAKE_SHARED_LINKER_FLAGS="$SHARED_LDFLAGS" \
-      -DCMAKE_EXE_LINKER_FLAGS="$SHARED_LDFLAGS" \
+      -DCMAKE_EXE_LINKER_FLAGS="$EXE_LDFLAGS" \
       -DCMAKE_INSTALL_PREFIX="$prefix" -DCMAKE_INSTALL_LIBDIR=lib \
       -DCMAKE_INSTALL_RPATH="$MPI_PREFIX/lib" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
       -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF -DBUILD_TESTING=ON \
@@ -234,6 +250,7 @@ int main(int argc,char **argv) {
     free(in); free(out); MPI_Finalize(); return 0;
 }
 C
+activate_mpi_profile full
 profile_flags full
 read -r -a cargs <<< "$EXE_CFLAGS"
 read -r -a largs <<< "$EXE_LDFLAGS"
@@ -241,6 +258,15 @@ read -r -a largs <<< "$EXE_LDFLAGS"
   "$TRIAL_ROOT/bench/hdf5_mpi_bench.c" -L "$TRIAL_ROOT/install/hdf5-mpi/full/lib" \
   -Wl,--enable-new-dtags -Wl,-rpath,"$TRIAL_ROOT/install/hdf5-mpi/full/lib" \
   -lhdf5 -lm "${largs[@]}" -o "$TRIAL_ROOT/bench/hdf5-mpi-fixed"
+```
+
+#### Optional HDF5 package-only timings
+
+Complete 11/08's stack comparison first. These fixed-caller timings retain full MPI/UCX for later package attribution.
+
+```bash
+export TRIAL_SCOPE=library
+unset COMPARE_EXECUTABLE
 export IO_DIR=/absolute/path/to/shared-test-filesystem/hdf5-hardening-trial
 mkdir -p "$IO_DIR"
 python3 "$TRIAL_ROOT/bench/paired.py" \

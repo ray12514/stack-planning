@@ -18,6 +18,12 @@ The [repeatability plan](08-slurm-campaign.md#repeatability-and-a-manageable-fir
 
 [10 — Single allocation campaign](10-single-allocation.md) adds a second mode: reserve 8/4/2 nodes once, run serial cases on each host and MPI on selected subsets, and repeat predetermined rounds. CPU cases can run concurrently on different hosts; HDF5/MPI cases are sequential. Smaller reservations explicitly record unavailable scales. The separate-job campaign in 08 remains the fallback. Regenerate the paired harness, ReFrame definitions and collector from 01/06/08 for selected-host verification/metadata, then generate the new scripts in 10. Qualified unchanged libraries/callers need no recompilation.
 
+Verification for this update: Bash/Python syntax, ShellCheck error checks, synthetic scope/metric/placement failures and ReFrame 4.10.4 reporting were checked locally. Conditional PIE/Libtool/C++/Fortran links and OSU 7.5.2 builds/output were checked in an isolated Linux container using GCC 13 and Open MPI 4.1.6. These checks do not replace qualification of GCC 12.5/Open MPI 4.1.8/UCX and package builds on the target.
+
+Experiment update 2026-10-09: **complete profile first, then attribution**. [11 — Complete-stack comparison](11-stack-comparison.md) is the primary procedure: qualify full first, build matching reference MPI/UCX, BLAS, packages and callers, then compare serial/threaded and initial 1/2-node workloads. GCC remains the installation already built. [12 — OSU screen](12-osu-screen.md) adds four communication benchmarks and three message sizes each, with only two builds. Flag removals and larger scales are focused follow-ups outside CI. Compatibility failures retain their logs and exact flag/profile identity; an unsupported control is never silently removed from `full`.
+
+For an in-progress build, retain qualified unchanged artifacts, build only missing variants, and follow [11's reuse instructions](11-stack-comparison.md#if-you-are-partway-through-a-build). Updated Autotools handling separates executable PIE links from shared-library links; unchanged old artifacts require an audit before reuse. Regenerate the scripts created by the Markdown blocks. The first campaign uses `TRIAL_SCOPE=stack`, `CAMPAIGN_COMPARATORS=reference`, `RUN_PIE=0`; `TRIAL_SCOPE=library` is the later package-only investigation.
+
 ## Download onto the test machine
 
 The current alpha host is [ray12514/stack-planning on GitHub](https://github.com/ray12514/stack-planning/tree/codex/node-build-resources/docs/standalone-hardening), branch **`codex/node-build-resources`**. The runbooks live in `docs/standalone-hardening/`. This repository is public; HTTPS cloning and archive downloads require no GitHub sign-in. `stack-content` is a separate, private repository and does not contain these standalone runbooks.
@@ -71,12 +77,12 @@ Use a Bash shell on the Linux build/test system. Follow the command blocks in th
 1. Choose a writable absolute `TRIAL_ROOT` visible at the same path on execution nodes, with no whitespace in the path. Keep the downloaded documentation in its own folder.
 2. Follow the environment procedure to establish required master modules and explicit search paths, then 00 to bootstrap GCC 12.5.0 or install a compatible transferred toolchain. GCC 12.5 is assumed absent. A source bootstrap needs a working seed C/C++ compiler and OS development files; 00 covers the route when no compiler exists.
 3. Follow 01 to create and qualify the explicit flags before package builds.
-4. Build the serial package variants and fixed callers with 02–04. Build and qualify Open MPI + UCX with 00b, then follow 05 for parallel FFTW/HDF5.
-5. Follow 06 sections 1–3 to install ReFrame and create its configuration and checks. Use its serial or parallel launch procedure inside a compute allocation.
-6. Follow 07 to build PIE comparators, then 08 for the hypotheses, expanded matrix, Slurm sequence and data collection. Supply the site's master-module setup, account, partition/node constraint, I/O directory and resource limits.
+4. Build and qualify full then reference Open MPI + UCX with 00b. Build serial package variants/callers and matching BLAS with 02–04, then matching parallel FFTW/HDF5 with 05. Select only missing builds if an installation is already qualified.
+5. Follow 06 sections 1–3 for ReFrame, then 11 for reference callers, rank guards and the complete-stack comparison. Optionally build/run the small OSU screen in 12 inside a two-node allocation.
+6. Follow 08 for the first full/reference Slurm campaign and data collection. Supply the site master-module setup, account, partition/node constraint, I/O directory and resource limits. Build 07 PIE comparators only for a selected later attribution campaign.
 7. Optionally use 10 to run selected nodes/rounds inside one allocation; retain 08 for separate jobs and checks across independent allocations.
 
-After the serial builds and ReFrame setup, this runs the three-package pilot. Replace the root, CPU, and I/O directory with the trial's chosen values:
+After the builds, ReFrame setup and reference callers in 11, this runs the three-package complete-stack pilot. Replace the root, CPU, and I/O directory with the trial's chosen values:
 
 ```bash
 export TRIAL_ROOT=/absolute/path/to/hardening-trial
@@ -85,7 +91,7 @@ export CPUSET=0  # replace with an allocated CPU
 export IO_DIR=/absolute/path/to/test-filesystem/hdf5-hardening-trial
 mkdir -p "$IO_DIR"
 export WORKLOADS=fft-small,hdf5-contiguous,lapack-small
-export COMPARATORS=reference PAIRS=10
+export COMPARATORS=reference TRIAL_SCOPE=stack PAIRS=10
 export RUN_ID
 RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)
 mkdir -p "$TRIAL_ROOT/results/reframe/$RUN_ID"
@@ -108,22 +114,24 @@ The terminal and `console.log` show correctness status, full/reference seconds, 
 | [Build environment and system dependencies](00-build-environment.md) | Required master modules, explicit search paths, removal of inherited compiler/MPI overrides, and existing Slurm/fabric provenance |
 | [00 — Bootstrap GCC 12.5.0](00-gcc-bootstrap.md) | A private GCC C/C++/Fortran installation, binutils, CMake, verified package sources, and a reusable environment file |
 | [01 — Common hardening profiles and measurement](01-common.md) | Full profile, optimized reference, individual control removal, compiler qualification, and paired timing procedure |
-| [00b — Open MPI 4.1.8 + UCX 1.16.0](00b-openmpi-ucx.md) | One fixed GNU-built MPI/UCX installation, wrapper checks, and a two-node transport qualification |
+| [00b — Open MPI 4.1.8 + UCX 1.16.0](00b-openmpi-ucx.md) | Matching full/reference GNU-built MPI/UCX installations, wrapper checks and two-node transport qualification |
 | [02 — FFTW 3.3.11](02-fftw.md) | Shared serial/threaded FFTW variants, correctness tests, and separate planning/execution measurements |
 | [03 — HDF5 2.1.0](03-hdf5.md) | Shared serial HDF5 variants, correctness tests, and contiguous/chunked read/write measurements |
-| [04 — LAPACK 3.12.1](04-lapack.md) | Shared LAPACK variants, one fixed reference BLAS, correctness tests, and LU solve measurements |
+| [04 — LAPACK 3.12.1](04-lapack.md) | Shared LAPACK and matching reference-implementation BLAS variants, correctness tests and LU solve measurements |
 | [05 — Parallel FFTW and HDF5](05-parallel.md) | MPI-enabled variants, distributed FFTs, and collective/independent parallel HDF5 I/O |
 | [06 — ReFrame driver and reports](06-reframe.md) | Paired comparisons, correctness gates, terminal performance tables, raw CSV, and JSON reports |
 | [07 — Executable PIE comparison](07-consumer-pie.md) | PIE versus non-PIE callers with full libraries fixed, reporting whole-process elapsed time |
 | [08 — Slurm campaign and hypotheses](08-slurm-campaign.md) | Predeclared comparisons, serial/threaded and 1/2/4/8-node matrix, Slurm submission, placement verification, and all-phase CSV collection |
 | [09 — Results presentation](09-results-presentation.md) | Illustrative PDF and plots, audience narrative, result-to-figure mapping, history options and Grafana design |
+| [11 — Complete-stack comparison](11-stack-comparison.md) | Full/reference stack scope, reference callers, dependency guards, compatibility decisions and staged attribution |
+| [12 — OSU screen](12-osu-screen.md) | Two OSU builds, 12 paired message/test comparisons, rank checks and native us/MB/s ReFrame reporting |
 | [10 — Single allocation campaign](10-single-allocation.md) | Optional 8/4/2-node reservation, host/subset rotation, repeated rounds, CPU concurrency, serial I/O/MPI steps and capacity/failure records |
 
-Run 00 and 01 once, then 02–04 for serial packages. Run 00b after qualifying the profiles in 01, then 05 for parallel packages. Use 06 to drive and report either suite after its variants and fixed callers are installed, and 07 for executable PIE. Start with `full` and `reference`; each removal starts from `full`. `stack-all` is an optional stronger-stack comparison. Extended-set controls require a separate, explicitly labelled trial root.
+Reuse the completed GCC from 00; regenerate/qualify 01, build missing MPI/UCX variants in 00b and packages in 02–05, then set up 06 and the reference callers/guards in 11. Run the complete-profile comparison through 08 or 10, with the optional OSU screen in 12. Use 07 only for later executable PIE attribution. Start with `full` and `reference`; each removal starts from `full`. `stack-all` is an optional stronger-stack comparison. Extended-set controls require a separate, explicitly labelled trial root.
 
 Versions match the current trial roster. Binutils 2.44 is a runbook pin; it is not claimed to be the binutils version used by every existing trial. CMake 3.31.12 matches the roster's build-tool pin. HDF5 2.1.0 is the selected trial input, not a recommendation to replace it with the current upstream release.
 
-The initial workloads cover serial CPU and I/O costs. FFTW threads are built and can be measured separately. The parallel phase uses **Open MPI 4.1.8 with UCX 1.16.0**, matching the trial pins; build and qualify it once with GCC 12.5 and hold it fixed. Select and record the UCX transport for the actual fabric, and use a compute allocation. Serial results do not establish parallel-I/O or MPI-FFT performance.
+The initial workloads cover serial CPU and I/O costs. FFTW threads are built and can be measured separately. The parallel phase uses **Open MPI 4.1.8 with UCX 1.16.0**, matching the trial pins; build matching full/reference stacks with GCC 12.5 for the primary comparison. Later package-only attribution holds full MPI/UCX fixed. Select and record the UCX transport for the actual fabric, and use a compute allocation. Serial results do not establish parallel-I/O or MPI-FFT performance.
 
 ## What the trial answers
 
@@ -131,7 +139,7 @@ The listed full profile uses `-fstack-protector-strong`, C/C++ `-D_FORTIFY_SOURC
 
 The optional extended set adds controls described in 01. Sanitizers and Fortran bounds diagnostics are separate experiments. The [HPCMP policy alignment note](../hpcmp_compiler_hardening_policy_alignment_v1.md) explains the public program model and why central flag configuration alone does not establish STIG compliance. A measured removal may support a package-specific decision; it does not establish a universal performance exemption.
 
-The primary package comparisons use one fixed benchmark executable while switching its loaded library. That isolates package changes. A separate consumer comparison changes executable hardening too; those results must be labelled separately. For LAPACK the fixed BLAS rule is particularly important.
+The primary `scope=stack` comparison changes the caller, package and its trial-owned dependencies together. Later `scope=library` comparisons use a fixed full executable, full MPI/UCX and full BLAS while switching only the package library. `scope=consumer-pie` changes only caller PIE. Keep these scopes separate in tables and plots; old library-only results are not whole-stack measurements.
 
 ## Inputs the operator selects
 

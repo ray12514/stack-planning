@@ -1,6 +1,6 @@
 # Slurm campaign and performance hypotheses
 
-Use this after the builds, artifact checks, MPI qualification, and ReFrame setup in 00–07. The campaign measures the supplied hardening profile's runtime cost and correctness on the recorded workloads. Security properties are checked through build commands and artifacts in 01; a small or undetectable runtime change does not imply that a protection does nothing.
+Use this after the builds, artifact checks, MPI qualification, ReFrame setup and reference callers/guards in 00–06 and [11](11-stack-comparison.md). 07 is needed only for later PIE attribution. The campaign measures the supplied hardening profile's runtime cost and correctness on the recorded workloads. Security properties are checked through build commands and artifacts in 01; a small or undetectable runtime change does not imply that a protection does nothing.
 
 This is the **separate-job campaign**, retained as the fallback and for repeated allocations. [10](10-single-allocation.md) adds the optional single-allocation controller for node subsets and repeated rounds. Both modes use the same paired harness, ReFrame definitions, package binaries and collector.
 
@@ -20,9 +20,9 @@ These are hypotheses to test on the target system, not predicted benchmark perce
 
 Mechanism references: [GCC 12.5 instrumentation](https://gcc.gnu.org/onlinedocs/gcc-12.5.0/gcc/Instrumentation-Options.html), [glibc fortification](https://sourceware.org/glibc/manual/latest/html_node/Source-Fortification.html), [GNU ld](https://sourceware.org/binutils/docs/ld/Options.html). FFTW documents that small MPI problems can be dominated by communication and that performance depends on distribution and problem size ([MPI performance tips](https://www.fftw.org/doc/FFTW-MPI-Performance-Tips.html)). HDF5 documents the costs of many small metadata operations and the importance of layout/access patterns ([metadata I/O](https://support.hdfgroup.org/documentation/hdf5/latest/collective_metadata_io.html)). The expected performance direction above is an experimental inference from those mechanisms.
 
-Start with `reference` to measure the combined library controls. Then compare independent removals from `full`: `minus-stack`, `minus-fortify`, `minus-relro`, and `minus-now`. LAPACK skips FORTIFY. These are not cumulative removals. MPI/UCX and the benchmark caller stay fixed in library comparisons; the PIE experiment changes only the caller's PIE setting. A complete MPI/UCX hardening experiment requires its own rebuild matrix.
+Start with `TRIAL_SCOPE=stack`, `CAMPAIGN_COMPARATORS=reference` and `RUN_PIE=0` to measure the complete supplied profile on matching callers, packages, BLAS and MPI/UCX. Use [12](12-osu-screen.md) for the small native-metric communication screen. After the initial findings, select `TRIAL_SCOPE=library` and compare independent removals from `full`: `minus-stack`, `minus-fortify`, `minus-relro`, and `minus-now`. LAPACK skips FORTIFY. These are not cumulative removals. MPI/UCX and the benchmark caller stay fixed in library comparisons; the PIE experiment changes only the caller's PIE setting. The primary stack scope already includes matching full/reference MPI/UCX rebuilds; an MPI-only or UCX-only attribution needs a separately defined contrast.
 
-Do not sum removal percentages: controls can interact. The library and caller contrasts establish their recorded scopes; a complete deployment rebuild or application release needs its own comparison.
+Do not sum removal percentages: controls can interact. The library and caller contrasts establish their recorded scopes; the stack comparison in 11 measures the named trial-owned closure, and an application release outside it needs its own comparison.
 
 ## 2. Matrix followed by ReFrame
 
@@ -31,16 +31,16 @@ Do not sum removal percentages: controls can interact. The library and caller co
 | Serial FFTW | `fft-small`, `fft-large`, `fft-3d`, `fft-plan` | 1D 1,024 and 1,048,576 points; 64³; measured planning separate from execution |
 | Threaded FFTW | `fft-threads` | 1,048,576 points, four threads on four allocated CPUs |
 | Serial HDF5 | `hdf5-small`, `hdf5-metadata`, `hdf5-contiguous`, `hdf5-chunked` | 64 KiB; 1,000 datasets of 128 doubles; 128 MiB contiguous/chunked; uncompressed, buffered writes, warm reads |
-| Serial LAPACK | `lapack-small`, `lapack-large` | DGESV at n=128 and n=1,024; fixed reference BLAS, numerical residual checks |
-| Startup-sensitive libraries | `fft-startup`, `hdf5-startup`, `lapack-startup` | Short calls; full process time including launch, loading, validation and exit; fixed hardened caller |
+| Serial LAPACK | `lapack-small`, `lapack-large` | DGESV at n=128 and n=1,024; matching BLAS in stack scope; fixed full BLAS in library scope; numerical residual checks |
+| Startup-sensitive libraries | `fft-startup`, `hdf5-startup`, `lapack-startup` | Short calls; full process time including launch, loading, validation and exit; matching callers in stack scope; fixed hardened caller in library scope |
 | Caller PIE | `fft-pie`, `hdf5-pie`, `lapack-pie` | Short calls; full libraries fixed; `minus-pie` only |
 | MPI FFTW | `fft-mpi-small`, `fft-mpi`, `fft-mpi-large`, `fft-mpi-plan` | Fixed global 32³, 64³, 128³; measured planning at 64³; maximum-rank timers |
 | MPI HDF5 strong scaling | `hdf5-collective`, `hdf5-independent`, `hdf5-mpi-small` | Fixed global 128 MiB bulk and 64 KiB small data, evenly divided among ranks |
 | MPI HDF5 weak scaling | Same three HDF5 MPI workloads | 64 MiB bulk and 8 KiB small data per rank; global size grows with rank count |
 
-Default node counts are **1, 2, 4, and 8**, initially one rank per node. One-node MPI separates MPI/library effects from communication between nodes. An optional four-ranks-per-node lane tests more local concurrency; it is a separately labelled placement, not a continuation of the one-rank lane. The initial maximum is 32 ranks, compatible with the 32³ FFT's slab distribution. Scaling curves across allocations also depend on actual node/fabric conditions; the hardening contrast is paired within each allocation.
+Initial node counts are **1 and 2**, with **4 and 8** available for focused follow-ups, initially one rank per node. One-node MPI separates MPI/library effects from communication between nodes. An optional four-ranks-per-node lane tests more local concurrency; it is a separately labelled placement, not a continuation of the one-rank lane. The initial maximum is 32 ranks, compatible with the 32³ FFT's slab distribution. Scaling curves across allocations also depend on actual node/fabric conditions; the hardening contrast is paired within each allocation.
 
-The single-node job runs library cases and then PIE cases. Each MPI job runs one node-count/rank-layout/scaling condition sequentially. MPI FFTs always hold global size fixed; the weak-scaling jobs run HDF5 only. Every ReFrame case warms both arms, then alternates full/comparator order over `PAIRS` fresh process pairs. It retains all phases, including reads, planning, and whole-process time, even when the terminal table shows one primary phase.
+The single-node job runs library cases and then PIE cases. Each MPI job runs one node-count/rank-layout/scaling condition sequentially. Its scope selects matching full/reference dependencies or fixed full dependencies explicitly. MPI FFTs always hold global size fixed; the weak-scaling jobs run HDF5 only. Every ReFrame case warms both arms, then alternates full/comparator order over `PAIRS` fresh process pairs. It retains all phases, including reads, planning, and whole-process time, even when the terminal table shows one primary phase.
 
 ### Repeatability and a manageable first assessment
 
@@ -66,7 +66,7 @@ For the first assessment, seek **at least two distinct physical hosts of the sam
 
 Use the pilot to choose timed work long enough for stable kernel measurements, increasing repetitions symmetrically and recording changed arguments. Keep startup cases short, because process cost is their subject. For noisy HDF5 shared-storage cases, add the already-supported dedicated local-storage case or repeat at another time; preserve cache/durability labels. Do not drop slow observations merely because they weaken the conclusion. Keep failed/invalid measurements with reasons and rerun the complete affected condition after a documented procedural fault.
 
-Before the first assessment, fix its workload/phase list, pair and allocation counts, and any operational slowdown limit. Complete that planned batch before interpreting it. If precision remains inadequate, define a separate follow-up batch with a fixed larger budget and report both batches; do not keep sampling until an interval happens to cross a desired boundary. More repetitions of one noisy allocation do not replace checks on other hosts. Primary `full/reference` comparisons answer the overall cost question; removals and secondary phases identify possible causes and stay exploratory.
+Before the first assessment, fix its workload/phase list, pair and allocation counts, and any operational slowdown limit. Complete that planned batch before interpreting it. If precision remains inadequate, define a separate follow-up batch with a fixed larger budget and report both batches; do not keep sampling until an interval happens to cross a desired boundary. More repetitions of one noisy allocation do not replace checks on other hosts. Primary stack `full/reference` comparisons answer the combined trial-scope cost question; removals and secondary phases identify possible causes and stay exploratory.
 
 Report per-allocation paired geometric mean changes and 95% intervals, absolute times, arithmetic mean/sample standard deviation, process-pair count, allocation count and distinct-host count. Show the three allocation estimates as separate points or rows. Do not pool their process pairs, average interval endpoints, or multiply the sample count by kernel iterations or MPI ranks to create a combined interval. A future combined analysis must account for allocation/node grouping. Consistent estimates support a bounded finding; disagreement across allocations calls for investigation. An interval including zero means a zero effect is compatible with these observations, not that overhead is proved absent. No finite sweep proves every scale or application is unaffected.
 
@@ -74,7 +74,7 @@ The distinction between repetitions inside runs and across sessions follows meas
 
 ## 3. Prepare the campaign inputs
 
-Use `/usr/bin/gcc` and `/usr/bin/g++` for the bootstrap if qualified; all payloads still use private GCC 12.5. Before submitting, finish the builds and regenerate the updated HDF5 driver (dataset-count support), MPI placement header/callers, paired harness, and ReFrame definitions. Build PIE callers in 07. Existing binaries do not gain these features from a documentation update.
+Use `/usr/bin/gcc` and `/usr/bin/g++` for the bootstrap if qualified; all payloads still use private GCC 12.5. Before submitting, finish the builds and regenerate the updated HDF5 driver (dataset-count support), MPI placement header/callers, paired harness, and ReFrame definitions. Build reference callers and the rank guard in 11. Build PIE-only callers in 07 only for later attribution. Existing binaries do not gain these features from a documentation update.
 
 For the reference pilot, each package needs `full reference`. For the removal campaign, use `LIB_PROFILES` for FFTW, serial/parallel HDF5 and parallel FFTW, and `LAPACK_PROFILES` for LAPACK in the build loops. If full/reference already exist, select only missing variants; the build guards deliberately reject existing directories. Run artifact and correctness checks for every variant.
 
@@ -89,12 +89,13 @@ export SLURM_PARTITION=YOUR_PARTITION
 export SLURM_CONSTRAINT=''  # use a homogeneous node class; set the site's constraint if needed
 export SHARED_IO_DIR=/absolute/path/to/shared-filesystem/hdf5-hardening-trial
 export TRIAL_LOCAL_IO_DIR=''  # optional dedicated node-local/tmpfs directory for serial HDF5
-export CAMPAIGN_COMPARATORS=reference
-# After building removals:
+export CAMPAIGN_COMPARATORS=reference TRIAL_SCOPE=stack RUN_PIE=0
+# After building selected removals, change scope to library:
+# export TRIAL_SCOPE=library
 # export CAMPAIGN_COMPARATORS=reference,minus-stack,minus-fortify,minus-relro,minus-now
-export NODE_COUNTS='1 2 4 8'
+export NODE_COUNTS='1 2'  # expand deliberately after the screen
 export RANK_LAYOUTS='1'  # optional separate lane: '1 4'
-export RUN_WEAK=1 PAIRS=10 TRIAL_WALLTIME=02:00:00 TRIAL_EXCLUSIVE=1
+export RUN_WEAK=0 PAIRS=10 TRIAL_WALLTIME=02:00:00 TRIAL_EXCLUSIVE=1
 export ALLOCATION_REPEATS=1  # qualification; use 3 for the first assessment
 export TRIAL_REGRESSION_LIMIT_PERCENT=''  # agree a workload limit before results, or leave descriptive
 test -f "$TRIAL_MODULE_SETUP"
@@ -192,7 +193,7 @@ case "$phase" in
         run_group libraries \
           fft-small,fft-large,fft-3d,fft-plan,fft-threads,hdf5-small,hdf5-metadata,hdf5-contiguous,hdf5-chunked,lapack-small,lapack-large,fft-startup,hdf5-startup,lapack-startup \
           "$CAMPAIGN_COMPARATORS" "$SHARED_IO_DIR"
-        run_group pie fft-pie,hdf5-pie,lapack-pie minus-pie "$SHARED_IO_DIR"
+        if test "${RUN_PIE:-0}" = 1; then run_group pie fft-pie,hdf5-pie,lapack-pie minus-pie "$SHARED_IO_DIR"; fi
         if test -n "${TRIAL_LOCAL_IO_DIR:-}"; then
             run_group local-io hdf5-small,hdf5-metadata,hdf5-contiguous,hdf5-chunked \
               "$CAMPAIGN_COMPARATORS" "$TRIAL_LOCAL_IO_DIR"
@@ -226,6 +227,9 @@ if test -n "${TRIAL_MPI_TUNING:-}"; then test -f "$TRIAL_MPI_TUNING"; fi
 source "$TRIAL_MODULE_SETUP"
 source "$TRIAL_ROOT/env.sh"
 test "${HARDENING_SET:-listed}" = listed
+export TRIAL_SCOPE=${TRIAL_SCOPE:-stack} RUN_PIE=${RUN_PIE:-0}
+case "$TRIAL_SCOPE" in stack|library) ;; *) exit 2 ;; esac
+case "$RUN_PIE" in 0|1) ;; *) exit 2 ;; esac
 test -x "$TRIAL_ROOT/tools/reframe-venv/bin/reframe"
 test -f "$TRIAL_ROOT/reframe/campaign-job.sh"
 read -r -a comparators <<< "${CAMPAIGN_COMPARATORS//,/ }"
@@ -240,11 +244,24 @@ for package in fftw hdf5 lapack fftw-mpi hdf5-mpi; do
         test -d "$TRIAL_ROOT/install/$package/$p/lib"
     done
 done
-for package in fftw hdf5 lapack; do test -x "$TRIAL_ROOT/bench/$package-minus-pie"; done
+if test "${RUN_PIE:-0}" = 1; then
+    test "${TRIAL_SCOPE:-stack}" = library
+    for package in fftw hdf5 lapack; do test -x "$TRIAL_ROOT/bench/$package-minus-pie"; done
+fi
+if test "${TRIAL_SCOPE:-stack}" = stack; then
+    test "$CAMPAIGN_COMPARATORS" = reference
+    for package in fftw hdf5 lapack fftw-mpi hdf5-mpi; do
+        test -x "$TRIAL_ROOT/bench/$package-reference"
+    done
+    test -f "$TRIAL_ROOT/mpi-env-reference.sh"
+    test -x "$TRIAL_ROOT/bench/rank-exec.sh"
+    for p in full reference; do test -f "$TRIAL_ROOT/install/blas/$p/lib/libblas.so"; done
+fi
 test -f "$TRIAL_ROOT/mpi-env.sh"
 read -r -a nodes_list <<< "$NODE_COUNTS"
 read -r -a layouts <<< "$RANK_LAYOUTS"
-test "${#nodes_list[@]}" -gt 0 && test "${#layouts[@]}" -gt 0
+test "${#nodes_list[@]}" -gt 0
+test "${#layouts[@]}" -gt 0
 for n in "${nodes_list[@]}"; do case "$n" in 1|2|4|8) ;; *) exit 2 ;; esac; done
 for r in "${layouts[@]}"; do case "$r" in 1|4) ;; *) exit 2 ;; esac; done
 python3 - <<'PY'
@@ -262,7 +279,7 @@ dir="$TRIAL_ROOT/results/campaigns/$CAMPAIGN_ID"
 mkdir -p "$dir"
 python3 - "$dir/inputs.json" <<'PY'
 import json, os, pathlib, sys
-names=('CAMPAIGN_ID','CAMPAIGN_COMPARATORS','NODE_COUNTS','RANK_LAYOUTS','RUN_WEAK',
+names=('CAMPAIGN_ID','CAMPAIGN_COMPARATORS','TRIAL_SCOPE','RUN_PIE','TRIAL_PROCEDURE_COMMIT','NODE_COUNTS','RANK_LAYOUTS','RUN_WEAK',
        'PAIRS','ALLOCATION_REPEATS','TRIAL_WALLTIME','TRIAL_EXCLUSIVE','TRIAL_REGRESSION_LIMIT_PERCENT',
        'SLURM_ACCOUNT','SLURM_PARTITION','SLURM_CONSTRAINT','SHARED_IO_DIR',
        'TRIAL_LOCAL_IO_DIR','TRIAL_MODULE_SETUP','TRIAL_MPI_TUNING',
@@ -304,7 +321,7 @@ chmod +x "$TRIAL_ROOT/reframe/submit-campaign.sh"
 /bin/bash "$TRIAL_ROOT/reframe/submit-campaign.sh"
 ```
 
-For qualification, set `NODE_COUNTS='1 2'`, `RUN_WEAK=0`, `CAMPAIGN_COMPARATORS=reference`, `PAIRS=10`, and `ALLOCATION_REPEATS=1`: this submits three jobs. After inspecting that pilot, the following settings submit nine jobs for the first assessment, with 20 pairs per case and three allocation repeats. An assessment job still includes the serial/threaded/startup/PIE groups defined above; repeat selected narrower cases through 06 when investigating a particular observation.
+For qualification, set `NODE_COUNTS='1 2'`, `RUN_WEAK=0`, `CAMPAIGN_COMPARATORS=reference`, `PAIRS=10`, and `ALLOCATION_REPEATS=1`: this submits three jobs. After inspecting that pilot, the following settings submit nine jobs for the first assessment, with 20 pairs per case and three allocation repeats. An assessment job includes serial/threaded/startup groups; PIE-only attribution runs only with library scope and `RUN_PIE=1`; repeat selected narrower cases through 06 when investigating a particular observation.
 
 ```bash
 export NODE_COUNTS='1 2' RANK_LAYOUTS='1' RUN_WEAK=0

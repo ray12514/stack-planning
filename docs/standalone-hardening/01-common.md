@@ -13,7 +13,7 @@ The default **listed** set matches the flags supplied for the white-paper discus
 | Fixed C benchmark executables | `-fPIE -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2` | `-pie -Wl,-z,relro -Wl,-z,now` |
 | Fixed Fortran benchmark executable | `-fPIE -fstack-protector-strong` | `-pie -Wl,-z,relro -Wl,-z,now` |
 
-`-U_FORTIFY_SOURCE` clears an inherited definition before setting level 2. All arms retain the same `-O3`, CPU target, warnings, library PIC, and non-executable stack. RELRO/NOW are passed through the GCC driver to GNU ld using **`-Wl,-z,...`**, not `-WL` or `-d`. The paired library measurements keep the full benchmark executable fixed. [07](07-consumer-pie.md) measures executable PIE separately with the full libraries fixed.
+`-U_FORTIFY_SOURCE` clears an inherited definition before setting level 2. All arms retain the same `-O3`, CPU target, warnings, library PIC, and non-executable stack. RELRO/NOW are passed through the GCC driver to GNU ld using **`-Wl,-z,...`**, not `-WL` or `-d`. The library-only measurements keep the full benchmark executable fixed. Stack scope in 11 switches matched callers and dependencies as well. [07](07-consumer-pie.md) measures executable PIE separately with the full libraries fixed.
 
 The earlier broader trial remains available as `HARDENING_SET=extended`. It adds all-function stack protection, stack-clash protection, C/C++ local initialization, x86 compiler control-flow protection, and C++ libstdc++ assertions, with an explicitly selected FORTIFY level. Those additions are separate research controls; the supplied list does not establish that they are required.
 
@@ -89,12 +89,48 @@ profile_flags() {
     FFLAGS="$BASE_OPT $F_CONTROL -fPIC"
     FCFLAGS="$FFLAGS"
     CPPFLAGS=''
-    SHARED_LDFLAGS="$relro $now -Wl,-z,noexecstack"
+    SHARED_LDFLAGS="$relro $now -Wl,-z,noexecstack -Wl,--enable-new-dtags"
     EXE_CFLAGS="$BASE_OPT $C_CONTROL $pie"
     EXE_CXXFLAGS="$EXE_CFLAGS $assertions"
     EXE_FFLAGS="$BASE_OPT $F_CONTROL $pie"
     EXE_LDFLAGS="$SHARED_LDFLAGS $pielink"
     export CFLAGS CXXFLAGS FFLAGS FCFLAGS CPPFLAGS
+}
+mpi_profile_prefixes() {
+    case "${1:?profile required}" in
+      reference)
+        export UCX_PREFIX="$TRIAL_ROOT/install/ucx-1.16.0-reference"
+        export MPI_PREFIX="$TRIAL_ROOT/install/openmpi-4.1.8-ucx-reference" ;;
+      full|minus-*)
+        export UCX_PREFIX="$TRIAL_ROOT/install/ucx-1.16.0-fixed"
+        export MPI_PREFIX="$TRIAL_ROOT/install/openmpi-4.1.8-ucx-fixed" ;;
+      *) printf 'No MPI dependency mapping for %s\n' "$1" >&2; return 1 ;;
+    esac
+}
+activate_mpi_profile() {
+    local file="$TRIAL_ROOT/mpi-env.sh"
+    if test "${1:?profile required}" = reference; then
+        file="$TRIAL_ROOT/mpi-env-reference.sh"
+    fi
+    test -f "$file" || { printf 'Missing MPI environment: %s\n' "$file" >&2; return 1; }
+    source "$file"
+}
+autotools_flags() {
+    # Libtool appends -fPIC when compiling shared objects. Executable compilation
+    # uses EXE_*FLAGS; conditional specs add PIE only on executable links.
+    local link=-pie
+    case "${1:?profile required}" in reference|minus-pie) link=-no-pie ;; esac
+    local spec="$TRIAL_ROOT/bench/probes/autotools-$1.specs"
+    mkdir -p "$TRIAL_ROOT/bench/probes"
+    cat > "$spec" <<SPEC
+*self_spec:
++ %{!static:%{!static-pie:%{!shared:%{!r:%{!c:%{!S:%{!E:$link}}}}}}}
+
+SPEC
+    AUTOTOOLS_CFLAGS="$EXE_CFLAGS"
+    AUTOTOOLS_CXXFLAGS="$EXE_CXXFLAGS"
+    AUTOTOOLS_FFLAGS="$EXE_FFLAGS"
+    AUTOTOOLS_LDFLAGS="$SHARED_LDFLAGS -specs=$spec"
 }
 LIB_PROFILES=(full reference minus-stack minus-fortify minus-relro minus-now)
 LAPACK_PROFILES=(full reference minus-stack minus-relro minus-now)
@@ -109,6 +145,11 @@ source "$TRIAL_ROOT/profiles.sh"
 Use the explicit flags in the [GCC 12.5 instrumentation manual](https://gcc.gnu.org/onlinedocs/gcc-12.5.0/gcc/Instrumentation-Options.html), [automatic initialization documentation](https://gcc.gnu.org/onlinedocs/gcc-12.5.0/gcc/Optimize-Options.html), and [glibc FORTIFY documentation](https://sourceware.org/glibc/manual/latest/html_node/Source-Fortification.html). The full set is a candidate for this experiment, not a claim that every option is mandatory under your organizational profile.
 
 ## 2. Qualify flags before expensive builds
+
+Start with the complete listed profile and its matched reference. Record the exact approved flag list, language/output applicability, compiler versions, commands and artifact checks. The supplied list is the current input; do not guess additional SOP requirements. [11](11-stack-comparison.md) defines the first stack comparison; [08](08-slurm-campaign.md) contains individual-control hypotheses for later investigation.
+
+If a flag fails, retain the command/error and package/version in `logs/compatibility.tsv` (tab-separated columns: component, profile, language, requested_flag, result, reason, action, procedure_commit). Resolve the failure before timing that component. An agreed reduced profile gets a new identity and fresh affected builds; never silently relabel it `full`. A Fortran FORTIFY non-applicability entry is different from a C build rejecting a required control. Compiler acceptance alone is not artifact verification.
+
 
 Run on the execution CPU, not only the login node. This checks compiler acceptance, FORTIFY implementation level, and smoke execution. It does not establish that every package function receives a check.
 
@@ -129,7 +170,8 @@ int main(int argc, char **argv) {
 }
 C
 cp "$TRIAL_ROOT/bench/probes/probe.c" "$TRIAL_ROOT/bench/probes/probe.cc"
-for p in "${LIB_PROFILES[@]}" minus-pie; do
+QUALIFY_PROFILES=(full reference)  # add selected removals before their follow-up builds
+for p in "${QUALIFY_PROFILES[@]}"; do
     profile_flags "$p"
     read -r -a cargs <<< "$EXE_CFLAGS"
     read -r -a cxxargs <<< "$EXE_CXXFLAGS"
@@ -162,6 +204,31 @@ The previous version of these runbooks used `full` for the broader set. Existing
 
 Expected artifact distinctions: full probe executable is ELF `DYN`/PIE; reference and minus-PIE are `EXEC`. Full has a `GNU_RELRO` segment and a `BIND_NOW`/`NOW` dynamic flag; minus-RELRO lacks the former, minus-NOW lacks the latter. `GNU_STACK` should not have execute permission in any arm. GNU properties and `endbr64` disassembly help inspect CET code generation, but object property merging and runtime enablement also matter. Stack-protector and `_chk` symbols may occur only when the package actually needs them; their absence alone is not proof the flags were lost.
 
+### Qualify mixed Autotools library/tool linking
+
+FFTW, UCX and Open MPI use Libtool to build shared libraries and executables together. `autotools_flags` uses executable compile settings and a per-invocation GCC specs file that selects `-pie`/`-no-pie` only for dynamic executable links. Libtool's shared-object compilation must append `-fPIC`, and shared links must contain `-shared`. This does not modify GCC defaults or its installed specs; the file is supplied in build `LDFLAGS`, never in the MPI wrapper compiler command. [GCC specs](https://gcc.gnu.org/onlinedocs/gcc-12.5.0/gcc/Spec-Files.html), [GCC 12 driver source](https://gnu.googlesource.com/gcc/+/refs/heads/releases/gcc-12/gcc/gcc.cc), and [Fedora's PIE specs example](https://fedoraproject.org/wiki/Changes/Harden_All_Packages).
+
+```bash
+for p in full reference; do
+    profile_flags "$p"
+    autotools_flags "$p"
+    read -r -a cargs <<< "$AUTOTOOLS_CFLAGS"
+    read -r -a largs <<< "$AUTOTOOLS_LDFLAGS"
+    "$CC" "${cargs[@]}" "$TRIAL_ROOT/bench/probes/probe.c" \
+      "${largs[@]}" -o "$TRIAL_ROOT/bench/probes/tool-$p"
+    # Mimic Libtool's final shared-object PIC option, then its shared link.
+    "$CC" "${cargs[@]}" -fPIC -c "$TRIAL_ROOT/bench/probes/probe.c" \
+      -o "$TRIAL_ROOT/bench/probes/shared-$p.o"
+    "$CC" -shared "$TRIAL_ROOT/bench/probes/shared-$p.o" "${largs[@]}" \
+      -o "$TRIAL_ROOT/bench/probes/shared-$p.so"
+    "$TRIAL_ROOT/bench/probes/tool-$p"
+    readelf -hW "$TRIAL_ROOT/bench/probes/tool-$p"
+    readelf -dW "$TRIAL_ROOT/bench/probes/shared-$p.so"
+done
+```
+
+Require PIE on the full tool, EXEC on the reference tool, and a shared object without the PIE dynamic flag. Retain these results with `logs/profiles`; inspect actual package compile/link commands after the builds. Static links and relocatable links are outside this dynamic-library trial.
+
 ## 3. Inspect each installed variant
 
 Run this with the actual shared library path from its package runbook. Keep its output alongside compile commands and CMake cache/configure output.
@@ -186,7 +253,7 @@ Every run also records `process_elapsed`, including process launch, dynamic load
 
 ```bash
 cat > "$TRIAL_ROOT/bench/paired.py" <<'PY'
-import csv, json, math, os, pathlib, random, re, shlex, statistics, subprocess, sys, time
+import csv, hashlib, json, math, os, pathlib, random, re, shlex, statistics, subprocess, sys, time
 package, executable, case, *args = sys.argv[1:]
 root = pathlib.Path(os.environ['TRIAL_ROOT'])
 comparator = os.environ.get('COMPARE', 'reference')
@@ -196,50 +263,95 @@ if pairs < 2:
 profiles = ('full', comparator)
 if comparator == 'full':
     raise SystemExit('COMPARE must differ from full')
+scope = os.environ.get('TRIAL_SCOPE', 'library')
+if scope not in ('library','stack'):
+    raise SystemExit('TRIAL_SCOPE must be library or stack')
 other_executable = os.environ.get('COMPARE_EXECUTABLE', '')
-if other_executable and comparator != 'minus-pie':
-    raise SystemExit('COMPARE_EXECUTABLE is reserved for the minus-pie consumer test')
+consumer = comparator == 'minus-pie'
+if consumer and not other_executable:
+    raise SystemExit('PIE comparison requires its separately built caller')
+if scope == 'stack' and (comparator != 'reference' or not other_executable):
+    raise SystemExit('Stack scope requires reference and its separately built caller; see 11')
+if other_executable and not (consumer or scope == 'stack'):
+    raise SystemExit('Caller override requires consumer PIE or stack scope')
 drivers = {'full': executable, comparator: other_executable or executable}
-library_profiles = {p: 'full' if other_executable else p for p in profiles}
-envs = {}
+library_profiles = {p: 'full' if consumer else p for p in profiles}
+envs, launchers, dependencies = {}, {}, {}
 mpi_np = int(os.environ.get('MPI_NP', '0'))
-launcher = []
-if mpi_np:
-    launcher = [str(pathlib.Path(os.environ['MPI_PREFIX']) / 'bin/mpirun'),
-                '-np', str(mpi_np), '--map-by', os.environ.get('MPI_MAP', 'ppr:1:node'),
-                '--bind-to', 'core', '--mca', 'pml', 'ucx', '--mca', 'btl', '^uct',
-                '-x', 'PATH', '-x', 'LD_LIBRARY_PATH', '-x', 'OMPI_MCA_io']
-    for name in ('UCX_TLS', 'UCX_NET_DEVICES','TRIAL_EXPECTED_NODES','RANKS_PER_NODE'):
-        if name in os.environ:
-            launcher += ['-x', name]
-    launcher += shlex.split(os.environ.get('MPI_EXTRA_ARGS', ''))
+if mpi_np < 0: raise SystemExit('MPI_NP must be nonnegative')
 for profile in profiles:
     prefix = root / 'install' / package / library_profiles[profile] / 'lib'
     if not prefix.is_dir():
         raise SystemExit(f'Missing installed variant: {prefix}')
     env = os.environ.copy()
-    runtime = os.environ.get('MPI_LIB_DIRS', '')
+    dep_profile = profile if scope == 'stack' else 'full'
+    runtime = ''
+    expected = [str(prefix.parent)]
+    launcher = []
+    if mpi_np:
+        suffix = 'reference' if dep_profile == 'reference' else 'fixed'
+        mpi = root / 'install' / f'openmpi-4.1.8-ucx-{suffix}'
+        ucx = root / 'install' / f'ucx-1.16.0-{suffix}'
+        if not (mpi/'bin/mpirun').is_file() or not (ucx/'lib').is_dir():
+            raise SystemExit('Missing matching MPI/UCX stack')
+        runtime = f'{mpi}/lib:{ucx}/lib'
+        env['PATH'] = f'{mpi}/bin:{ucx}/bin:' + os.environ['PATH']
+        env['TRIAL_MPI_PREFIX'], env['TRIAL_UCX_PREFIX'] = str(mpi), str(ucx)
+        env['OMPI_MCA_mca_base_component_path'] = str(mpi/'lib/openmpi')
+        expected.append(str(mpi))
+        launcher = [str(mpi/'bin/mpirun'), '-np', str(mpi_np), '--map-by',
+                    os.environ.get('MPI_MAP', 'ppr:1:node'), '--bind-to', 'core',
+                    '--mca', 'pml', 'ucx', '--mca', 'btl', '^uct',
+                    '-x', 'PATH', '-x', 'LD_LIBRARY_PATH', '-x', 'OMPI_MCA_io',
+                    '-x', 'OMPI_MCA_mca_base_component_path']
+        for name in ('UCX_TLS','UCX_NET_DEVICES','TRIAL_EXPECTED_NODES','RANKS_PER_NODE'):
+            if name in os.environ: launcher += ['-x', name]
+        launcher += shlex.split(os.environ.get('MPI_EXTRA_ARGS', ''))
+        if scope == 'stack':
+            for name in ('TRIAL_MPI_PREFIX','TRIAL_UCX_PREFIX','TRIAL_LIBRARY_PREFIX'):
+                launcher += ['-x', name]
+            launcher += ['/bin/bash', str(root/'bench/rank-exec.sh')]
+        env['TRIAL_LIBRARY_PREFIX'] = str(prefix.parent)
+    if package == 'lapack':
+        blas = root / 'install' / 'blas' / dep_profile
+        if not (blas/'lib/libblas.so').is_file():
+            raise SystemExit(f'Missing BLAS: {blas}')
+        runtime = str(blas/'lib')
+        expected.append(str(blas))
     env['LD_LIBRARY_PATH'] = ':'.join(x for x in
         (str(prefix), runtime, os.environ['GCC_LIB_DIRS'],
          os.environ.get('TRIAL_SITE_LIB_DIRS', '')) if x)
-    envs[profile] = env
+    envs[profile], launchers[profile], dependencies[profile] = env, launcher, expected
 result_root = pathlib.Path(os.environ.get('RESULT_ROOT', str(root / 'results')))
 outdir = result_root / package / case / comparator
 outdir.mkdir(parents=True, exist_ok=True)
 raw = outdir / 'raw.csv'
 if raw.exists():
     raise SystemExit(f'Results already exist: {raw}; select a new case label')
+def require_family(text, pattern, prefix, label):
+    paths = re.findall(pattern + r'\S*\s+=>\s+(\S+)', text)
+    if not paths or any(not path.startswith(prefix + '/lib/') for path in paths):
+        raise SystemExit(f'Wrong or mixed {label} dependency')
 for profile in profiles:
     proc = subprocess.run(['ldd', drivers[profile]], env=envs[profile], text=True,
                           capture_output=True, check=True)
     (outdir / f'loaded-{profile}.txt').write_text(proc.stdout + proc.stderr)
     if 'not found' in proc.stdout:
         raise SystemExit(f'Missing runtime dependency for {profile}')
-    if str(root / 'install' / package / library_profiles[profile]) not in proc.stdout:
-        raise SystemExit(f'ldd did not select the requested {package}/{profile} library')
+    if any(path + '/lib/' not in proc.stdout for path in dependencies[profile]):
+        raise SystemExit(f'ldd did not select the requested dependencies for {profile}')
+    family = 'libfftw3' if package.startswith('fftw') else 'libhdf5' if package.startswith('hdf5') else 'liblapack'
+    require_family(proc.stdout, family, dependencies[profile][0], package)
+    if package == 'lapack': require_family(proc.stdout, 'libblas', dependencies[profile][1], 'BLAS')
+    if mpi_np:
+        require_family(proc.stdout, r'lib(?:mpi|open-rte|open-pal)', dependencies[profile][1], 'MPI')
+        check = subprocess.run(['ldd', launchers[profile][0]], env=envs[profile], text=True,
+                               capture_output=True, check=True)
+        (outdir / f'launcher-loaded-{profile}.txt').write_text(check.stdout + check.stderr)
+        require_family(check.stdout, r'lib(?:mpi|open-rte|open-pal)', dependencies[profile][1], 'MPI launcher')
 def run(profile):
     started = time.perf_counter()
-    proc = subprocess.run([*launcher, drivers[profile], *args], env=envs[profile], text=True,
+    proc = subprocess.run([*launchers[profile], drivers[profile], *args], env=envs[profile], text=True,
                           capture_output=True)
     process_elapsed = time.perf_counter() - started
     with (outdir / 'driver.log').open('a') as f:
@@ -318,12 +430,16 @@ record = {'package': package, 'case': case, 'comparator': comparator,
               'MPI_NP','MPI_MAP','SCALING_MODE','IO_DIR','CPUSET','THREAD_CPUSET',
               'TRIAL_SELECTED_HOSTS','TRIAL_ALLOCATION_MODE','TRIAL_REPEAT_SCOPE',
               'SLURM_JOB_ID','SLURM_JOB_NODELIST','SLURM_JOB_NUM_NODES','SLURM_STEP_ID',
-              'TRIAL_REGRESSION_LIMIT_PERCENT')},
+              'TRIAL_REGRESSION_LIMIT_PERCENT','UCX_TLS','UCX_NET_DEVICES')},
           'hardening_set': os.environ.get('HARDENING_SET', 'listed'),
           'fortify_level': int(os.environ.get('FORTIFY_LEVEL', '2')),
-          'scope': 'consumer-pie' if other_executable else 'library',
-          'driver_by_profile': drivers, 'library_profile_by_arm': library_profiles,
-          'driver': executable, 'args': args, 'launcher': launcher, 'phases': summary}
+          'scope': 'consumer-pie' if consumer else scope,
+          'driver_by_profile': drivers,
+          'driver_sha256_by_arm': {p: hashlib.sha256(pathlib.Path(d).read_bytes()).hexdigest() for p,d in drivers.items()},
+          'procedure_commit': os.environ.get('TRIAL_PROCEDURE_COMMIT',''),
+          'library_profile_by_arm': library_profiles,
+          'driver': executable, 'args': args, 'launcher_by_arm': launchers,
+          'dependencies_by_arm': dependencies, 'phases': summary}
 (outdir / 'summary.json').write_text(json.dumps(record, indent=2) + '\n')
 print(json.dumps(record, indent=2))
 PY
