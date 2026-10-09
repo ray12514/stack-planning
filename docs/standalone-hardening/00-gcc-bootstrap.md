@@ -74,8 +74,33 @@ curl -fL --retry 3 -o binutils-2.44.tar.bz2 \
   https://ftp.gnu.org/gnu/binutils/binutils-2.44.tar.bz2
 curl -fL --retry 3 -o cmake-3.31.12.tar.gz \
   https://github.com/Kitware/CMake/releases/download/v3.31.12/cmake-3.31.12.tar.gz
-curl -fL --retry 3 -o fftw-3.3.11.tar.gz \
-  https://www.fftw.org/fftw-3.3.11.tar.gz
+# Try the upstream release, then independent HTTPS source mirrors.
+# Accept a download only when it matches the pinned release checksum.
+(
+  fftw_archive=fftw-3.3.11.tar.gz
+  fftw_sha256=5630c24cdeb33b131612f7eb4b1a9934234754f9f388ff8617458d0be6f239a1
+  fftw_ok=0
+  for fftw_url in \
+    https://www.fftw.org/fftw-3.3.11.tar.gz \
+    https://distfiles.macports.org/fftw-3/fftw-3.3.11.tar.gz \
+    https://ftp2.osuosl.org/pub/blfs/development/f/fftw-3.3.11.tar.gz; do
+    rm -f "$fftw_archive.part"
+    if curl -fL --retry 2 --connect-timeout 15 --max-time 180 \
+         -o "$fftw_archive.part" "$fftw_url" && \
+       printf '%s  %s\n' "$fftw_sha256" "$fftw_archive.part" | sha256sum --check; then
+      mv "$fftw_archive.part" "$fftw_archive"
+      printf '%s\n' "$fftw_url" > "$TRIAL_ROOT/logs/fftw-source-url.txt"
+      fftw_ok=1
+      break
+    fi
+    printf 'FFTW source failed download or checksum: %s\n' "$fftw_url" >&2
+  done
+  rm -f "$fftw_archive.part"
+  if test "$fftw_ok" != 1; then
+    printf '%s\n' 'No verified FFTW archive downloaded; stop and stage it from a connected machine.' >&2
+    exit 1
+  fi
+)
 curl -fL --retry 3 -o hdf5-2.1.0.tar.gz \
   https://github.com/HDFGroup/hdf5/releases/download/2.1.0/hdf5-2.1.0.tar.gz
 curl -fL --retry 3 -o lapack-3.12.1.tar.gz \
@@ -94,6 +119,14 @@ for archive in gcc-12.5.0.tar.xz binutils-2.44.tar.bz2 cmake-3.31.12.tar.gz \
     tar -xf "$archive" -C "$TRIAL_ROOT/src"
 done
 ```
+
+### Retry FFTW after a certificate error
+
+For an FFTW-only retry, change to `"$TRIAL_ROOT/downloads"` and run only the FFTW subshell above. It tries the [upstream release](https://www.fftw.org/download.html), [MacPorts source mirror](https://distfiles.macports.org/fftw-3/), then the [BLFS source mirror at OSU](https://ftp2.osuosl.org/pub/blfs/development/f/). All three archives were downloaded with TLS verification enabled on 2026-10-09 and matched the pinned SHA-256. These are copies of the same release archive; the package version, extracted directory, and build commands stay the same.
+
+After a successful retry, verify `SHA256SUMS` and extract only the missing FFTW source into `"$TRIAL_ROOT/src"`. If an existing `src/fftw-3.3.11` tree is already in use, keep it and its build directories intact. The source URL used is recorded in `logs/fftw-source-url.txt`.
+
+An error such as `curl: (60) SSL certificate problem: unable to get local issuer certificate` means that client's certificate validation failed; it does not by itself identify whether the cause is the server chain, the client's trust store, or a TLS-inspecting proxy. Keep certificate verification enabled. If every mirror fails similarly, use a site-approved CA bundle with `curl --cacert /absolute/path/to/site-approved-ca.pem`, or download on a connected machine and transfer the archive through the site's transfer route. Verify the pinned SHA-256 again on the test machine before extraction. Avoid substituting a GitHub-generated tag archive: it is a different source artifact and does not match this release checksum.
 
 Stage GCC's additional prerequisite archives before an offline transfer. From its extracted source tree, its own script downloads GMP 6.2.1, MPFR 4.1.0, MPC 1.2.1, and ISL 0.24 and verifies the bundled SHA512 checksums. Transfer the populated GCC source tree, including the prerequisite directories and symlinks, or transfer the four archives into that tree and run the script without needing a download. See the [GCC 12.5.0 prerequisite script](https://github.com/gcc-mirror/gcc/blob/releases/gcc-12.5.0/contrib/download_prerequisites).
 

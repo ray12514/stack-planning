@@ -6,6 +6,8 @@ Profile update 2026-10-07: the default now matches the supplied list: **strong s
 
 Environment update 2026-10-08: begin with [build environment and system dependencies](00-build-environment.md). Required site master modules and the existing Slurm/fabric installation are retained; explicit executable/runtime paths prevent inherited AOCC and MPI selections from contaminating the private builds. UCX and Open MPI are private source builds, not the site's installed UCX/MPI.
 
+Download update 2026-10-09: FFTW source staging now tries independent HTTPS mirrors after the upstream URL and verifies the pinned SHA-256 before accepting a download. For an existing trial, follow the [FFTW-only retry procedure](00-gcc-bootstrap.md#retry-fftw-after-a-certificate-error).
+
 The [Slurm campaign plan](08-slurm-campaign.md) defines hypotheses and the actual ReFrame matrix, including serial/threaded cases, small-dataset HDF5, startup/PIE comparisons, and 1/2/4/8-node MPI runs. It generates sequential batch submission and collects all phase results into a CSV. The bootstrap seed defaults to the installed `/usr/bin/gcc` and `/usr/bin/g++`; payloads use private GCC 12.5. Regenerate/recompile the updated callers and ReFrame files before running this campaign.
 
 ## Download onto the test machine
