@@ -2,6 +2,26 @@
 
 Run after [00 — GCC bootstrap](00-gcc-bootstrap.md) and [01 — profile qualification](01-common.md), before the MPI FFTW/HDF5 builds. These versions match `cse-pilot/site-values.example.yaml`. Build this dependency stack once and keep it unchanged across all package variants. This isolates FFTW/HDF5 hardening; measuring MPI/UCX hardening itself would require a separate matrix.
 
+## Where profiles.sh comes from and what to run next
+
+`env.sh` is created by the GCC bootstrap in 00. **`profiles.sh` is created separately in [01, section 1](01-common.md#1-create-explicit-profiles)** by its `cat > "$TRIAL_ROOT/profiles.sh"` block. If GCC is already installed but that file is missing, run 01 section 1 and [section 2, compiler-flag qualification](01-common.md#2-qualify-flags-before-expensive-builds), then return here. There is no GCC rebuild for this step. Use the order **00 -> 01 -> 00b -> package builds**; the `00b` filename does not mean it precedes 01.
+
+The common setup defines full/reference/removal flag profiles, compiles small qualification probes with the existing GCC, and creates the paired-measurement helper used later. It does not rebuild GCC, change GCC's defaults/specs, or enable a compiler profiler. Calling `profile_flags full` selects variables passed to the subsequent package configure/build commands. Here, both UCX and Open MPI use that full profile once and remain fixed across the FFTW/HDF5 comparisons. The executable PIE settings are separate from shared-library PIC settings.
+
+After generating the file, confirm it loads in the build shell:
+
+```bash
+source "$TRIAL_ROOT/env.sh"
+test -f "$TRIAL_ROOT/profiles.sh" || {
+    printf '%s\n' 'Create profiles.sh using 01-common section 1, then qualify the flags in section 2.' >&2
+    exit 1
+}
+source "$TRIAL_ROOT/profiles.sh"
+type profile_flags
+profile_flags full
+printf 'CFLAGS=%s\nShared-library LDFLAGS=%s\n' "$CFLAGS" "$SHARED_LDFLAGS"
+```
+
 ## System and trial components
 
 | Component | This procedure uses |
