@@ -128,13 +128,55 @@ After a successful retry, verify `SHA256SUMS` and extract only the missing FFTW 
 
 An error such as `curl: (60) SSL certificate problem: unable to get local issuer certificate` means that client's certificate validation failed; it does not by itself identify whether the cause is the server chain, the client's trust store, or a TLS-inspecting proxy. Keep certificate verification enabled. If every mirror fails similarly, use a site-approved CA bundle with `curl --cacert /absolute/path/to/site-approved-ca.pem`, or download on a connected machine and transfer the archive through the site's transfer route. Verify the pinned SHA-256 again on the test machine before extraction. Avoid substituting a GitHub-generated tag archive: it is a different source artifact and does not match this release checksum.
 
-Stage GCC's additional prerequisite archives before an offline transfer. From its extracted source tree, its own script downloads GMP 6.2.1, MPFR 4.1.0, MPC 1.2.1, and ISL 0.24 and verifies the bundled SHA512 checksums. Transfer the populated GCC source tree, including the prerequisite directories and symlinks, or transfer the four archives into that tree and run the script without needing a download. See the [GCC 12.5.0 prerequisite script](https://github.com/gcc-mirror/gcc/blob/releases/gcc-12.5.0/contrib/download_prerequisites).
+### Stage GCC prerequisites for a machine without download access
+
+GMP, MPFR, and MPC are development libraries, not executables to locate in `/usr/bin`. A system GCC installation does not establish that their headers and linkable development libraries are installed or exposed by the selected build environment. GCC's `configure` can use qualified external headers/libraries in its search paths or explicit `--with-gmp`, `--with-mpfr`, and `--with-mpc` prefixes. The `download_prerequisites` helper does a different job: it checks for specific source archives in the GCC source directory, verifies them, unpacks them, and creates source symlinks. It does not inspect the system's installed library versions. See [GCC prerequisites](https://gcc.gnu.org/install/prerequisites.html) and the [GCC 12.5.0 helper](https://github.com/gcc-mirror/gcc/blob/releases/gcc-12.5.0/contrib/download_prerequisites).
+
+For this trial, use the helper's pinned in-tree sources: **GMP 6.2.1, MPFR 4.1.0, MPC 1.2.1, and ISL 0.24**. ISL supplies Graphite loop optimizations and is enabled by this helper by default. The installed seed compiler builds these sources together with GCC; there is no separate prerequisite installation step into `/usr`. The helper uses an HTTP download base internally. Pre-staging through the explicit HTTPS URLs below avoids that download path entirely.
+
+On a connected staging machine, run in Bash. This downloads only the four archives and the release's checksum list; it also works on a Mac with `shasum`:
+
+```bash
+set -euo pipefail
+mkdir -p "$HOME/gcc-12.5-prereqs"
+cd "$HOME/gcc-12.5-prereqs"
+GCC_PREREQ_ARCHIVES=(gmp-6.2.1.tar.bz2 mpfr-4.1.0.tar.bz2 mpc-1.2.1.tar.gz isl-0.24.tar.bz2)
+for archive in "${GCC_PREREQ_ARCHIVES[@]}"; do
+    curl -fL --retry 3 --connect-timeout 15 --max-time 180 \
+      -o "$archive.part" "https://gcc.gnu.org/pub/gcc/infrastructure/$archive"
+    mv "$archive.part" "$archive"
+done
+curl -fL --retry 3 -o prerequisites.sha512 \
+  https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-12.5.0/contrib/prerequisites.sha512
+if command -v sha512sum >/dev/null 2>&1; then
+    sha512sum --check prerequisites.sha512
+else
+    shasum -a 512 --check prerequisites.sha512
+fi
+```
+
+Transfer **all four archives** into the already-extracted GCC source root on the build machine. Replace the destination user, host, and absolute path with the real values. Use the site's transfer route if direct SSH transfers are unavailable:
+
+```bash
+rsync -av "${GCC_PREREQ_ARCHIVES[@]}" \
+  USER@BUILD_HOST:/absolute/path/to/hardening-trial/src/gcc-12.5.0/
+# Alternatively, with the same destination:
+# scp "${GCC_PREREQ_ARCHIVES[@]}" USER@BUILD_HOST:/absolute/path/to/hardening-trial/src/gcc-12.5.0/
+```
+
+On the Linux build machine, confirm all archives exist before invoking the bundled helper. `--no-force` retains them and `--verify` checks them against the checksum list already shipped inside the verified GCC source tree. With all four present, the helper makes no download requests. Do not use `--force`, which deletes the staged archives and downloads again.
 
 ```bash
 cd "$TRIAL_ROOT/src/gcc-12.5.0"
-./contrib/download_prerequisites
+for archive in gmp-6.2.1.tar.bz2 mpfr-4.1.0.tar.bz2 mpc-1.2.1.tar.gz isl-0.24.tar.bz2; do
+    test -s "$archive" || { printf 'Missing staged prerequisite: %s\n' "$archive" >&2; exit 1; }
+done
+./contrib/download_prerequisites --no-force --verify \
+  2>&1 | tee "$TRIAL_ROOT/logs/gcc-prerequisites.log"
 test -d gmp && test -d mpfr && test -d mpc && test -d isl
 ```
+
+The source root now contains `gmp`, `mpfr`, `mpc`, and `isl` symlinks to their extracted source directories. Continue with section 4 and its existing GCC configure command. Keep the archives for reuse on other build machines. A staging Mac is downloading source files, not building or transferring a macOS compiler.
 
 Do not regenerate or loosen checksum expectations to get past a mismatch. A mismatch means the staged source is not the recorded input.
 

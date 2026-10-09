@@ -8,6 +8,8 @@ Environment update 2026-10-08: begin with [build environment and system dependen
 
 Download update 2026-10-09: FFTW source staging now tries independent HTTPS mirrors after the upstream URL and verifies the pinned SHA-256 before accepting a download. For an existing trial, follow the [FFTW-only retry procedure](00-gcc-bootstrap.md#retry-fftw-after-a-certificate-error).
 
+If GCC's prerequisite download is blocked, use the [direct HTTPS downloads and offline transfer procedure](00-gcc-bootstrap.md#stage-gcc-prerequisites-for-a-machine-without-download-access). Stage all four pinned source archives inside the GCC source root; the bundled helper verifies and unpacks them without a download request.
+
 The [Slurm campaign plan](08-slurm-campaign.md) defines hypotheses and the actual ReFrame matrix, including serial/threaded cases, small-dataset HDF5, startup/PIE comparisons, and 1/2/4/8-node MPI runs. It generates sequential batch submission and collects all phase results into a CSV. The bootstrap seed defaults to the installed `/usr/bin/gcc` and `/usr/bin/g++`; payloads use private GCC 12.5. Regenerate/recompile the updated callers and ReFrame files before running this campaign.
 
 ## Download onto the test machine
